@@ -512,7 +512,8 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .card.appel.absent { opacity: 1; border-color: var(--ink); background: var(--bg); }
 .card.appel.absent .photo { opacity: 0.4; }
 .card.appel.absent .appel-state { background: var(--ink); color: var(--bg); }
-.appel-mode { padding-bottom: 96px; }
+.appel-mode { padding-bottom: 110px; }
+.appel-hint { font-size: 13px; opacity: 0.8; }
 .obs-mark.abs { background: var(--ink2); }
 .abs-block { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--bg); }
 .abs-n { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -592,6 +593,20 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .dialog-text { font-size: 16px; line-height: 1.45; color: var(--ink2); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
 .dialog-actions .btn { height: 52px; }
+
+/* Les grilles d'écran prennent exactement la hauteur disponible : leurs listes défilent à l'intérieur. */
+.admin, .detail, .projet, .edit-grid, .groupes { grid-template-rows: minmax(0, 1fr); }
+
+/* ---------- Administration : classes en cartes, par niveau ---------- */
+.class-sec { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.class-sec .sec-label { padding-left: 4px; }
+.class-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.class-card { min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 14px; background: var(--tint); color: var(--ink); }
+.class-card:active { background: var(--avatar); }
+.class-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.class-card-name { font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.class-card-eff { font-size: 13px; color: var(--ink2); white-space: nowrap; }
+.class-card-proj { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- Tablette en portrait / petits écrans ---------- */
 @media (max-width: 1100px) {

@@ -98,8 +98,8 @@ export function seanceContext(classId) {
     const ss = seancesOf(a.id);
     if (!ss.length) continue;
     const p = db.get('projects', a.projectId);
-    const n = ss[ss.length - 1].n;
-    return { assignmentId: a.id, n, label: 'Séance ' + n + (p ? ' · ' + p.title : '') };
+    const last = ss[ss.length - 1];
+    return { assignmentId: a.id, n: last.n, seanceId: last.id, date: last.date, label: 'Séance ' + last.n + (p ? ' · ' + p.title : '') };
   }
   return null;
 }
@@ -170,24 +170,38 @@ export function obsSub(o) { return fmtDay(o.at) + (o.seanceLabel ? ' · ' + o.se
 // ---------- Absences (appel) ----------
 export const absencesOf = studentId =>
   db.where('absences', a => a.studentId === studentId).sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
-export function absentToday(classId) {
-  const d = todayISO();
-  return new Set(db.where('absences', a => a.classId === classId && a.date === d).map(a => a.studentId));
+// Appel en cours : lié à la séance du jour si elle existe (« Nouvelle séance » touchée aujourd'hui),
+// sinon à la journée. Deux cours le même jour = deux séances = deux appels distincts.
+export function currentSession(classId) {
+  const today = todayISO();
+  const ctx = seanceContext(classId);
+  if (ctx && ctx.date === today) return { kind: 'seance', key: 'S:' + ctx.seanceId, ...ctx };
+  const act = activeAssignments(classId)[0];
+  return { kind: 'day', key: 'D:' + today, date: today, assignmentId: act ? act.id : null, n: null, seanceId: null, label: '' };
+}
+function inSession(abs, s) {
+  if (s.kind === 'day') return abs.date === s.date;
+  // Absences créées avant l'appel par séance (sans seanceId) : reconnues par projet + numéro de séance.
+  return abs.seanceId ? abs.seanceId === s.seanceId : abs.assignmentId === s.assignmentId && abs.seanceN === s.n && abs.date === s.date;
+}
+// Élèves absents à l'appel en cours.
+export function absentNow(classId) {
+  const s = currentSession(classId);
+  return new Set(db.where('absences', a => a.classId === classId && inSession(a, s)).map(a => a.studentId));
 }
 export function absenceCount(studentId, t) {
   return db.where('absences', a => a.studentId === studentId && (t == null || a.trimester === t)).length;
 }
-// Marque l'élève absent aujourd'hui, ou annule son absence du jour. Renvoie { absent, undo }.
+// Marque l'élève absent à l'appel en cours, ou annule cette absence. Renvoie { absent, undo }.
 export function toggleAbsent(student) {
-  const d = todayISO();
-  const ex = db.all('absences').find(a => a.studentId === student.id && a.date === d);
+  const s = currentSession(student.classId);
+  const ex = db.all('absences').find(a => a.studentId === student.id && inSession(a, s));
   if (ex) return { absent: false, undo: db.commit(w => w.del('absences', ex.id)) };
-  const ctx = seanceContext(student.classId);
   return {
     absent: true,
     undo: db.commit(w => w.put('absences', {
-      studentId: student.id, classId: student.classId, date: d, at: new Date().toISOString(), trimester: trimester(),
-      assignmentId: ctx ? ctx.assignmentId : null, seanceN: ctx ? ctx.n : null, seanceLabel: ctx ? ctx.label : '',
+      studentId: student.id, classId: student.classId, date: todayISO(), at: new Date().toISOString(), trimester: trimester(),
+      assignmentId: s.assignmentId, seanceId: s.seanceId, seanceN: s.n, seanceLabel: s.label,
     })),
   };
 }

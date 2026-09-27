@@ -24,17 +24,22 @@ export default {
             <a class="btn accent" href="#/admin/classe/new">${icon.plusBig}Nouvelle classe</a>
           </div>
           <div class="panel-scroll list" data-scroll="classes">
-            ${classes.map(c => {
-              const a = model.activeAssignments(c.id)[0];
-              const p = a && db.get('projects', a.projectId);
-              const done = model.assignmentsOf(c.id).filter(x => x.status === 'fini').length;
-              return html`<a class="list-row" href="#/admin/classe/${c.id}">
-                <span class="lr-name">${c.name}</span>
-                <span class="lr-eff muted">${model.studentsOf(c.id).length} élèves</span>
-                <span class="lr-more"><strong>${p ? p.title + ' en cours' : 'Aucun projet en cours'}</strong>
-                  <span class="muted">${done ? ' · ' + done + (done > 1 ? ' terminés' : ' terminé') : ''}</span></span>
-                ${icon.chevron}
-              </a>`;
+            ${model.SECTIONS.map(sec => {
+              const list = classes.filter(c => model.sectionOf(c) === sec.key);
+              if (!list.length) return '';
+              return html`<div class="class-sec" style="--tint:${sec.tint}">
+                <div class="sec-label">${sec.label}</div>
+                <div class="class-grid">${list.map(c => {
+                  const a = model.activeAssignments(c.id)[0];
+                  const p = a && db.get('projects', a.projectId);
+                  const done = model.assignmentsOf(c.id).filter(x => x.status === 'fini').length;
+                  return html`<a class="class-card" href="#/admin/classe/${c.id}">
+                    <span class="class-card-top"><span class="class-card-name">${c.name}</span><span class="class-card-eff">${model.studentsOf(c.id).length} élèves</span></span>
+                    <span class="class-card-proj"><strong>${p ? p.title : 'Aucun projet en cours'}</strong>
+                      <span class="muted">${done ? ' · ' + done + (done > 1 ? ' terminés' : ' terminé') : ''}</span></span>
+                  </a>`;
+                })}</div>
+              </div>`;
             })}
             ${classes.length ? '' : html`<div class="empty-block">Aucune classe. Touchez « Nouvelle classe ».</div>`}
           </div>

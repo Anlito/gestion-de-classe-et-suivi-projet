@@ -12,13 +12,19 @@ const COLOR = { neg: 'var(--neg)', pos: 'var(--pos)' };
 let appel = null;   // classId en mode appel
 let draw = null;    // { classId, sid, spinning, restarted }
 
-// ---------- Élèves déjà interrogés aujourd'hui (mémorisés sur l'appareil, remis à zéro chaque jour) ----------
+// ---------- Élèves déjà interrogés pendant ce cours (mémorisés sur l'appareil) ----------
+// Remis à zéro à chaque nouvelle séance (ou chaque jour s'il n'y a pas de séance du jour).
 function drawnGet(classId) {
-  try { const o = JSON.parse(localStorage.getItem('carnet-tirage-' + classId) || 'null'); if (o && o.date === todayISO()) return o.ids; } catch (e) { /* rien */ }
+  const key = model.currentSession(classId).key;
+  try { const o = JSON.parse(localStorage.getItem('carnet-tirage-' + classId) || 'null'); if (o && o.session === key) return o.ids; } catch (e) { /* rien */ }
   return [];
 }
 function drawnSet(classId, ids) {
-  try { localStorage.setItem('carnet-tirage-' + classId, JSON.stringify({ date: todayISO(), ids })); } catch (e) { /* rien */ }
+  try { localStorage.setItem('carnet-tirage-' + classId, JSON.stringify({ session: model.currentSession(classId).key, ids })); } catch (e) { /* rien */ }
+}
+function sessionTitle(classId) {
+  const s = model.currentSession(classId);
+  return s.kind === 'seance' ? 'Appel · ' + s.label : 'Appel du ' + fmtDayLong(todayISO());
 }
 
 function card(s, c, absent, inAppel) {
@@ -84,7 +90,7 @@ function add(root, btn, motif = '') {
 
 // ---------- Tirage au sort ----------
 function drawPool(classId) {
-  const absent = model.absentToday(classId);
+  const absent = model.absentNow(classId);
   const present = model.studentsOf(classId).filter(s => !absent.has(s.id));
   const done = new Set(drawnGet(classId));
   return { present, absent, done, pool: present.filter(s => !done.has(s.id)) };
@@ -103,7 +109,7 @@ function drawView(classId) {
         <div class="draw-name">${s ? html`${s.prenom} <span class="upper">${s.nom}</span>` : '…'}</div>
       </div>
       ${draw.restarted ? html`<div class="draw-note">Tout le monde est passé : nouveau tour.</div>` : ''}
-      <div class="draw-stats">${asked} interrogé${asked > 1 ? 's' : ''} aujourd’hui · ${left} restant${left > 1 ? 's' : ''}${absent.size ? ` · ${absent.size} absent${absent.size > 1 ? 's' : ''} exclu${absent.size > 1 ? 's' : ''}` : ''}</div>
+      <div class="draw-stats">${asked} interrogé${asked > 1 ? 's' : ''} pendant ce cours · ${left} restant${left > 1 ? 's' : ''}${absent.size ? ` · ${absent.size} absent${absent.size > 1 ? 's' : ''} exclu${absent.size > 1 ? 's' : ''}` : ''}</div>
       ${s && !draw.spinning ? html`<div class="draw-obs">
           <button type="button" class="obs neg" data-click="drawObs" data-type="neg">${icon.minus}Comportement</button>
           <button type="button" class="obs pos" data-click="drawObs" data-type="pos">${icon.plus}Participation</button>
@@ -152,7 +158,7 @@ export default {
     const inAppel = appel === classId;
     const students = model.studentsOf(classId);
     const counts = model.countsByStudent(classId);
-    const absent = model.absentToday(classId);
+    const absent = model.absentNow(classId);
     return html`<div class="screen">
       <header class="topbar">
         ${backLink('#/', 'Classes')}
@@ -175,7 +181,9 @@ export default {
           : html`<div class="empty-block">Aucun élève dans cette classe. Ajoutez-les depuis Administration.</div>`}
       </main>
       ${inAppel ? html`<div class="sel-bar appel-bar">
-        <span class="sel-text"><strong>Appel du ${fmtDayLong(todayISO())}</strong> · touchez les absents · ${absent.size} absent${absent.size > 1 ? 's' : ''} / ${students.length}</span>
+        <span class="sel-text"><strong>${sessionTitle(classId)}</strong> · touchez les absents · ${absent.size} absent${absent.size > 1 ? 's' : ''} / ${students.length}
+          ${model.currentSession(classId).kind === 'day' && model.activeAssignments(classId).length
+            ? html`<br><span class="appel-hint">Pas encore de séance aujourd’hui : créez-la dans l’onglet Projet pour un appel par séance.</span>` : ''}</span>
         <button type="button" class="toast-btn accent" data-click="endAppel">Terminer l’appel</button>
       </div>` : ''}
       ${draw ? drawView(classId) : ''}
@@ -231,7 +239,7 @@ export default {
 
     startAppel(el, e, { classId }) { appel = classId; refresh(); },
     endAppel(el, e, { classId }) {
-      const n = model.absentToday(classId).size;
+      const n = model.absentNow(classId).size;
       appel = null;
       refresh();
       toast({ text: n ? `Appel enregistré : ${n} absent${n > 1 ? 's' : ''}` : 'Appel enregistré : tout le monde est présent' });
