@@ -1,19 +1,22 @@
 // sw.js — Fonctionnement hors-ligne : garde une copie des fichiers de l'app sur l'appareil.
 // À chaque nouvelle version de l'app, augmenter VERSION pour que la tablette récupère les nouveaux fichiers.
-const VERSION = 'carnet-v1.0.2';
+const VERSION = 'carnet-v1.0.3';
 const FONTS = 'carnet-fonts';
 const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/pdfimport.js', 'js/photos.js', 'js/backup.js', 'js/lock.js', 'js/screens/sauvegarde.js', 'js/screens/imprimer.js', 'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs',
+  'js/pdfimport.js', 'js/photos.js', 'js/backup.js', 'js/lock.js', 'js/update.js', 'js/screens/sauvegarde.js', 'js/screens/imprimer.js', 'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs',
   'js/app.js', 'js/db.js', 'js/model.js', 'js/ui.js', 'js/nav.js', 'js/components.js', 'js/demo.js',
   'js/screens/accueil.js', 'js/screens/trombi.js', 'js/screens/eleve.js', 'js/screens/groupes.js', 'js/screens/notes.js', 'js/screens/admin.js',
   'js/screens/projet.js', 'js/screens/reglages.js', 'js/screens/edit-classe.js', 'js/screens/edit-projet.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
 ];
 
+// cache: 'reload' : on télécharge toujours les fichiers frais du serveur (pas une vieille copie du navigateur).
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION)
+    .then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {

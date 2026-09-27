@@ -16,6 +16,7 @@ import editProjet from './screens/edit-projet.js';
 import sauvegarde from './screens/sauvegarde.js';
 import imprimer from './screens/imprimer.js';
 import { initLock } from './lock.js';
+import { initUpdates } from './update.js';
 
 
 // Adresse (après #) → écran. Les parties entre parenthèses deviennent des paramètres.
@@ -87,10 +88,6 @@ async function requestPersistentStorage() {
   } catch (e) { /* non disponible */ }
 }
 
-function registerServiceWorker() {
-  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
-  navigator.serviceWorker.register('sw.js').catch(e => console.warn('Service worker non installé', e));
-}
 
 async function boot() {
   setTheme(currentTheme());
@@ -109,7 +106,7 @@ async function boot() {
   addEventListener('hashchange', render);
   render();
   requestPersistentStorage();
-  registerServiceWorker();
+  initUpdates();
 }
 
 boot();

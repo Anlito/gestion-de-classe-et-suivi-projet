@@ -6,6 +6,7 @@ import { backLink, saveStatus } from '../components.js';
 import { refresh, currentTheme, setTheme, APP_VERSION } from '../nav.js';
 import { loadDemo } from '../demo.js';
 import { hasPin, setPin, removePin, keypad } from '../lock.js';
+import { checkForUpdate, updateReady, restartApp } from '../update.js';
 
 export default {
   render() {
@@ -49,8 +50,16 @@ export default {
           <div class="set-title">Stockage sur cet appareil</div>
           <div class="set-row"><span class="grow">Stockage persistant</span><strong data-fill="persist">…</strong></div>
           <div class="set-row"><span class="grow">Espace utilisé</span><strong data-fill="usage">…</strong></div>
-          <div class="set-row"><span class="grow">Version de l’app</span><strong>${APP_VERSION}</strong></div>
           <div class="muted small">Les données restent sur cet appareil. Si le stockage n’est pas persistant, installez l’app sur l’écran d’accueil : Chrome l’accorde alors en général.</div>
+        </div>
+
+        <div class="set-block">
+          <div class="set-title">Mises à jour</div>
+          <div class="set-row"><span class="grow">Version installée</span><strong>${APP_VERSION}</strong></div>
+          ${updateReady()
+            ? html`<button type="button" class="btn accent" data-click="restart">Nouvelle version prête : redémarrer l’app</button>`
+            : html`<button type="button" class="btn soft" data-click="checkUpdate">Rechercher une mise à jour</button>`}
+          <div class="muted small" data-fill="updateMsg">L’app vérifie aussi toute seule à l’ouverture et quand vous y revenez (connexion Internet nécessaire).</div>
         </div>
 
         <div class="set-block">
@@ -88,6 +97,18 @@ export default {
       toast({ text: `Trimestre ${t + 1} commencé`, undo: async () => { await undo(); refresh(); } });
     },
     theme(el) { setTheme(el.dataset.k); refresh(); },
+    async checkUpdate(el) {
+      el.disabled = true;
+      el.textContent = 'Recherche en cours…';
+      const r = await checkForUpdate();
+      if (r === 'ready') { refresh(); return; }
+      el.disabled = false;
+      el.textContent = 'Rechercher une mise à jour';
+      const msg = { none: `L’app est à jour (version ${APP_VERSION}).`, offline: 'Pas de connexion Internet : réessayez plus tard.', unsupported: 'Recherche impossible sur ce navigateur.' }[r];
+      const m = document.querySelector('[data-fill="updateMsg"]'); if (m) m.textContent = msg;
+      toast({ text: msg });
+    },
+    restart() { restartApp(); },
     setPin() {
       const change = hasPin();
       const choose = () => keypad({ mode: 'set', onDone: async pin => { await setPin(pin); refresh(); toast({ text: 'Code d’accès enregistré' }); }, onCancel: () => {} });
