@@ -167,6 +167,35 @@ export function swapObservation(id) {
 export function obsTitle(o) { return o.motif ? LABEL[o.type] + ' — ' + o.motif : LABEL[o.type]; }
 export function obsSub(o) { return fmtDay(o.at) + (o.seanceLabel ? ' · ' + o.seanceLabel : ''); }
 
+// ---------- Absences (appel) ----------
+export const absencesOf = studentId =>
+  db.where('absences', a => a.studentId === studentId).sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
+export function absentToday(classId) {
+  const d = todayISO();
+  return new Set(db.where('absences', a => a.classId === classId && a.date === d).map(a => a.studentId));
+}
+export function absenceCount(studentId, t) {
+  return db.where('absences', a => a.studentId === studentId && (t == null || a.trimester === t)).length;
+}
+// Marque l'élève absent aujourd'hui, ou annule son absence du jour. Renvoie { absent, undo }.
+export function toggleAbsent(student) {
+  const d = todayISO();
+  const ex = db.all('absences').find(a => a.studentId === student.id && a.date === d);
+  if (ex) return { absent: false, undo: db.commit(w => w.del('absences', ex.id)) };
+  const ctx = seanceContext(student.classId);
+  return {
+    absent: true,
+    undo: db.commit(w => w.put('absences', {
+      studentId: student.id, classId: student.classId, date: d, at: new Date().toISOString(), trimester: trimester(),
+      assignmentId: ctx ? ctx.assignmentId : null, seanceN: ctx ? ctx.n : null, seanceLabel: ctx ? ctx.label : '',
+    })),
+  };
+}
+export const deleteAbsence = id => db.commit(w => w.del('absences', id));
+// Séances d'un projet manquées par un élève (pour l'ajustement « Absent » dans les notes).
+export const absencesInAssignment = (aid, sid) =>
+  db.where('absences', a => a.assignmentId === aid && a.studentId === sid).sort((a, b) => a.date.localeCompare(b.date));
+
 // ---------- Notes libres ----------
 export const notesOf = studentId =>
   db.where('notes', n => n.studentId === studentId).sort((a, b) => b.at.localeCompare(a.at));
@@ -208,13 +237,14 @@ export function reopenAssignment(a) { return db.commit(w => w.update('assignment
 export function deleteAssignmentIn(w, aid) {
   for (const s of ['seances', 'groups', 'evals', 'groupChanges']) for (const r of db.where(s, x => x.assignmentId === aid)) w.del(s, r.id);
   for (const o of db.where('observations', x => x.assignmentId === aid)) w.update('observations', o.id, { assignmentId: null });
+  for (const o of db.where('absences', x => x.assignmentId === aid)) w.update('absences', o.id, { assignmentId: null });
   w.del('assignments', aid);
 }
 // Suppression complète d'un élève : observations, notes, photo, place dans les groupes.
 export function deleteStudentIn(w, sid) {
   const s = db.get('students', sid);
   if (!s) return;
-  for (const st of ['observations', 'notes', 'evals', 'groupChanges']) for (const r of db.where(st, x => x.studentId === sid)) w.del(st, r.id);
+  for (const st of ['observations', 'notes', 'evals', 'groupChanges', 'absences']) for (const r of db.where(st, x => x.studentId === sid)) w.del(st, r.id);
   for (const g of db.where('groups', x => x.members.includes(sid))) w.update('groups', g.id, { members: g.members.filter(m => m !== sid) });
   if (s.photoId) w.del('photos', s.photoId);
   w.del('students', sid);
@@ -225,6 +255,7 @@ export function deleteClassIn(w, classId) {
   for (const s of db.where('students', x => x.classId === classId)) deleteStudentIn(w, s.id);
   for (const a of db.where('assignments', x => x.classId === classId)) deleteAssignmentIn(w, a.id);
   for (const o of db.where('observations', x => x.classId === classId)) w.del('observations', o.id);
+  for (const o of db.where('absences', x => x.classId === classId)) w.del('absences', o.id);
   w.del('classes', classId);
 }
 export const deleteClass = classId => db.commit(w => deleteClassIn(w, classId));

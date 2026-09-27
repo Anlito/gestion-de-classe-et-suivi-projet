@@ -156,6 +156,11 @@ export async function loadDemo() {
           });
         }
       }
+      if (r() < 0.15 && seanceLabels.length) {
+        const sl = pick(seanceLabels);
+        put('absences', { studentId: s.id, classId: cls.id, date: sl.date, at: new Date(sl.date + 'T08:05').toISOString(), trimester: 1,
+          assignmentId: sl.a, seanceN: sl.n, seanceLabel: sl.label });
+      }
       if (r() < 0.12) put('notes', { studentId: s.id, text: pick(['Travaille mieux en binôme.', 'À placer devant, consignes écrites au tableau.', 'Très investi dans le projet.', 'Oublie souvent son matériel.']), at: new Date(now - Math.floor(r() * 15) * 864e5).toISOString() });
     }
   }

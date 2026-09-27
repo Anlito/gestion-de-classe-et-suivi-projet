@@ -12,7 +12,7 @@
 //   chiffré déposé sur Google Drive.
 
 const DB_NAME = 'carnet-de-classe';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // 2 : ajout des absences
 export const SNAPSHOT_FORMAT = 1;
 
 export const STORES = [
@@ -28,6 +28,7 @@ export const STORES = [
   'groups',        // { assignmentId, code, members:[studentId], comment, levels:{ critId: 1..4 } }
   'evals',         // { assignmentId, studentId, carried:{critId:lvl}, adj:{critId:lvl}, motif, precision }
   'groupChanges',  // { assignmentId, studentId, from, to, at, seanceN }
+  'absences',      // { studentId, classId, date:'AAAA-MM-JJ', at, trimester, assignmentId, seanceN, seanceLabel }
 ];
 
 let idb = null;

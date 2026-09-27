@@ -1,17 +1,40 @@
 // Trombinoscope : l'écran le plus utilisé. Un tap = une observation ; appui long = choix d'un motif.
+// Mode « Appel » : toucher les élèves absents. « Tirage » : tirage au sort parmi les présents pas encore interrogés.
 import * as db from '../db.js';
 import * as model from '../model.js';
-import { html, toast, openMenu, buzz } from '../ui.js';
+import { html, toast, openMenu, buzz, todayISO, fmtDayLong } from '../ui.js';
 import { icon, backLink, saveStatus, tabBar, photo } from '../components.js';
-import { go } from '../nav.js';
+import { go, refresh } from '../nav.js';
 
 const LONG_PRESS_MS = 450;
 const COLOR = { neg: 'var(--neg)', pos: 'var(--pos)' };
 
-function card(s, c) {
-  return html`<div class="card" data-sid="${s.id}">
+let appel = null;   // classId en mode appel
+let draw = null;    // { classId, sid, spinning, restarted }
+
+// ---------- Élèves déjà interrogés aujourd'hui (mémorisés sur l'appareil, remis à zéro chaque jour) ----------
+function drawnGet(classId) {
+  try { const o = JSON.parse(localStorage.getItem('carnet-tirage-' + classId) || 'null'); if (o && o.date === todayISO()) return o.ids; } catch (e) { /* rien */ }
+  return [];
+}
+function drawnSet(classId, ids) {
+  try { localStorage.setItem('carnet-tirage-' + classId, JSON.stringify({ date: todayISO(), ids })); } catch (e) { /* rien */ }
+}
+
+function card(s, c, absent, inAppel) {
+  if (inAppel) {
+    return html`<button type="button" class="card appel${absent ? ' absent' : ''}" data-click="toggleAbs" data-sid="${s.id}" aria-pressed="${absent ? 'true' : 'false'}">
+      <span class="card-photo">${photo(s)}</span>
+      <span class="card-body">
+        <span class="card-name"><span class="prenom">${s.prenom || '—'}</span><span class="nom">${s.nom}</span></span>
+        <span class="appel-state">${absent ? 'Absent' : 'Présent'}</span>
+      </span>
+    </button>`;
+  }
+  return html`<div class="card${absent ? ' absent' : ''}" data-sid="${s.id}">
     <button type="button" class="card-photo" data-click="detail" data-sid="${s.id}" aria-label="Détail de ${model.fullName(s)}">
       ${photo(s, { badge: true })}
+      ${absent ? html`<span class="abs-chip">Absent</span>` : ''}
     </button>
     <div class="card-body">
       <div class="card-name" data-click="detail" data-sid="${s.id}">
@@ -59,37 +82,112 @@ function add(root, btn, motif = '') {
   });
 }
 
+// ---------- Tirage au sort ----------
+function drawPool(classId) {
+  const absent = model.absentToday(classId);
+  const present = model.studentsOf(classId).filter(s => !absent.has(s.id));
+  const done = new Set(drawnGet(classId));
+  return { present, absent, done, pool: present.filter(s => !done.has(s.id)) };
+}
+
+function drawView(classId) {
+  const { present, absent, done } = drawPool(classId);
+  const s = draw.sid ? db.get('students', draw.sid) : null;
+  const asked = present.filter(x => done.has(x.id)).length;
+  const left = present.length - asked;
+  return html`<div class="scrim dim" data-click="closeDraw"></div>
+    <div class="draw-box" role="dialog" aria-modal="true">
+      <div class="draw-title">${icon.dice} Tirage au sort</div>
+      <div class="draw-card${draw.spinning ? ' spinning' : ''}">
+        <span class="draw-photo">${s ? photo(s, { cls: 'huge' }) : ''}</span>
+        <div class="draw-name">${s ? html`${s.prenom} <span class="upper">${s.nom}</span>` : '…'}</div>
+      </div>
+      ${draw.restarted ? html`<div class="draw-note">Tout le monde est passé : nouveau tour.</div>` : ''}
+      <div class="draw-stats">${asked} interrogé${asked > 1 ? 's' : ''} aujourd’hui · ${left} restant${left > 1 ? 's' : ''}${absent.size ? ` · ${absent.size} absent${absent.size > 1 ? 's' : ''} exclu${absent.size > 1 ? 's' : ''}` : ''}</div>
+      ${s && !draw.spinning ? html`<div class="draw-obs">
+          <button type="button" class="obs neg" data-click="drawObs" data-type="neg">${icon.minus}Comportement</button>
+          <button type="button" class="obs pos" data-click="drawObs" data-type="pos">${icon.plus}Participation</button>
+        </div>` : ''}
+      <div class="draw-actions">
+        <button type="button" class="btn soft" data-click="closeDraw">Fermer</button>
+        <button type="button" class="btn accent big" data-click="draw" ${draw.spinning ? 'disabled' : ''}>${icon.dice}Nouveau tirage</button>
+      </div>
+      <button type="button" class="link-btn" data-click="resetDraw">Recommencer à zéro (oublier les élèves déjà interrogés)</button>
+    </div>`;
+}
+
+function startDraw(classId) {
+  let { present, pool } = drawPool(classId);
+  if (!present.length) { toast({ text: 'Aucun élève présent pour le tirage' }); return; }
+  let restarted = false;
+  if (!pool.length) { drawnSet(classId, []); pool = present; restarted = true; }
+  const winner = pool[Math.floor(Math.random() * pool.length)];
+  draw = { classId, sid: pool[0].id, spinning: true, restarted };
+  refresh();
+  // Défilement des visages pendant ~1 s, puis arrêt sur l'élève tiré.
+  const box = () => document.querySelector('.draw-card');
+  let i = 0;
+  const tick = setInterval(() => {
+    const b = box();
+    if (!b || !draw) { clearInterval(tick); return; }
+    const s = present[Math.floor(Math.random() * present.length)];
+    b.querySelector('.draw-photo').innerHTML = photo(s, { cls: 'huge' }).s;
+    b.querySelector('.draw-name').textContent = s.prenom + ' ' + s.nom;
+    if (++i >= 12) {
+      clearInterval(tick);
+      drawnSet(classId, [...drawnGet(classId), winner.id]);
+      draw = { classId, sid: winner.id, spinning: false, restarted };
+      buzz(40);
+      refresh();
+    }
+  }, 80);
+}
+
 export default {
   render({ classId }) {
     const c = db.get('classes', classId);
     if (!c) { go('#/', { replace: true }); return null; }
+    if (appel && appel !== classId) appel = null;
+    if (draw && draw.classId !== classId) draw = null;
+    const inAppel = appel === classId;
     const students = model.studentsOf(classId);
     const counts = model.countsByStudent(classId);
+    const absent = model.absentToday(classId);
     return html`<div class="screen">
       <header class="topbar">
         ${backLink('#/', 'Classes')}
         <div class="heading"><span class="title">${c.name}</span>
-          <span class="sub">${students.length} élèves · Trimestre ${model.trimester()}</span></div>
+          <span class="sub">${students.length} élèves${absent.size ? ` · ${absent.size} absent${absent.size > 1 ? 's' : ''}` : ''} · Trimestre ${model.trimester()}</span></div>
         <div class="spacer"></div>
-        <div class="legend hide-narrow">
-          <span><i class="sw neg"></i>Comportement</span>
-          <span><i class="sw pos"></i>Aide / soutien / rangement</span>
-        </div>
-        <div class="vsep hide-narrow"></div>
-        ${saveStatus()}
+        ${inAppel ? '' : html`
+          <button type="button" class="btn soft" data-click="startAppel">${icon.roll}<span class="hide-phone">Appel</span></button>
+          <button type="button" class="btn soft" data-click="draw">${icon.dice}<span class="hide-phone">Tirage</span></button>
+          <div class="legend hide-narrow">
+            <span><i class="sw neg"></i>Comportement</span>
+            <span><i class="sw pos"></i>Aide / soutien / rangement</span>
+          </div>
+          <div class="vsep hide-narrow"></div>
+          ${saveStatus()}`}
       </header>
-      <main class="content trombi" data-scroll="trombi">
+      <main class="content trombi${inAppel ? ' appel-mode' : ''}" data-scroll="trombi">
         ${students.length
-          ? html`<div class="trombi-grid">${students.map(s => card(s, counts.get(s.id) || { neg: 0, pos: 0 }))}</div>`
+          ? html`<div class="trombi-grid">${students.map(s => card(s, counts.get(s.id) || { neg: 0, pos: 0 }, absent.has(s.id), inAppel))}</div>`
           : html`<div class="empty-block">Aucun élève dans cette classe. Ajoutez-les depuis Administration.</div>`}
       </main>
+      ${inAppel ? html`<div class="sel-bar appel-bar">
+        <span class="sel-text"><strong>Appel du ${fmtDayLong(todayISO())}</strong> · touchez les absents · ${absent.size} absent${absent.size > 1 ? 's' : ''} / ${students.length}</span>
+        <button type="button" class="toast-btn accent" data-click="endAppel">Terminer l’appel</button>
+      </div>` : ''}
+      ${draw ? drawView(classId) : ''}
       ${tabBar(classId, 'trombi')}
     </div>`;
   },
 
+  leave() { appel = null; draw = null; },
+
   mount(root) {
     const grid = root.querySelector('.trombi-grid');
-    if (!grid) return;
+    if (!grid || appel) return;
     let press = null;
     const cancel = () => { if (press) { clearTimeout(press.timer); press = null; } };
 
@@ -130,5 +228,40 @@ export default {
 
   actions: {
     detail(el, e, { classId }) { go(`#/classe/${classId}/eleve/${el.dataset.sid}`); },
+
+    startAppel(el, e, { classId }) { appel = classId; refresh(); },
+    endAppel(el, e, { classId }) {
+      const n = model.absentToday(classId).size;
+      appel = null;
+      refresh();
+      toast({ text: n ? `Appel enregistré : ${n} absent${n > 1 ? 's' : ''}` : 'Appel enregistré : tout le monde est présent' });
+    },
+    toggleAbs(el) {
+      const s = db.get('students', el.dataset.sid);
+      if (!s) return;
+      model.toggleAbsent(s);
+      buzz(18);
+      refresh();
+    },
+
+    draw(el, e, { classId }) { if (!draw || !draw.spinning) startDraw(classId); },
+    closeDraw() { draw = null; refresh(); },
+    resetDraw(el, e, { classId }) {
+      drawnSet(classId, []);
+      if (draw) draw.restarted = false;
+      refresh();
+      toast({ text: 'Liste des élèves interrogés remise à zéro' });
+    },
+    drawObs(el) {
+      const s = draw && db.get('students', draw.sid);
+      if (!s) return;
+      const type = el.dataset.type;
+      const motif = type === 'pos' ? 'Participation' : '';
+      const undo = model.addObservation(s, type, motif);
+      buzz(18);
+      refresh();
+      toast({ who: model.shortName(s), text: model.LABEL[type] + (motif ? ' — ' + motif : ''), color: COLOR[type],
+        undo: async () => { await undo(); refresh(); return { who: model.shortName(s), text: 'saisie annulée' }; } });
+    },
   },
 };

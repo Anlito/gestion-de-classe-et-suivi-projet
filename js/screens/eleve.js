@@ -20,7 +20,12 @@ export default {
     const byT = [1, 2, 3].map(k => model.countsOf(s.id, k));
     const max = Math.max(8, ...byT.flatMap(x => [x.neg, x.pos]));
     const gi = model.studentGroupInfo(s);
-    const obs = model.observationsOf(s.id).filter(o => o.trimester === st.period && (st.filter === 'all' || o.type === st.filter));
+    const obs = st.filter === 'abs' ? [] : model.observationsOf(s.id).filter(o => o.trimester === st.period && (st.filter === 'all' || o.type === st.filter));
+    const abs = st.filter === 'all' || st.filter === 'abs' ? model.absencesOf(s.id).filter(a => a.trimester === st.period) : [];
+    // Historique : observations et absences mêlées, de la plus récente à la plus ancienne.
+    const rowsList = [...obs.map(o => ({ kind: 'obs', key: o.at, o })), ...abs.map(a => ({ kind: 'abs', key: a.date + 'T' + a.at.slice(11), a }))]
+      .sort((x, y) => y.key.localeCompare(x.key));
+    const absentNow = model.absentToday(s.classId).has(s.id);
     const notes = model.notesOf(s.id);
     const seg = on => (on ? ' on' : '');
 
@@ -54,6 +59,11 @@ export default {
               </div>`)}
             </div>
           </div>
+          <div class="abs-block">
+            <div class="grow"><div class="abs-n">${model.absenceCount(s.id, t)} <span class="abs-label">absence${model.absenceCount(s.id, t) > 1 ? 's' : ''} ce trimestre</span></div>
+              <div class="muted small">${model.absenceCount(s.id)} sur l’année</div></div>
+            <button type="button" class="btn ${absentNow ? 'accent' : 'soft'} small" data-click="toggleAbs">${absentNow ? '✓ Absent aujourd’hui' : 'Absent aujourd’hui'}</button>
+          </div>
           <div class="stack">
             <div class="caps">Par trimestre</div>
             ${byT.map((x, i) => {
@@ -75,18 +85,24 @@ export default {
             <div class="panel-title">Historique des observations</div>
             <div class="filters">
               <div class="segmented">${[1, 2, 3].map(k => html`<button type="button" class="seg${seg(st.period === k)}" data-click="period" data-k="${k}">T${k}</button>`)}</div>
-              <div class="segmented">${[['all', 'Tout'], ['neg', 'Comportement'], ['pos', 'Aide']].map(([k, l]) =>
+              <div class="segmented">${[['all', 'Tout'], ['neg', 'Comportement'], ['pos', 'Aide'], ['abs', 'Absences']].map(([k, l]) =>
                 html`<button type="button" class="seg${seg(st.filter === k)}" data-click="filter" data-k="${k}">${l}</button>`)}</div>
             </div>
           </div>
           <div class="panel-scroll" data-scroll="obs">
-            ${obs.map(o => html`<div class="obs-row">
-              <span class="obs-mark ${o.type}"></span>
-              <div class="obs-text"><div class="obs-title">${model.obsTitle(o)}</div><div class="muted small">${model.obsSub(o)}</div></div>
-              <button type="button" class="btn soft small" data-click="swap" data-id="${o.id}" aria-label="${o.type === 'neg' ? 'Passer en Aide' : 'Passer en Comportement'}">${icon.swap}<span class="swap-label">${o.type === 'neg' ? 'Passer en Aide' : 'Passer en Comportement'}</span></button>
-              <button type="button" class="icon-btn" data-click="delObs" data-id="${o.id}" aria-label="Supprimer">${icon.trash}</button>
-            </div>`)}
-            ${obs.length ? '' : html`<div class="empty-block">${st.period > t ? `Le trimestre ${st.period} n’a pas encore commencé.` : 'Aucune observation.'}</div>`}
+            ${rowsList.map(r => r.kind === 'abs'
+              ? html`<div class="obs-row">
+                  <span class="obs-mark abs"></span>
+                  <div class="obs-text"><div class="obs-title">Absent</div><div class="muted small">${fmtDay(r.a.date)}${r.a.seanceLabel ? ' · ' + r.a.seanceLabel : ''}</div></div>
+                  <button type="button" class="icon-btn" data-click="delAbs" data-id="${r.a.id}" aria-label="Supprimer l'absence">${icon.trash}</button>
+                </div>`
+              : html`<div class="obs-row">
+                  <span class="obs-mark ${r.o.type}"></span>
+                  <div class="obs-text"><div class="obs-title">${model.obsTitle(r.o)}</div><div class="muted small">${model.obsSub(r.o)}</div></div>
+                  <button type="button" class="btn soft small" data-click="swap" data-id="${r.o.id}" aria-label="${r.o.type === 'neg' ? 'Passer en Aide' : 'Passer en Comportement'}">${icon.swap}<span class="swap-label">${r.o.type === 'neg' ? 'Passer en Aide' : 'Passer en Comportement'}</span></button>
+                  <button type="button" class="icon-btn" data-click="delObs" data-id="${r.o.id}" aria-label="Supprimer">${icon.trash}</button>
+                </div>`)}
+            ${rowsList.length ? '' : html`<div class="empty-block">${st.period > t ? `Le trimestre ${st.period} n’a pas encore commencé.` : st.filter === 'abs' ? 'Aucune absence.' : 'Aucune observation.'}</div>`}
           </div>
         </section>
 
@@ -152,6 +168,17 @@ export default {
       toast({ text: 'Observation supprimée', undo: async () => { await undo(); refresh(); }, undone: 'Suppression annulée' });
     },
 
+    toggleAbs(el, e, { studentId }) {
+      const s = db.get('students', studentId);
+      const { absent, undo } = model.toggleAbsent(s);
+      refresh();
+      toast({ text: absent ? `${s.prenom} noté absent aujourd’hui` : `Absence du jour retirée`, undo: async () => { await undo(); refresh(); } });
+    },
+    delAbs(el) {
+      const undo = model.deleteAbsence(el.dataset.id);
+      refresh();
+      toast({ text: 'Absence supprimée', undo: async () => { await undo(); refresh(); }, undone: 'Suppression annulée' });
+    },
     newNote(el) { st.newNote = el.value; },
     addNote(el, e, { studentId }) {
       const text = st.newNote.trim();

@@ -501,6 +501,42 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
+/* ---------- Appel, absences, tirage au sort ---------- */
+.card.absent { opacity: 0.45; }
+.card-photo { position: relative; }
+.abs-chip { position: absolute; left: 4px; top: 4px; padding: 2px 6px; border-radius: 6px; background: var(--ink); color: var(--bg); font-size: 11px; font-weight: 800; }
+.card.appel { width: 100%; text-align: left; cursor: pointer; border: 3px solid transparent; }
+.card.appel .prenom, .card.appel .nom { display: block; }
+.card.appel .card-body { justify-content: space-between; }
+.appel-state { align-self: flex-start; padding: 8px 14px; border-radius: 10px; background: var(--posTint); color: var(--pos); font-size: 16px; font-weight: 800; }
+.card.appel.absent { opacity: 1; border-color: var(--ink); background: var(--bg); }
+.card.appel.absent .photo { opacity: 0.4; }
+.card.appel.absent .appel-state { background: var(--ink); color: var(--bg); }
+.appel-mode { padding-bottom: 96px; }
+.obs-mark.abs { background: var(--ink2); }
+.abs-block { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--bg); }
+.abs-n { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.abs-label { font-size: 14px; font-weight: 600; }
+.abs-info { padding: 12px 14px; border-radius: 12px; background: var(--warnTint); font-size: 15px; line-height: 1.4; }
+.gt-abs { font-size: 12px; color: var(--ink2); }
+.doc-abs { margin: 6px 0 0; font-size: 12px; }
+.draw-box { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 16; width: min(460px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px); overflow: auto; background: var(--surface); border-radius: 22px; padding: 22px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.draw-title { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 800; color: var(--ink2); }
+.draw-card { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.draw-card.spinning .photo { filter: blur(1px); }
+.photo.huge { width: 160px; height: 240px; border-radius: 16px; }
+.photo.huge .photo-missing { font-size: 15px; }
+.draw-name { font-size: 30px; font-weight: 800; min-height: 40px; }
+.draw-note { padding: 6px 12px; border-radius: 10px; background: var(--accentTint); font-size: 14px; font-weight: 700; }
+.draw-stats { font-size: 14px; color: var(--ink2); }
+.draw-obs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+.draw-obs .obs { font-size: 16px; font-weight: 700; gap: 6px; }
+.draw-actions { display: flex; gap: 10px; width: 100%; }
+.draw-actions .btn { flex: 1; }
+.draw-actions .btn.big { flex: 1.5; }
+
 /* ---------- Bandeau de mise à jour ---------- */
 .update-banner { position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 35;
   display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 18px; border-radius: 14px; max-width: calc(100vw - 24px);
@@ -604,6 +640,8 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
   .panel-head.row .btn { flex: 1 1 auto; padding: 0 12px; font-size: 15px; }
   .drop-zone { margin: 0 12px 12px; }
   .swap-label, .back-label, .hide-phone { display: none !important; }
+  .filters .segmented { flex-wrap: wrap; }
+  .filters .seg { min-width: 0; padding: 0 10px; font-size: 14px; }
   .groups-grid { grid-template-columns: minmax(0, 1fr); }
   .rev-grid { grid-template-columns: minmax(0, 1fr); padding: 0 12px 12px; }
   .reminder { flex-direction: column; align-items: stretch; }

@@ -11,6 +11,7 @@ function counters(s) {
   return html`<table class="doc-table counters-t">
     <tr><th></th>${[1, 2, 3].map(k => html`<th>Trimestre ${k}</th>`)}</tr>
     ${['neg', 'pos'].map(type => html`<tr><th class="left">${model.LABEL[type]}</th>${[1, 2, 3].map(k => html`<td>${k > t ? 'à venir' : model.countsOf(s.id, k)[type]}</td>`)}</tr>`)}
+    <tr><th class="left">Absences</th>${[1, 2, 3].map(k => html`<td>${k > t ? 'à venir' : model.absenceCount(s.id, k)}</td>`)}</tr>
   </table>`;
 }
 
@@ -29,8 +30,10 @@ function fiche(s) {
         <div class="doc-muted">Éditée le ${fmtDayYear(new Date())}</div>
       </div>
     </div>
-    <h2>Comportement et aide, par trimestre</h2>
+    <h2>Comportement, aide et absences, par trimestre</h2>
     ${counters(s)}
+    ${(() => { const abs = model.absencesOf(s.id).slice().reverse(); return abs.length
+      ? html`<p class="doc-abs"><strong>Absences :</strong> ${abs.map(a => fmtDay(a.date) + (a.seanceLabel ? ' (' + a.seanceLabel + ')' : '')).join(' · ')}</p>` : ''; })()}
     <h2>Résultats des projets</h2>
     ${results.length ? html`<table class="doc-table">
       <tr><th class="left">Projet</th><th>Groupe</th><th class="left">Niveaux par critère</th><th>Note /20</th><th>Mention</th></tr>
@@ -62,7 +65,7 @@ function recap(c) {
       <tr>${head.map((h, i) => html`<th class="${i < 2 ? 'left' : ''}">${h}</th>`)}</tr>
       ${body.map(r => html`<tr>${r.map((v, i) => html`<td class="${i < 2 ? 'left' : ''}">${i === 0 ? html`<strong>${v}</strong>` : v}</td>`)}</tr>`)}
     </table>
-    <p class="doc-muted">Colonnes « Comportement » et « Aide » : nombre d’observations du trimestre. Notes de projet : niveaux 1 à 4 ramenés sur 20, ajustements individuels compris.</p>
+    <p class="doc-muted">Colonnes « Comportement » et « Aide » : nombre d’observations du trimestre ; « Absences » : relevées à l’appel. Notes de projet : niveaux 1 à 4 ramenés sur 20, ajustements individuels compris.</p>
   </section>`;
 }
 

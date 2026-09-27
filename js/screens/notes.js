@@ -1,7 +1,7 @@
 // Onglet Notes : tableau d'évaluation par niveaux (1 à 4), note /20, mention, ajustements individuels.
 import * as db from '../db.js';
 import * as model from '../model.js';
-import { html, toast, openMenu } from '../ui.js';
+import { html, toast, openMenu, fmtDay } from '../ui.js';
 import { icon, backLink, tabBar, projectSwitch } from '../components.js';
 import { go, refresh } from '../nav.js';
 
@@ -46,6 +46,11 @@ function drawerView(a, p) {
         ${s ? html`
         <div class="note-box"><span class="grow">Note de <strong>${s.prenom}</strong></span>
           <span class="note-big">${model.f1(ind.n)}</span><span class="muted small">groupe : ${model.f1(grp.n)}</span></div>
+        ${(() => {
+          const missed = model.absencesInAssignment(a.id, s.id);
+          return missed.length ? html`<div class="abs-info">Absent${missed.length > 1 ? ` ${missed.length} fois` : ''} pendant ce projet :
+            ${missed.map(x => (x.seanceN ? 'séance ' + x.seanceN : '') + ' (' + fmtDay(x.date) + ')').join(', ')}</div>` : '';
+        })()}
         <div class="adj-list">${crit.map(c => {
           const base = model.baseLevel(a.id, s.id, c.id);
           const own = e && e.adj ? e.adj[c.id] : undefined;
@@ -121,11 +126,13 @@ export default {
               const members = g.members.map(id => db.get('students', id)).filter(Boolean);
               const adj = members.filter(s => model.hasAdjustment(a.id, s.id))
                 .map(s => s.prenom + ' : ' + model.f1(model.computeNote(model.studentLevels(a.id, s.id), crit).n));
+              const absN = members.filter(s => model.absencesInAssignment(a.id, s.id).length).map(s => s.prenom);
               return html`<div class="gt-row">
                 <button type="button" class="gt-group gt-gbtn" data-click="openDrawer" data-gid="${g.id}">
                   <span class="grow gt-gtext"><span class="gt-gcode">${g.code}</span>
                     <span class="muted xsmall ellipsis">${members.map(s => s.prenom).join(', ') || 'Aucun élève'}</span>
-                    ${adj.length ? html`<span class="gt-adj">${icon.edit}${adj.join(' · ')}</span>` : ''}</span>
+                    ${adj.length ? html`<span class="gt-adj">${icon.edit}${adj.join(' · ')}</span>` : ''}
+                    ${absN.length ? html`<span class="gt-abs">Absences : ${absN.join(', ')}</span>` : ''}</span>
                   ${icon.chevron}
                 </button>
                 ${crit.map(cr => html`<div class="gt-crit">${cell(g.levels[cr.id], g.id, cr.id)}</div>`)}
