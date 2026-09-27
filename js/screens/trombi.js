@@ -187,10 +187,6 @@ function drawView(classId) {
       </div>
       ${draw.restarted ? html`<div class="draw-note">Tout le monde est passé : nouveau tour.</div>` : ''}
       <div class="draw-stats">${asked} interrogé${asked > 1 ? 's' : ''} pendant ce cours · ${left} restant${left > 1 ? 's' : ''}${absent.size ? ` · ${absent.size} absent${absent.size > 1 ? 's' : ''} exclu${absent.size > 1 ? 's' : ''}` : ''}</div>
-      ${s && !draw.spinning ? html`<div class="draw-obs">
-          <button type="button" class="obs neg" data-click="drawObs" data-type="neg">${icon.minus}Comportement</button>
-          <button type="button" class="obs pos" data-click="drawObs" data-type="pos">${icon.plus}Participation</button>
-        </div>` : ''}
       <div class="draw-actions">
         <button type="button" class="btn soft" data-click="closeDraw">Fermer</button>
         <button type="button" class="btn accent big" data-click="draw" ${draw.spinning ? 'disabled' : ''}>${icon.dice}Nouveau tirage</button>
@@ -335,17 +331,6 @@ export default {
       if (draw) draw.restarted = false;
       refresh();
       toast({ text: 'Liste des élèves interrogés remise à zéro' });
-    },
-    drawObs(el) {
-      const s = draw && db.get('students', draw.sid);
-      if (!s) return;
-      const type = el.dataset.type;
-      const motif = type === 'pos' ? 'Participation' : '';
-      const undo = model.addObservation(s, type, motif);
-      buzz(18);
-      refresh();
-      toast({ who: model.shortName(s), text: model.LABEL[type] + (motif ? ' — ' + motif : ''), color: COLOR[type],
-        undo: async () => { await undo(); refresh(); return { who: model.shortName(s), text: 'saisie annulée' }; } });
     },
   },
 };

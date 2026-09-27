@@ -539,8 +539,6 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .draw-name { font-size: 30px; font-weight: 800; min-height: 40px; }
 .draw-note { padding: 6px 12px; border-radius: 10px; background: var(--accentTint); font-size: 14px; font-weight: 700; }
 .draw-stats { font-size: 14px; color: var(--ink2); }
-.draw-obs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-.draw-obs .obs { font-size: 16px; font-weight: 700; gap: 6px; }
 .draw-actions { display: flex; gap: 10px; width: 100%; }
 .draw-actions .btn { flex: 1; }
 .draw-actions .btn.big { flex: 1.5; }
