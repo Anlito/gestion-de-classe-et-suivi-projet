@@ -170,38 +170,54 @@ export function obsSub(o) { return fmtDay(o.at) + (o.seanceLabel ? ' · ' + o.se
 // ---------- Absences (appel) ----------
 export const absencesOf = studentId =>
   db.where('absences', a => a.studentId === studentId).sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
-// Appel en cours : lié à la séance du jour si elle existe (« Nouvelle séance » touchée aujourd'hui),
-// sinon à la journée. Deux cours le même jour = deux séances = deux appels distincts.
-export function currentSession(classId) {
-  const today = todayISO();
+// Chaque appel est enregistré. L'appel « en cours » est le dernier appel de la journée pour la classe.
+// Avec un projet en cours, un appel est toujours rattaché à une séance du jour (créée au besoin).
+export const appelsToday = classId =>
+  db.where('appels', x => x.classId === classId && x.date === todayISO()).sort((a, b) => a.at.localeCompare(b.at));
+export function currentAppel(classId) { const l = appelsToday(classId); return l[l.length - 1] || null; }
+// Séance du projet en cours créée aujourd'hui (ou null).
+export function todaySeance(classId) {
   const ctx = seanceContext(classId);
-  if (ctx && ctx.date === today) return { kind: 'seance', key: 'S:' + ctx.seanceId, ...ctx };
+  return ctx && ctx.date === todayISO() ? ctx : null;
+}
+export function createAppel(classId, ctx) {
+  let appel;
+  const n = appelsToday(classId).length + 1;
   const act = activeAssignments(classId)[0];
-  return { kind: 'day', key: 'D:' + today, date: today, assignmentId: act ? act.id : null, n: null, seanceId: null, label: '' };
+  const undo = db.commit(w => {
+    appel = w.put('appels', {
+      classId, date: todayISO(), at: new Date().toISOString(), n,
+      assignmentId: ctx ? ctx.assignmentId : act ? act.id : null, seanceId: ctx ? ctx.seanceId : null,
+      seanceN: ctx ? ctx.n : null, label: ctx ? ctx.label : '',
+    });
+  });
+  return { appel, undo };
 }
-function inSession(abs, s) {
-  if (s.kind === 'day') return abs.date === s.date;
-  // Absences créées avant l'appel par séance (sans seanceId) : reconnues par projet + numéro de séance.
-  return abs.seanceId ? abs.seanceId === s.seanceId : abs.assignmentId === s.assignmentId && abs.seanceN === s.n && abs.date === s.date;
+// « Je recommence » : efface les absences notées à cet appel.
+export function resetAppel(appel) {
+  return db.commit(w => { for (const a of db.where('absences', x => x.appelId === appel.id)) w.del('absences', a.id); });
 }
+export const appelTitle = ap => (ap && ap.label ? 'Appel · ' + ap.label : 'Appel du ' + fmtDay(todayISO()) + (ap && ap.n > 1 ? ' (cours ' + ap.n + ')' : ''));
 // Élèves absents à l'appel en cours.
 export function absentNow(classId) {
-  const s = currentSession(classId);
-  return new Set(db.where('absences', a => a.classId === classId && inSession(a, s)).map(a => a.studentId));
+  const ap = currentAppel(classId);
+  if (!ap) return new Set();
+  return new Set(db.where('absences', a => a.appelId === ap.id).map(a => a.studentId));
 }
 export function absenceCount(studentId, t) {
   return db.where('absences', a => a.studentId === studentId && (t == null || a.trimester === t)).length;
 }
-// Marque l'élève absent à l'appel en cours, ou annule cette absence. Renvoie { absent, undo }.
+// Marque l'élève absent à l'appel en cours, ou annule cette absence. Renvoie { absent, undo }, ou null sans appel.
 export function toggleAbsent(student) {
-  const s = currentSession(student.classId);
-  const ex = db.all('absences').find(a => a.studentId === student.id && inSession(a, s));
+  const ap = currentAppel(student.classId);
+  if (!ap) return null;
+  const ex = db.all('absences').find(a => a.studentId === student.id && a.appelId === ap.id);
   if (ex) return { absent: false, undo: db.commit(w => w.del('absences', ex.id)) };
   return {
     absent: true,
     undo: db.commit(w => w.put('absences', {
-      studentId: student.id, classId: student.classId, date: todayISO(), at: new Date().toISOString(), trimester: trimester(),
-      assignmentId: s.assignmentId, seanceId: s.seanceId, seanceN: s.n, seanceLabel: s.label,
+      studentId: student.id, classId: student.classId, appelId: ap.id, date: ap.date, at: new Date().toISOString(), trimester: trimester(),
+      assignmentId: ap.assignmentId, seanceId: ap.seanceId, seanceN: ap.seanceN, seanceLabel: ap.label,
     })),
   };
 }
@@ -252,6 +268,7 @@ export function deleteAssignmentIn(w, aid) {
   for (const s of ['seances', 'groups', 'evals', 'groupChanges']) for (const r of db.where(s, x => x.assignmentId === aid)) w.del(s, r.id);
   for (const o of db.where('observations', x => x.assignmentId === aid)) w.update('observations', o.id, { assignmentId: null });
   for (const o of db.where('absences', x => x.assignmentId === aid)) w.update('absences', o.id, { assignmentId: null });
+  for (const o of db.where('appels', x => x.assignmentId === aid)) w.update('appels', o.id, { assignmentId: null });
   w.del('assignments', aid);
 }
 // Suppression complète d'un élève : observations, notes, photo, place dans les groupes.
@@ -270,6 +287,7 @@ export function deleteClassIn(w, classId) {
   for (const a of db.where('assignments', x => x.classId === classId)) deleteAssignmentIn(w, a.id);
   for (const o of db.where('observations', x => x.classId === classId)) w.del('observations', o.id);
   for (const o of db.where('absences', x => x.classId === classId)) w.del('absences', o.id);
+  for (const o of db.where('appels', x => x.classId === classId)) w.del('appels', o.id);
   w.del('classes', classId);
 }
 export const deleteClass = classId => db.commit(w => deleteClassIn(w, classId));

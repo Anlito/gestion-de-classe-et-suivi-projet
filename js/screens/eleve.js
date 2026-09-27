@@ -26,8 +26,8 @@ export default {
     const rowsList = [...obs.map(o => ({ kind: 'obs', key: o.at, o })), ...abs.map(a => ({ kind: 'abs', key: a.date + 'T' + a.at.slice(11), a }))]
       .sort((x, y) => y.key.localeCompare(x.key));
     const absentNow = model.absentNow(s.classId).has(s.id);
-    const sess = model.currentSession(s.classId);
-    const absLabel = sess.kind === 'seance' ? 'Absent à la séance ' + sess.n : 'Absent aujourd’hui';
+    const ap = model.currentAppel(s.classId);
+    const absLabel = ap && ap.seanceN ? 'Absent à la séance ' + ap.seanceN : 'Absent à l’appel du jour';
     const notes = model.notesOf(s.id);
     const seg = on => (on ? ' on' : '');
 
@@ -64,7 +64,8 @@ export default {
           <div class="abs-block">
             <div class="grow"><div class="abs-n">${model.absenceCount(s.id, t)} <span class="abs-label">absence${model.absenceCount(s.id, t) > 1 ? 's' : ''} ce trimestre</span></div>
               <div class="muted small">${model.absenceCount(s.id)} sur l’année</div></div>
-            <button type="button" class="btn ${absentNow ? 'accent' : 'soft'} small" data-click="toggleAbs">${absentNow ? '✓ ' + absLabel : absLabel}</button>
+            ${ap ? html`<button type="button" class="btn ${absentNow ? 'accent' : 'soft'} small" data-click="toggleAbs">${absentNow ? '✓ ' + absLabel : absLabel}</button>`
+              : html`<span class="muted small abs-hint">Appel à faire depuis le trombinoscope</span>`}
           </div>
           <div class="stack">
             <div class="caps">Par trimestre</div>
@@ -172,7 +173,9 @@ export default {
 
     toggleAbs(el, e, { studentId }) {
       const s = db.get('students', studentId);
-      const { absent, undo } = model.toggleAbsent(s);
+      const r = model.toggleAbsent(s);
+      if (!r) return;
+      const { absent, undo } = r;
       refresh();
       toast({ text: absent ? `${s.prenom} noté absent` : `Absence retirée`, undo: async () => { await undo(); refresh(); } });
     },

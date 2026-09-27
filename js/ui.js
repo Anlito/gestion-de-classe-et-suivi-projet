@@ -108,6 +108,29 @@ export function confirmDialog({ title, text = '', ok = 'Confirmer', cancel = 'An
   });
 }
 
+// Dialogue à plusieurs choix. choices : [{ label, sub?, value, style? ('accent'|'danger'|'soft') }].
+// Renvoie la valeur du choix touché (null si on ferme).
+export function choiceDialog({ title, text = '', choices }) {
+  return new Promise(resolve => {
+    const L = layer();
+    L.innerHTML = html`<div class="scrim dim" data-v="-1"></div>
+      <div class="dialog" role="dialog" aria-modal="true">
+        <div class="dialog-title">${title}</div>
+        ${text ? html`<div class="dialog-text">${text}</div>` : ''}
+        <div class="choice-list">${choices.map((c, i) => html`<button type="button" class="choice ${c.style || 'soft'}" data-v="${i}">
+          <span class="choice-label">${c.label}</span>${c.sub ? html`<span class="choice-sub">${c.sub}</span>` : ''}</button>`)}</div>
+      </div>`.s;
+    L.addEventListener('click', function onClick(e) {
+      const b = e.target.closest('[data-v]');
+      if (!b) return;
+      L.removeEventListener('click', onClick);
+      closeLayer();
+      const i = +b.dataset.v;
+      resolve(i >= 0 ? choices[i].value : null);
+    });
+  });
+}
+
 // Formats de date en français. Accepte une date ISO complète ou « AAAA-MM-JJ ».
 const toDate = d => (typeof d === 'string' && d.length === 10 ? new Date(d + 'T12:00') : new Date(d));
 export function fmtDay(d) {

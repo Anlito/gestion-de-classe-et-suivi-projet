@@ -513,7 +513,14 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .card.appel.absent .photo { opacity: 0.4; }
 .card.appel.absent .appel-state { background: var(--ink); color: var(--bg); }
 .appel-mode { padding-bottom: 110px; }
-.appel-hint { font-size: 13px; opacity: 0.8; }
+.abs-hint { max-width: 140px; text-align: right; }
+.choice-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.choice { min-height: 56px; padding: 10px 16px; border-radius: 14px; text-align: left; display: flex; flex-direction: column; justify-content: center; gap: 2px; background: var(--bg); }
+.choice.accent { background: var(--accent); color: var(--accentInk); }
+.choice-label { font-size: 17px; font-weight: 700; }
+.choice-sub { font-size: 14px; color: var(--ink2); }
+.choice.accent .choice-sub { color: inherit; opacity: 0.75; }
+.choice:active { opacity: 0.8; }
 .obs-mark.abs { background: var(--ink2); }
 .abs-block { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--bg); }
 .abs-n { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }

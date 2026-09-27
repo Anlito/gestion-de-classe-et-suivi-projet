@@ -2,7 +2,7 @@
 // Mode « Appel » : toucher les élèves absents. « Tirage » : tirage au sort parmi les présents pas encore interrogés.
 import * as db from '../db.js';
 import * as model from '../model.js';
-import { html, toast, openMenu, buzz, todayISO, fmtDayLong } from '../ui.js';
+import { html, toast, openMenu, buzz, todayISO, fmtDayLong, choiceDialog } from '../ui.js';
 import { icon, backLink, saveStatus, tabBar, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
 
@@ -13,18 +13,95 @@ let appel = null;   // classId en mode appel
 let draw = null;    // { classId, sid, spinning, restarted }
 
 // ---------- Élèves déjà interrogés pendant ce cours (mémorisés sur l'appareil) ----------
-// Remis à zéro à chaque nouvelle séance (ou chaque jour s'il n'y a pas de séance du jour).
+// Remis à zéro à chaque nouvel appel (nouveau cours), ou chaque jour si aucun appel n'a été fait.
+const sessionKey = classId => { const ap = model.currentAppel(classId); return ap ? 'A:' + ap.id : 'D:' + todayISO(); };
 function drawnGet(classId) {
-  const key = model.currentSession(classId).key;
+  const key = sessionKey(classId);
   try { const o = JSON.parse(localStorage.getItem('carnet-tirage-' + classId) || 'null'); if (o && o.session === key) return o.ids; } catch (e) { /* rien */ }
   return [];
 }
 function drawnSet(classId, ids) {
-  try { localStorage.setItem('carnet-tirage-' + classId, JSON.stringify({ session: model.currentSession(classId).key, ids })); } catch (e) { /* rien */ }
+  try { localStorage.setItem('carnet-tirage-' + classId, JSON.stringify({ session: sessionKey(classId), ids })); } catch (e) { /* rien */ }
 }
-function sessionTitle(classId) {
-  const s = model.currentSession(classId);
-  return s.kind === 'seance' ? 'Appel · ' + s.label : 'Appel du ' + fmtDayLong(todayISO());
+const sessionTitle = classId => model.appelTitle(model.currentAppel(classId));
+
+// ---------- Démarrer un appel ----------
+// Crée la séance du jour si besoin (projet en cours), ou propose de refaire / corriger un appel déjà fait.
+async function newSeanceFor(classId) {
+  const a = model.activeAssignments(classId)[0];
+  const p = db.get('projects', a.projectId);
+  if (model.seancesOf(a.id).length >= p.nSeances) {
+    const ok = await choiceDialog({
+      title: `Les ${p.nSeances} séances de « ${p.title} » sont faites`,
+      text: 'Vous pouvez faire l’appel sans créer de séance, ou augmenter le nombre de séances dans le projet (Administration).',
+      choices: [{ label: 'Faire l’appel sans séance', value: true, style: 'accent' }, { label: 'Annuler', value: false }],
+    });
+    return ok ? { ctx: null } : null;
+  }
+  const { seance } = model.newSeance(a);
+  return { ctx: model.todaySeance(classId), seance };
+}
+
+async function startAppel(classId) {
+  const ap = model.currentAppel(classId);
+  const act = model.activeAssignments(classId)[0];
+  const today = model.todaySeance(classId);
+  const open = () => { appel = classId; refresh(); };
+
+  // Une séance a été créée (onglet Projet) depuis le dernier appel : c'est un nouveau cours.
+  if (ap && today && ap.seanceId !== today.seanceId) { model.createAppel(classId, today); open(); return; }
+
+  if (!ap) {
+    if (act && !today) {
+      const p = db.get('projects', act.projectId);
+      const n = model.seancesOf(act.id).length + 1;
+      const go = await choiceDialog({
+        title: `Commencer la séance ${n} ?`,
+        text: `Pour faire l’appel, la séance du jour doit exister. Projet en cours : ${p.title}.`,
+        choices: [{ label: `Commencer la séance ${n} et faire l’appel`, value: true, style: 'accent' }, { label: 'Annuler', value: false }],
+      });
+      if (!go) return;
+      const r = await newSeanceFor(classId);
+      if (!r) return;
+      model.createAppel(classId, r.ctx);
+      if (r.seance) toast({ text: `Séance ${r.seance.n} créée · ${fmtDayLong(r.seance.date)}` });
+    } else {
+      model.createAppel(classId, today);
+    }
+    open();
+    return;
+  }
+
+  // Un appel existe déjà pour ce cours.
+  const nAbs = model.absentNow(classId).size;
+  const choice = await choiceDialog({
+    title: 'Un appel a déjà été fait',
+    text: `${model.appelTitle(ap)} · ${nAbs} absent${nAbs > 1 ? 's' : ''}. Refaire l’appel ?`,
+    choices: [
+      { label: 'Oui, je recommence : je me suis trompé', sub: 'L’appel qui vient d’être fait est effacé', value: 'redo', style: 'soft' },
+      { label: 'Oui, c’est une autre séance dans la journée', sub: act ? 'Crée la séance suivante et un nouvel appel' : 'Nouvel appel pour ce nouveau cours', value: 'new', style: 'soft' },
+      { label: 'Corriger cet appel', sub: 'Un élève arrivé en retard, un oubli…', value: 'edit', style: 'soft' },
+      { label: 'Non', value: null, style: 'soft' },
+    ],
+  });
+  if (choice === 'edit') { open(); return; }
+  if (choice === 'redo') {
+    const undo = model.resetAppel(ap);
+    open();
+    toast({ text: 'Appel remis à zéro', undo: async () => { await undo(); refresh(); } });
+    return;
+  }
+  if (choice === 'new') {
+    if (act) {
+      const r = await newSeanceFor(classId);
+      if (!r) return;
+      model.createAppel(classId, r.ctx);
+      if (r.seance) toast({ text: `Séance ${r.seance.n} créée · ${fmtDayLong(r.seance.date)}` });
+    } else {
+      model.createAppel(classId, null);
+    }
+    open();
+  }
 }
 
 function card(s, c, absent, inAppel) {
@@ -182,8 +259,7 @@ export default {
       </main>
       ${inAppel ? html`<div class="sel-bar appel-bar">
         <span class="sel-text"><strong>${sessionTitle(classId)}</strong> · touchez les absents · ${absent.size} absent${absent.size > 1 ? 's' : ''} / ${students.length}
-          ${model.currentSession(classId).kind === 'day' && model.activeAssignments(classId).length
-            ? html`<br><span class="appel-hint">Pas encore de séance aujourd’hui : créez-la dans l’onglet Projet pour un appel par séance.</span>` : ''}</span>
+</span>
         <button type="button" class="toast-btn accent" data-click="endAppel">Terminer l’appel</button>
       </div>` : ''}
       ${draw ? drawView(classId) : ''}
@@ -237,7 +313,7 @@ export default {
   actions: {
     detail(el, e, { classId }) { go(`#/classe/${classId}/eleve/${el.dataset.sid}`); },
 
-    startAppel(el, e, { classId }) { appel = classId; refresh(); },
+    startAppel(el, e, { classId }) { startAppel(classId); },
     endAppel(el, e, { classId }) {
       const n = model.absentNow(classId).size;
       appel = null;
