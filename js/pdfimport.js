@@ -86,11 +86,12 @@ export async function readTrombinoscope(file, onProgress = () => {}) {
       const m = /Classe\s*:?\s*([^\s,;]+(?:\s+SEGPA)?)/i.exec(all);
       if (m) className = m[1].trim();
     }
-    // Photos candidates : images plus hautes que larges, d'une taille raisonnable.
-    const photos = imgs.filter(im => im.h > 30 && im.w > 20 && im.h / im.w > 1.05 && im.h / im.w < 2.2);
+    // Photos candidates : images d'une taille raisonnable, portrait ou carrées (certains avatars sont carrés).
+    const photos = imgs.filter(im => im.h > 30 && im.w > 20 && im.h / im.w > 0.75 && im.h / im.w < 2.2);
     if (!photos.length) continue;
     // Chaque texte est rattaché à la photo située juste au-dessus de lui (même colonne).
     const lines = new Map();
+    const attached = new Set();
     for (const t of texts) {
       const cx = t.x + t.w / 2;
       let best = null, bestGap = Infinity;
@@ -99,7 +100,18 @@ export async function readTrombinoscope(file, onProgress = () => {}) {
         const gap = ph.y1 - (t.y + t.h * 0.2);
         if (overlap && gap >= -2 && gap < 70 && gap < bestGap) { best = ph; bestGap = gap; }
       }
-      if (best) { if (!lines.has(best)) lines.set(best, []); lines.get(best).push(t); }
+      if (best) { if (!lines.has(best)) lines.set(best, []); lines.get(best).push(t); attached.add(t); }
+    }
+    // Noms sans image au-dessus (avatar absent ou dessiné autrement) : élèves « photo manquante ».
+    // On ne garde que les textes alignés sur une colonne de photos et situés dans la hauteur de la grille.
+    const gridTop = Math.max(...photos.map(ph => ph.y2)), gridBottom = Math.min(...photos.map(ph => ph.y1)) - 70;
+    const orphans = texts.filter(t => !attached.has(t) && t.y < gridTop && t.y > gridBottom
+      && photos.some(ph => t.x + t.w / 2 >= ph.x1 - 12 && t.x + t.w / 2 <= ph.x2 + 12)
+      && /[A-ZÀ-Þ]{2}/.test(t.str) && !/classe|page|trombinoscope/i.test(t.str));
+    const orphanBlocks = [];
+    for (const t of orphans.sort((a, b) => (b.y - a.y) || (a.x - b.x))) {
+      const blk = orphanBlocks.find(b => Math.abs(b.x - t.x) < 15 && b.lastY - t.y > 0 && b.lastY - t.y < t.h * 2.2);
+      if (blk) { blk.parts.push(t); blk.lastY = t.y; } else orphanBlocks.push({ x: t.x, y: t.y, lastY: t.y, parts: [t] });
     }
     // Rendu de la page pour découper les photos.
     const scale = Math.min(4, Math.max(2, PHOTO_W / Math.min(...photos.map(ph => ph.w))));
@@ -120,24 +132,30 @@ export async function readTrombinoscope(file, onProgress = () => {}) {
       }
       const text = rows.map(r => r.parts.sort((a, b) => a.x - b.x).map(x => x.str).join(' ')).join(' ');
       const [x1, y1, x2, y2] = vp.convertToViewportRectangle([ph.x1, ph.y1, ph.x2, ph.y2]);
-      found.push({ page: p, ph, text, rect: { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) }, canvas });
+      found.push({ page: p, ph, text, rect: { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) }, canvas, top: rows[0].y, left: ph.x1 });
+    }
+    for (const b of orphanBlocks) {
+      found.push({ page: p, ph: null, text: b.parts.map(x => x.str).join(' '), top: b.y, left: b.x });
     }
   }
   if (!found.length) throw new Error('Aucune photo accompagnée d’un nom n’a été trouvée dans ce PDF.');
 
   // Avatars génériques : même image répétée plusieurs fois, ou taille nettement différente de la taille la plus courante.
+  // Ordre de lecture : page, puis ligne (de haut en bas), puis colonne.
+  found.sort((a, b) => (a.page - b.page) || (Math.abs(a.top - b.top) > 6 ? b.top - a.top : a.left - b.left));
+  const withImg = found.filter(f => f.ph);
   const keyCount = new Map();
-  for (const f of found) if (f.ph.key) { f.ph.key = f.page + ':' + f.ph.key; keyCount.set(f.ph.key, (keyCount.get(f.ph.key) || 0) + 1); }
+  for (const f of withImg) if (f.ph.key) { f.ph.key = f.page + ':' + f.ph.key; keyCount.set(f.ph.key, (keyCount.get(f.ph.key) || 0) + 1); }
   const sizeKey = f => Math.round(f.ph.w / 4) + 'x' + Math.round(f.ph.h / 4);
   const sizeCount = new Map();
-  for (const f of found) sizeCount.set(sizeKey(f), (sizeCount.get(sizeKey(f)) || 0) + 1);
-  const common = [...sizeCount.entries()].sort((a, b) => b[1] - a[1])[0][0];
-  const ref = found.find(f => sizeKey(f) === common).ph;
+  for (const f of withImg) sizeCount.set(sizeKey(f), (sizeCount.get(sizeKey(f)) || 0) + 1);
+  const common = sizeCount.size ? [...sizeCount.entries()].sort((a, b) => b[1] - a[1])[0][0] : null;
+  const ref = common ? withImg.find(f => sizeKey(f) === common).ph : null;
 
   const students = [];
   for (const f of found) {
-    const repeated = !!f.ph.key && keyCount.get(f.ph.key) > 1;
-    const odd = Math.abs(f.ph.w - ref.w) / ref.w > 0.12 || Math.abs(f.ph.h - ref.h) / ref.h > 0.12;
+    const repeated = !!(f.ph && f.ph.key) && keyCount.get(f.ph.key) > 1;
+    const odd = !f.ph || Math.abs(f.ph.w - ref.w) / ref.w > 0.12 || Math.abs(f.ph.h - ref.h) / ref.h > 0.12;
     const missing = odd || repeated;
     let photoBlob = null;
     if (!missing) {
