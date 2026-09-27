@@ -4,7 +4,7 @@ import * as model from '../model.js';
 import { html, toast, openMenu, confirmDialog, fmtDate } from '../ui.js';
 import { icon, backLink, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
-import { takePhoto, pickPdf } from '../photos.js';
+import { askPhoto, pickPdf } from '../photos.js';
 
 let draft = null; // copie de travail, enregistrée seulement avec « Enregistrer »
 const LEVEL_BTNS = ['6e', '5e', '4e', '3e'];
@@ -68,7 +68,7 @@ function reviewView() {
         </div>
         <div class="info-box small-text">
           <div>Vérifiez chaque élève : le <strong>NOM</strong> et le <strong>Prénom</strong> sont modifiables.</div>
-          <div>${icon.camera} ajoute une photo avec l’appareil photo ; ✕ exclut l’élève de l’import.</div>
+          <div>${icon.camera} ajoute une photo (appareil photo ou image de la tablette) ; ✕ exclut l’élève de l’import.</div>
           ${draft.id ? html`<div>Les élèves <strong>déjà dans la classe</strong> gardent tout leur historique ; seuls les nouveaux sont ajoutés.</div>` : ''}
         </div>
         ${absent.length ? html`<div class="dashed-note left"><strong>Dans la classe mais pas dans le PDF (${absent.length})</strong><br>
@@ -88,7 +88,7 @@ function reviewView() {
                 <input class="input" value="${s.prenom}" data-input="revPrenom" data-id="${s.id}" placeholder="Prénom" aria-label="Prénom" ${existing || s.skip ? 'disabled' : ''}>
               </div>
               <div class="rev-btns">
-                <button type="button" class="icon-btn${urlOf(shown) ? '' : ' cam-missing'}" data-click="revPhoto" data-id="${s.id}" aria-label="Prendre une photo" ${s.skip ? 'disabled' : ''}>${icon.camera}</button>
+                <button type="button" class="icon-btn${urlOf(shown) ? '' : ' cam-missing'}" data-click="revPhoto" data-id="${s.id}" aria-label="Ajouter une photo" ${s.skip ? 'disabled' : ''}>${icon.camera}</button>
                 ${s.photoBlob ? html`<button type="button" class="icon-btn" data-click="revNoPhoto" data-id="${s.id}" aria-label="Ce n'est pas une vraie photo" title="Pas une vraie photo">${icon.trash}</button>` : ''}
                 <button type="button" class="icon-btn" data-click="revSkip" data-id="${s.id}" aria-label="${s.skip ? 'Réintégrer' : 'Exclure de l’import'}">${s.skip ? '↺' : '✕'}</button>
               </div>
@@ -224,7 +224,7 @@ export default {
     },
     async photo(el) {
       const d = draft, s = stu(el.dataset.id);
-      const blob = await takePhoto();
+      const blob = await askPhoto(el, openMenu);
       if (!blob || draft !== d) return;
       s.photoBlob = blob;
       refresh();
@@ -262,7 +262,7 @@ export default {
     revNoPhoto(el) { revStu(el.dataset.id).photoBlob = null; refresh(); },
     async revPhoto(el) {
       const r = draft.review, s = revStu(el.dataset.id);
-      const blob = await takePhoto();
+      const blob = await askPhoto(el, openMenu);
       if (!blob || !draft || draft.review !== r) return;
       s.photoBlob = blob;
       refresh();

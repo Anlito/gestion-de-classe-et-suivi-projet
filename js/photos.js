@@ -23,18 +23,34 @@ export async function compressPhoto(file) {
   return canvasToJpeg(c);
 }
 
-// Ouvre l'appareil photo de la tablette (ou la galerie) et renvoie la photo compressée, ou null.
-export function takePhoto() {
+// Ouvre l'appareil photo de la tablette (camera = true) ou la galerie / les fichiers (camera = false)
+// et renvoie la photo recadrée et compressée, ou null.
+export function takePhoto({ camera = true } = {}) {
   return new Promise(resolve => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.capture = 'environment';
+    if (camera) input.setAttribute('capture', 'environment');
     input.addEventListener('change', async () => {
       const f = input.files && input.files[0];
       resolve(f ? await compressPhoto(f).catch(() => null) : null);
     }, { once: true });
     input.click();
+  });
+}
+
+// Petit menu « Prendre une photo / Choisir une image » près du bouton touché ; renvoie la photo ou null.
+export function askPhoto(anchor, openMenu) {
+  return new Promise(resolve => {
+    openMenu({
+      anchor, width: 280, align: 'right',
+      items: [
+        { label: 'Prendre une photo', sub: 'Appareil photo de la tablette', onPick: async () => resolve(await takePhoto({ camera: true })) },
+        { label: 'Choisir une image', sub: 'Galerie ou fichiers', onPick: async () => resolve(await takePhoto({ camera: false })) },
+      ],
+    });
+    // Menu fermé sans choix : on ne renvoie rien.
+    document.getElementById('layer').querySelector('[data-close]').addEventListener('pointerdown', () => resolve(null), { once: true });
   });
 }
 
