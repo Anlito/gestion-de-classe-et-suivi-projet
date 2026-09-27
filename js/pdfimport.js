@@ -53,6 +53,26 @@ async function pageLines(page) {
   return items;
 }
 
+// Analyse du contenu d'une image : un avatar générique est gris (saturation quasi nulle) et fait de quelques
+// aplats (peu de nuances). Mesuré sur un vrai trombinoscope : avatars ≤ 0,01 de saturation et ≤ 15 nuances ;
+// vraies photos ≥ 0,13 et ≥ 115 nuances. Une photo en noir et blanc garde beaucoup de nuances : elle reste une photo.
+function looksGeneric(canvas, r) {
+  if (r.w < 4 || r.h < 4) return true;
+  const c = document.createElement('canvas');
+  c.width = 40; c.height = 60;
+  const g = c.getContext('2d');
+  g.drawImage(canvas, r.x, r.y, r.w, r.h, 0, 0, 40, 60);
+  const d = g.getImageData(0, 0, 40, 60).data;
+  let sat = 0;
+  const bins = new Set();
+  for (let i = 0; i < d.length; i += 4) {
+    const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+    sat += mx ? (mx - mn) / mx : 0;
+    bins.add((d[i] >> 4) * 256 + (d[i + 1] >> 4) * 16 + (d[i + 2] >> 4));
+  }
+  return sat / (d.length / 4) < 0.04 && bins.size < 60;
+}
+
 const UPPER = /^[A-ZÀ-ÖØ-Þ'’\-]+$/;
 const isUpperWord = w => UPPER.test(w) && /[A-ZÀ-ÖØ-Þ]/.test(w);
 const cap = s => s.toLowerCase().replace(/(^|[\s\-'’])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
@@ -132,7 +152,8 @@ export async function readTrombinoscope(file, onProgress = () => {}) {
       }
       const text = rows.map(r => r.parts.sort((a, b) => a.x - b.x).map(x => x.str).join(' ')).join(' ');
       const [x1, y1, x2, y2] = vp.convertToViewportRectangle([ph.x1, ph.y1, ph.x2, ph.y2]);
-      found.push({ page: p, ph, text, rect: { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) }, canvas, top: rows[0].y, left: ph.x1 });
+      const rect = { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+      found.push({ page: p, ph, text, rect, canvas, top: rows[0].y, left: ph.x1, generic: looksGeneric(canvas, rect) });
     }
     for (const b of orphanBlocks) {
       found.push({ page: p, ph: null, text: b.parts.map(x => x.str).join(' '), top: b.y, left: b.x });
@@ -143,20 +164,15 @@ export async function readTrombinoscope(file, onProgress = () => {}) {
   // Avatars génériques : même image répétée plusieurs fois, ou taille nettement différente de la taille la plus courante.
   // Ordre de lecture : page, puis ligne (de haut en bas), puis colonne.
   found.sort((a, b) => (a.page - b.page) || (Math.abs(a.top - b.top) > 6 ? b.top - a.top : a.left - b.left));
-  const withImg = found.filter(f => f.ph);
+  // Avatar générique = image grise à très peu de nuances, ou même image répétée pour plusieurs élèves.
+  // (La taille ne compte pas : certaines vraies photos sont un peu plus petites que les autres.)
   const keyCount = new Map();
-  for (const f of withImg) if (f.ph.key) { f.ph.key = f.page + ':' + f.ph.key; keyCount.set(f.ph.key, (keyCount.get(f.ph.key) || 0) + 1); }
-  const sizeKey = f => Math.round(f.ph.w / 4) + 'x' + Math.round(f.ph.h / 4);
-  const sizeCount = new Map();
-  for (const f of withImg) sizeCount.set(sizeKey(f), (sizeCount.get(sizeKey(f)) || 0) + 1);
-  const common = sizeCount.size ? [...sizeCount.entries()].sort((a, b) => b[1] - a[1])[0][0] : null;
-  const ref = common ? withImg.find(f => sizeKey(f) === common).ph : null;
+  for (const f of found) if (f.ph && f.ph.key) { f.ph.key = f.page + ':' + f.ph.key; keyCount.set(f.ph.key, (keyCount.get(f.ph.key) || 0) + 1); }
 
   const students = [];
   for (const f of found) {
     const repeated = !!(f.ph && f.ph.key) && keyCount.get(f.ph.key) > 1;
-    const odd = !f.ph || Math.abs(f.ph.w - ref.w) / ref.w > 0.12 || Math.abs(f.ph.h - ref.h) / ref.h > 0.12;
-    const missing = odd || repeated;
+    const missing = !f.ph || f.generic || repeated;
     let photoBlob = null;
     if (!missing) {
       const c = document.createElement('canvas');
