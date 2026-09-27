@@ -3,21 +3,71 @@ import * as db from './db.js';
 import * as model from './model.js';
 import { todayISO } from './ui.js';
 
-// Donne un fichier à l'utilisateur : partage Android (Drive, mail…) si demandé et possible, sinon téléchargement.
-export async function giveFile(blob, name, { share = false } = {}) {
+// Le navigateur sait-il ouvrir une fenêtre « Enregistrer sous » (choix du dossier) ?
+export const canChooseFolder = () => typeof window.showSaveFilePicker === 'function';
+
+const TYPES = {
+  'application/json': { description: 'Sauvegarde du Carnet de classe', accept: { 'application/json': ['.json'] } },
+  'text/csv;charset=utf-8': { description: 'Tableau CSV', accept: { 'text/csv': ['.csv'] } },
+};
+
+// Donne un fichier à l'utilisateur :
+// - share : menu de partage Android (Drive, e-mail…) ;
+// - sinon, fenêtre « Enregistrer sous » si le navigateur la propose (choix du dossier et du nom) ;
+// - sinon, téléchargement classique (dossier Téléchargements).
+// source : le fichier (Blob) ou une fonction async qui le fabrique (appelée après le choix du dossier,
+// car la fenêtre « Enregistrer sous » doit s'ouvrir tout de suite après le toucher).
+// Renvoie { how: 'shared' | 'saved' | 'downloaded' | 'cancelled', where?, size? }.
+export async function giveFile(source, name, { share = false, type = 'application/json' } = {}) {
+  const make = async () => (typeof source === 'function' ? source() : source);
   if (share) {
+    const blob = await make();
     const file = new File([blob], name, { type: blob.type });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: name }); return 'shared'; }
-      catch (e) { if (e && e.name === 'AbortError') return 'cancelled'; }
+      try { await navigator.share({ files: [file], title: name }); return { how: 'shared', size: blob.size }; }
+      catch (e) { if (e && e.name === 'AbortError') return { how: 'cancelled' }; }
+    }
+    return download(blob, name);
+  }
+  if (canChooseFolder()) {
+    let handle = null;
+    try {
+      const t = TYPES[type];
+      handle = await window.showSaveFilePicker({
+        suggestedName: name, id: 'carnet-fichiers', startIn: 'documents',
+        ...(t ? { types: [t] } : {}),
+      });
+    } catch (e) {
+      if (e && e.name === 'AbortError') return { how: 'cancelled' };
+      handle = null; // fenêtre indisponible : téléchargement classique ci-dessous
+    }
+    if (handle) {
+      const blob = await make();
+      const w = await handle.createWritable();
+      await w.write(blob);
+      await w.close();
+      return { how: 'saved', where: handle.name, size: blob.size };
     }
   }
+  return download(await make(), name);
+}
+
+function download(blob, name) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
-  return 'downloaded';
+  return { how: 'downloaded', where: name, size: blob.size };
+}
+// Message à afficher après giveFile.
+const FEMININE = ['Sauvegarde', 'Archive'];
+export function givenMessage(r, what = 'Fichier') {
+  const e = FEMININE.includes(what) ? 'e' : '';
+  if (r.how === 'saved') return `${what} enregistré${e} : ${r.where}`;
+  if (r.how === 'shared') return `${what} envoyé${e}`;
+  if (r.how === 'downloaded') return `${what} enregistré${e} dans les Téléchargements`;
+  return '';
 }
 
 // ---------- Sauvegarde complète ----------

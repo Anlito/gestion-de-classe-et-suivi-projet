@@ -41,7 +41,10 @@ export default {
           </div>
           <div class="muted small">Le fichier contient toutes les données et les photos de cet appareil. Gardez-le en lieu sûr (Google Drive, clé USB) : une tablette perdue ou réinitialisée, et tout serait perdu.</div>
           <div class="btn-col">
-            <button type="button" class="btn accent big" data-click="save">${icon.download}Enregistrer une sauvegarde</button>
+            <button type="button" class="btn accent big" data-click="save">${icon.download}${backup.canChooseFolder() ? 'Enregistrer une sauvegarde…' : 'Enregistrer une sauvegarde'}</button>
+            <div class="muted small">${backup.canChooseFolder()
+              ? 'Une fenêtre s’ouvre pour choisir le dossier et le nom du fichier.'
+              : html`Sur cet appareil, le fichier va dans <strong>Téléchargements</strong>. Pour choisir le dossier à chaque fois : Chrome → ⋮ → Paramètres → Téléchargements → activer « Demander où télécharger les fichiers ». Ou utilisez « Envoyer la sauvegarde » ci-dessous (Drive…).`}</div>
             ${canShare() ? html`<button type="button" class="btn soft" data-click="share">Envoyer la sauvegarde (Drive, e-mail…)</button>` : ''}
             <button type="button" class="btn soft" data-click="restore">Restaurer une sauvegarde…</button>
           </div>
@@ -97,26 +100,28 @@ export default {
       catch (e) { toast({ text: 'Restauration impossible : ' + e.message, ms: 6000 }); }
       busy = ''; refresh();
     },
-    recapCsv(el) { const { blob, name } = backup.recapCsv(el.dataset.id); backup.giveFile(blob, name); toast({ text: 'Fichier ' + name + ' enregistré' }); },
+    async recapCsv(el) {
+      const { blob, name } = backup.recapCsv(el.dataset.id);
+      const r = await backup.giveFile(blob, name, { type: blob.type });
+      if (r.how !== 'cancelled') toast({ text: backup.givenMessage(r, 'Récapitulatif') });
+    },
     pronote(el) {
       const list = model.selectableAssignments(el.dataset.id, ['cours', 'fini', 'avenir']);
       if (!list.length) { toast({ text: 'Aucun projet dans cette classe' }); return; }
       openMenu({
         anchor: el, width: 340, align: 'right', title: 'Projet à exporter',
-        items: list.map(a => ({ label: db.get('projects', a.projectId).title, sub: model.STATUS[a.status], onPick: () => {
+        items: list.map(a => ({ label: db.get('projects', a.projectId).title, sub: model.STATUS[a.status], onPick: async () => {
           const { blob, name } = backup.pronoteCsv(a.id);
-          backup.giveFile(blob, name);
-          toast({ text: 'Fichier ' + name + ' enregistré' });
+          const r = await backup.giveFile(blob, name, { type: blob.type });
+          if (r.how !== 'cancelled') toast({ text: backup.givenMessage(r, 'Fichier Pronote') });
         } })),
       });
     },
     async archive() {
-      busy = 'Préparation de l’archive…'; refresh();
       try {
-        const blob = await backup.backupBlob();
-        await backup.giveFile(blob, backup.backupName('carnet-archive-' + model.schoolYear().replace(/\D+/g, '-')));
-        backup.markBackupDone();
-        archived = true;
+        const r = await backup.giveFile(async () => { busy = 'Préparation de l’archive…'; refresh(); return backup.backupBlob(); },
+          backup.backupName('carnet-archive-' + model.schoolYear().replace(/\D+/g, '-')));
+        if (r.how !== 'cancelled') { backup.markBackupDone(); archived = true; toast({ text: backup.givenMessage(r, 'Archive') }); }
       } catch (e) { toast({ text: 'Archive impossible : ' + e.message }); }
       busy = ''; refresh();
     },
@@ -137,13 +142,14 @@ export default {
 };
 
 async function doBackup(share) {
-  busy = 'Préparation de la sauvegarde…'; refresh();
   try {
-    const blob = await backup.backupBlob();
-    const r = await backup.giveFile(blob, backup.backupName(), { share });
-    if (r !== 'cancelled') {
+    // Le fichier n'est préparé qu'après le choix du dossier (la fenêtre doit s'ouvrir tout de suite).
+    const r = await backup.giveFile(async () => { busy = 'Préparation de la sauvegarde…'; refresh(); return backup.backupBlob(); },
+      backup.backupName(), { share });
+    if (r.how !== 'cancelled') {
       backup.markBackupDone();
-      toast({ text: r === 'shared' ? 'Sauvegarde envoyée' : `Sauvegarde enregistrée dans les téléchargements (${(blob.size / 1048576).toFixed(1).replace('.', ',')} Mo)` });
+      const size = r.size ? ` (${(r.size / 1048576).toFixed(1).replace('.', ',')} Mo)` : '';
+      toast({ text: backup.givenMessage(r, 'Sauvegarde') + size, ms: 5000 });
     }
   } catch (e) { toast({ text: 'Sauvegarde impossible : ' + e.message, ms: 6000 }); }
   busy = ''; refresh();
