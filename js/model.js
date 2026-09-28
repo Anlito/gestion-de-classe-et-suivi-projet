@@ -5,10 +5,41 @@ import { todayISO, fmtDay } from './ui.js';
 export const CLASS_LEVELS = ['6e', '5e', '4e', '3e'];
 export const LABEL = { neg: 'Comportement', pos: 'Aide / soutien / rangement' };
 export const SHORT = { neg: 'Comportement', pos: 'Aide' };
+// Motifs proposés par défaut à l'appui long. Modifiables dans les Réglages (réglage « motifs ») ;
+// sans modification, ce sont ces listes qui s'appliquent.
 export const MOTIFS = {
   neg: ['Bavardage', 'Téléphone', 'Hors tâche', 'Matériel oublié', 'Attitude'],
   pos: ['Aide un camarade', 'Rangement', 'Participation', 'Soutien'],
 };
+export function motifs(type) {
+  const custom = db.getMeta('motifs');
+  return custom && Array.isArray(custom[type]) ? custom[type] : MOTIFS[type];
+}
+export const motifsCustomized = () => db.getMeta('motifs') !== null;
+export function setMotifs(type, list) {
+  const next = { neg: motifs('neg'), pos: motifs('pos'), [type]: list };
+  return db.commit(w => w.meta('motifs', next));
+}
+export const resetMotifs = () => db.commit(w => w.del('meta', 'motifs'));
+
+// Besoins éducatifs particuliers, notés dans la fiche de l'élève.
+export const BESOINS = [
+  { key: 'PAP', label: 'Plan d’accompagnement personnalisé' },
+  { key: 'PPS', label: 'Projet personnalisé de scolarisation' },
+  { key: 'PPRE', label: 'Programme personnalisé de réussite éducative' },
+  { key: 'PAI', label: 'Projet d’accueil individualisé' },
+  { key: 'AESH', label: 'Accompagné par un AESH' },
+  { key: 'ULIS', label: 'Dispositif ULIS' },
+  { key: 'UPE2A', label: 'Élève allophone (UPE2A)' },
+];
+export const besoinsOf = s => (Array.isArray(s.besoins) ? BESOINS.map(b => b.key).filter(k => s.besoins.includes(k)) : []);
+export function toggleBesoin(studentId, key) {
+  return db.commit(w => w.update('students', studentId, s => {
+    const cur = Array.isArray(s.besoins) ? s.besoins : [];
+    return { besoins: cur.includes(key) ? cur.filter(k => k !== key) : [...cur, key] };
+  }));
+}
+export const setAmenagements = (studentId, text) => db.commit(w => w.update('students', studentId, { amenagements: text }));
 export const SECTIONS = [
   { key: 'SEGPA', label: 'SEGPA', tint: 'var(--t-segpa)' },
   { key: '6e', label: '6e', tint: 'var(--t-6e)' },
@@ -193,9 +224,9 @@ export function createAppel(classId, ctx) {
   });
   return { appel, undo };
 }
-// « Je recommence » : efface les absences notées à cet appel.
+// « Je recommence » : efface les absences et les retards notés à cet appel.
 export function resetAppel(appel) {
-  return db.commit(w => { for (const a of db.where('absences', x => x.appelId === appel.id)) w.del('absences', a.id); });
+  return db.commit(w => { for (const s of ['absences', 'retards']) for (const a of db.where(s, x => x.appelId === appel.id)) w.del(s, a.id); });
 }
 export const appelTitle = ap => (ap && ap.label ? 'Appel · ' + ap.label : 'Appel du ' + fmtDay(todayISO()) + (ap && ap.n > 1 ? ' (cours ' + ap.n + ')' : ''));
 // Élèves absents à l'appel en cours.
@@ -207,21 +238,53 @@ export function absentNow(classId) {
 export function absenceCount(studentId, t) {
   return db.where('absences', a => a.studentId === studentId && (t == null || a.trimester === t)).length;
 }
-// Marque l'élève absent à l'appel en cours, ou annule cette absence. Renvoie { absent, undo }, ou null sans appel.
-export function toggleAbsent(student) {
-  const ap = currentAppel(student.classId);
-  if (!ap) return null;
-  const ex = db.all('absences').find(a => a.studentId === student.id && a.appelId === ap.id);
-  if (ex) return { absent: false, undo: db.commit(w => w.del('absences', ex.id)) };
-  return {
-    absent: true,
-    undo: db.commit(w => w.put('absences', {
-      studentId: student.id, classId: student.classId, appelId: ap.id, date: ap.date, at: new Date().toISOString(), trimester: trimester(),
-      assignmentId: ap.assignmentId, seanceId: ap.seanceId, seanceN: ap.seanceN, seanceLabel: ap.label,
-    })),
-  };
-}
 export const deleteAbsence = id => db.commit(w => w.del('absences', id));
+
+// ---------- Retards ----------
+// Un retard est rattaché à l'appel en cours s'il y en a un, sinon simplement au jour.
+export const retardsOf = studentId =>
+  db.where('retards', r => r.studentId === studentId).sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
+export function retardCount(studentId, t) {
+  return db.where('retards', r => r.studentId === studentId && (t == null || r.trimester === t)).length;
+}
+const isCurrentRetard = (r, ap) => (ap ? r.appelId === ap.id : r.date === todayISO() && !r.appelId);
+export function currentRetard(student) {
+  const ap = currentAppel(student.classId);
+  return db.all('retards').find(r => r.studentId === student.id && isCurrentRetard(r, ap)) || null;
+}
+// Élèves en retard au cours actuel (appel en cours, ou journée sans appel).
+export function retardNow(classId) {
+  const ap = currentAppel(classId);
+  return new Set(db.where('retards', r => r.classId === classId && isCurrentRetard(r, ap)).map(r => r.studentId));
+}
+// Place l'élève « present », « absent » ou « retard » pour le cours actuel, en une seule action annulable.
+// Un élève arrivé en retard n'est plus compté absent.
+export function setPresence(student, state) {
+  const ap = currentAppel(student.classId);
+  const abs = ap ? db.all('absences').find(a => a.studentId === student.id && a.appelId === ap.id) : null;
+  const ret = currentRetard(student);
+  const ctx = ap ? null : seanceContext(student.classId);
+  return db.commit(w => {
+    if (abs && state !== 'absent') w.del('absences', abs.id);
+    if (ret && state !== 'retard') w.del('retards', ret.id);
+    const base = { studentId: student.id, classId: student.classId, at: new Date().toISOString(), trimester: trimester() };
+    if (state === 'absent' && !abs && ap) {
+      w.put('absences', { ...base, appelId: ap.id, date: ap.date, assignmentId: ap.assignmentId, seanceId: ap.seanceId, seanceN: ap.seanceN, seanceLabel: ap.label });
+    }
+    if (state === 'retard' && !ret) {
+      w.put('retards', ap
+        ? { ...base, appelId: ap.id, date: ap.date, assignmentId: ap.assignmentId, seanceId: ap.seanceId, seanceN: ap.seanceN, seanceLabel: ap.label }
+        : { ...base, appelId: null, date: todayISO(), assignmentId: ctx && ctx.date === todayISO() ? ctx.assignmentId : null,
+          seanceId: ctx && ctx.date === todayISO() ? ctx.seanceId : null, seanceN: ctx && ctx.date === todayISO() ? ctx.n : null,
+          seanceLabel: ctx && ctx.date === todayISO() ? ctx.label : '' });
+    }
+  });
+}
+export function presenceOf(student) {
+  if (currentRetard(student)) return 'retard';
+  return absentNow(student.classId).has(student.id) ? 'absent' : 'present';
+}
+export const deleteRetard = id => db.commit(w => w.del('retards', id));
 // Séances d'un projet manquées par un élève (pour l'ajustement « Absent » dans les notes).
 export const absencesInAssignment = (aid, sid) =>
   db.where('absences', a => a.assignmentId === aid && a.studentId === sid).sort((a, b) => a.date.localeCompare(b.date));
@@ -267,15 +330,14 @@ export function reopenAssignment(a) { return db.commit(w => w.update('assignment
 export function deleteAssignmentIn(w, aid) {
   for (const s of ['seances', 'groups', 'evals', 'groupChanges']) for (const r of db.where(s, x => x.assignmentId === aid)) w.del(s, r.id);
   for (const o of db.where('observations', x => x.assignmentId === aid)) w.update('observations', o.id, { assignmentId: null });
-  for (const o of db.where('absences', x => x.assignmentId === aid)) w.update('absences', o.id, { assignmentId: null });
-  for (const o of db.where('appels', x => x.assignmentId === aid)) w.update('appels', o.id, { assignmentId: null });
+  for (const s of ['absences', 'retards', 'appels']) for (const o of db.where(s, x => x.assignmentId === aid)) w.update(s, o.id, { assignmentId: null });
   w.del('assignments', aid);
 }
 // Suppression complète d'un élève : observations, notes, photo, place dans les groupes.
 export function deleteStudentIn(w, sid) {
   const s = db.get('students', sid);
   if (!s) return;
-  for (const st of ['observations', 'notes', 'evals', 'groupChanges', 'absences']) for (const r of db.where(st, x => x.studentId === sid)) w.del(st, r.id);
+  for (const st of ['observations', 'notes', 'evals', 'groupChanges', 'absences', 'retards']) for (const r of db.where(st, x => x.studentId === sid)) w.del(st, r.id);
   for (const g of db.where('groups', x => x.members.includes(sid))) w.update('groups', g.id, { members: g.members.filter(m => m !== sid) });
   if (s.photoId) w.del('photos', s.photoId);
   w.del('students', sid);
@@ -285,9 +347,7 @@ export function deleteStudentIn(w, sid) {
 export function deleteClassIn(w, classId) {
   for (const s of db.where('students', x => x.classId === classId)) deleteStudentIn(w, s.id);
   for (const a of db.where('assignments', x => x.classId === classId)) deleteAssignmentIn(w, a.id);
-  for (const o of db.where('observations', x => x.classId === classId)) w.del('observations', o.id);
-  for (const o of db.where('absences', x => x.classId === classId)) w.del('absences', o.id);
-  for (const o of db.where('appels', x => x.classId === classId)) w.del('appels', o.id);
+  for (const s of ['observations', 'absences', 'retards', 'appels']) for (const o of db.where(s, x => x.classId === classId)) w.del(s, o.id);
   w.del('classes', classId);
 }
 export const deleteClass = classId => db.commit(w => deleteClassIn(w, classId));

@@ -117,14 +117,14 @@ export function recapRows(classId) {
   const assigns = model.selectableAssignments(classId, ['fini', 'cours', 'avenir'])
     .filter(a => students.some(s => model.computeNote(model.studentLevels(a.id, s.id), db.get('projects', a.projectId).criteria).filled));
   const head = ['NOM', 'Prénom'];
-  for (const t of [1, 2, 3]) head.push(`T${t} Comportement`, `T${t} Aide`, `T${t} Absences`);
+  for (const t of [1, 2, 3]) head.push(`T${t} Comportement`, `T${t} Aide`, `T${t} Absences`, `T${t} Retards`);
   for (const a of assigns) { const p = db.get('projects', a.projectId); head.push(`${p.title} /20`, `${p.title} mention`); }
   const rows = [head];
   for (const s of students) {
     const row = [s.nom, s.prenom];
     for (const t of [1, 2, 3]) {
-      if (t > model.trimester()) row.push('', '', '');
-      else { const c = model.countsOf(s.id, t); row.push(c.neg, c.pos, model.absenceCount(s.id, t)); }
+      if (t > model.trimester()) row.push('', '', '', '');
+      else { const c = model.countsOf(s.id, t); row.push(c.neg, c.pos, model.absenceCount(s.id, t), model.retardCount(s.id, t)); }
     }
     for (const a of assigns) {
       const r = model.computeNote(model.studentLevels(a.id, s.id), db.get('projects', a.projectId).criteria);

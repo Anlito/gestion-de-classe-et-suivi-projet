@@ -12,13 +12,13 @@
 //   chiffré déposé sur Google Drive.
 
 const DB_NAME = 'carnet-de-classe';
-const DB_VERSION = 3; // 2 : ajout des absences · 3 : ajout des appels
+const DB_VERSION = 4; // 2 : ajout des absences · 3 : ajout des appels · 4 : ajout des retards
 export const SNAPSHOT_FORMAT = 1;
 
 export const STORES = [
   'meta',          // réglages : année scolaire, trimestre en cours, dernière sauvegarde…
   'classes',       // { name, level, segpa, year }
-  'students',      // { classId, nom, prenom, photoId }
+  'students',      // { classId, nom, prenom, photoId, besoins:['PAP'…], amenagements }
   'photos',        // { blob }
   'observations',  // { studentId, classId, type:'neg'|'pos', motif, at, trimester, origin, assignmentId, seanceN, seanceLabel }
   'notes',         // { studentId, text, at }
@@ -30,6 +30,7 @@ export const STORES = [
   'groupChanges',  // { assignmentId, studentId, from, to, at, seanceN }
   'absences',      // { studentId, classId, appelId, date:'AAAA-MM-JJ', at, trimester, assignmentId, seanceId, seanceN, seanceLabel }
   'appels',        // { classId, date, at, n (1er, 2e appel du jour…), assignmentId, seanceId, seanceN, label }
+  'retards',       // { studentId, classId, appelId, date:'AAAA-MM-JJ', at, trimester, assignmentId, seanceId, seanceN, seanceLabel }
 ];
 
 let idb = null;

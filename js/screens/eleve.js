@@ -1,4 +1,4 @@
-// Détail élève : compteurs corrigeables, comparaison par trimestre, historique, notes libres.
+// Détail élève : compteurs corrigeables, absences et retards, besoins particuliers, comparaison par trimestre, historique, notes libres.
 import * as db from '../db.js';
 import * as model from '../model.js';
 import { html, toast, fmtDay, fmtDayYear } from '../ui.js';
@@ -7,6 +7,15 @@ import { go, refresh } from '../nav.js';
 
 // État de l'écran (filtres, note en cours de modification), remis à zéro quand on change d'élève.
 let st = { sid: null, period: null, filter: 'all', newNote: '', editing: null, draft: '' };
+
+// Texte « Aménagements » : enregistré peu après la frappe (sans redessiner l'écran).
+let amenTimer = null, amenPending = null;
+function flushAmen() {
+  clearTimeout(amenTimer);
+  if (amenPending) { const { sid, text } = amenPending; amenPending = null; if (db.get('students', sid)) model.setAmenagements(sid, text); }
+}
+addEventListener('pagehide', flushAmen);
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushAmen(); });
 
 export default {
   render({ classId, studentId }) {
@@ -20,14 +29,19 @@ export default {
     const byT = [1, 2, 3].map(k => model.countsOf(s.id, k));
     const max = Math.max(8, ...byT.flatMap(x => [x.neg, x.pos]));
     const gi = model.studentGroupInfo(s);
-    const obs = st.filter === 'abs' ? [] : model.observationsOf(s.id).filter(o => o.trimester === st.period && (st.filter === 'all' || o.type === st.filter));
+    const obs = ['abs', 'ret'].includes(st.filter) ? [] : model.observationsOf(s.id).filter(o => o.trimester === st.period && (st.filter === 'all' || o.type === st.filter));
     const abs = st.filter === 'all' || st.filter === 'abs' ? model.absencesOf(s.id).filter(a => a.trimester === st.period) : [];
-    // Historique : observations et absences mêlées, de la plus récente à la plus ancienne.
-    const rowsList = [...obs.map(o => ({ kind: 'obs', key: o.at, o })), ...abs.map(a => ({ kind: 'abs', key: a.date + 'T' + a.at.slice(11), a }))]
+    const ret = st.filter === 'all' || st.filter === 'ret' ? model.retardsOf(s.id).filter(r => r.trimester === st.period) : [];
+    // Historique : observations, absences et retards mêlés, du plus récent au plus ancien.
+    const rowsList = [...obs.map(o => ({ kind: 'obs', key: o.at, o })), ...abs.map(a => ({ kind: 'abs', key: a.date + 'T' + a.at.slice(11), a })),
+      ...ret.map(r => ({ kind: 'ret', key: r.date + 'T' + r.at.slice(11), r }))]
       .sort((x, y) => y.key.localeCompare(x.key));
-    const absentNow = model.absentNow(s.classId).has(s.id);
+    const presence = model.presenceOf(s);
+    const absentNow = presence === 'absent', lateNow = presence === 'retard';
     const ap = model.currentAppel(s.classId);
     const absLabel = ap && ap.seanceN ? 'Absent à la séance ' + ap.seanceN : 'Absent à l’appel du jour';
+    const nRet = model.retardCount(s.id, t);
+    const besoins = model.besoinsOf(s);
     const notes = model.notesOf(s.id);
     const seg = on => (on ? ' on' : '');
 
@@ -67,6 +81,18 @@ export default {
             ${ap ? html`<button type="button" class="btn ${absentNow ? 'accent' : 'soft'} small" data-click="toggleAbs">${absentNow ? '✓ ' + absLabel : absLabel}</button>`
               : html`<span class="muted small abs-hint">Appel à faire depuis le trombinoscope</span>`}
           </div>
+          <div class="abs-block">
+            <div class="grow"><div class="abs-n">${nRet} <span class="abs-label">retard${nRet > 1 ? 's' : ''} ce trimestre</span></div>
+              <div class="muted small">${model.retardCount(s.id)} sur l’année</div></div>
+            <button type="button" class="btn ${lateNow ? 'accent' : 'soft'} small" data-click="toggleRetard">${lateNow ? '✓ En retard aujourd’hui' : 'Arrivé en retard'}</button>
+          </div>
+          <div class="stack">
+            <div class="caps">Besoins particuliers</div>
+            <div class="chips-row">${model.BESOINS.map(b => html`<button type="button" class="pill small-pill${besoins.includes(b.key) ? ' on' : ''}"
+              data-click="besoin" data-k="${b.key}" title="${b.label}" aria-pressed="${besoins.includes(b.key) ? 'true' : 'false'}">${besoins.includes(b.key) ? '✓ ' : ''}${b.key}</button>`)}</div>
+            ${besoins.length ? html`<div class="muted xsmall">${besoins.map(k => model.BESOINS.find(b => b.key === k).label).join(' · ')}</div>` : ''}
+            <textarea class="field" rows="3" data-input="amenagements" placeholder="Aménagements, informations utiles (place, tiers-temps, supports adaptés…)">${amenPending && amenPending.sid === s.id ? amenPending.text : s.amenagements || ''}</textarea>
+          </div>
           <div class="stack">
             <div class="caps">Par trimestre</div>
             ${byT.map((x, i) => {
@@ -88,12 +114,18 @@ export default {
             <div class="panel-title">Historique des observations</div>
             <div class="filters">
               <div class="segmented">${[1, 2, 3].map(k => html`<button type="button" class="seg${seg(st.period === k)}" data-click="period" data-k="${k}">T${k}</button>`)}</div>
-              <div class="segmented">${[['all', 'Tout'], ['neg', 'Comportement'], ['pos', 'Aide'], ['abs', 'Absences']].map(([k, l]) =>
+              <div class="segmented">${[['all', 'Tout'], ['neg', 'Comportement'], ['pos', 'Aide'], ['abs', 'Absences'], ['ret', 'Retards']].map(([k, l]) =>
                 html`<button type="button" class="seg${seg(st.filter === k)}" data-click="filter" data-k="${k}">${l}</button>`)}</div>
             </div>
           </div>
           <div class="panel-scroll" data-scroll="obs">
-            ${rowsList.map(r => r.kind === 'abs'
+            ${rowsList.map(r => r.kind === 'ret'
+              ? html`<div class="obs-row">
+                  <span class="obs-mark ret"></span>
+                  <div class="obs-text"><div class="obs-title">En retard</div><div class="muted small">${fmtDay(r.r.date)}${r.r.seanceLabel ? ' · ' + r.r.seanceLabel : ''}</div></div>
+                  <button type="button" class="icon-btn" data-click="delRet" data-id="${r.r.id}" aria-label="Supprimer le retard">${icon.trash}</button>
+                </div>`
+              : r.kind === 'abs'
               ? html`<div class="obs-row">
                   <span class="obs-mark abs"></span>
                   <div class="obs-text"><div class="obs-title">Absent</div><div class="muted small">${fmtDay(r.a.date)}${r.a.seanceLabel ? ' · ' + r.a.seanceLabel : ''}</div></div>
@@ -105,7 +137,7 @@ export default {
                   <button type="button" class="btn soft small" data-click="swap" data-id="${r.o.id}" aria-label="${r.o.type === 'neg' ? 'Passer en Aide' : 'Passer en Comportement'}">${icon.swap}<span class="swap-label">${r.o.type === 'neg' ? 'Passer en Aide' : 'Passer en Comportement'}</span></button>
                   <button type="button" class="icon-btn" data-click="delObs" data-id="${r.o.id}" aria-label="Supprimer">${icon.trash}</button>
                 </div>`)}
-            ${rowsList.length ? '' : html`<div class="empty-block">${st.period > t ? `Le trimestre ${st.period} n’a pas encore commencé.` : st.filter === 'abs' ? 'Aucune absence.' : 'Aucune observation.'}</div>`}
+            ${rowsList.length ? '' : html`<div class="empty-block">${st.period > t ? `Le trimestre ${st.period} n’a pas encore commencé.` : st.filter === 'abs' ? 'Aucune absence.' : st.filter === 'ret' ? 'Aucun retard.' : 'Aucune observation.'}</div>`}
           </div>
         </section>
 
@@ -140,9 +172,35 @@ export default {
     if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
   },
 
+  leave() { flushAmen(); },
+
   actions: {
-    period(el) { st.period = +el.dataset.k; refresh(); },
-    filter(el) { st.filter = el.dataset.k; refresh(); },
+    period(el) { flushAmen(); st.period = +el.dataset.k; refresh(); },
+    filter(el) { flushAmen(); st.filter = el.dataset.k; refresh(); },
+
+    besoin(el, e, { studentId }) {
+      flushAmen();
+      model.toggleBesoin(studentId, el.dataset.k);
+      refresh();
+    },
+    amenagements(el, e, { studentId }) {
+      amenPending = { sid: studentId, text: el.value };
+      clearTimeout(amenTimer);
+      amenTimer = setTimeout(flushAmen, 600);
+    },
+    toggleRetard(el, e, { studentId }) {
+      flushAmen();
+      const s = db.get('students', studentId);
+      const late = model.presenceOf(s) === 'retard';
+      const undo = model.setPresence(s, late ? 'present' : 'retard');
+      refresh();
+      toast({ text: late ? 'Retard retiré' : `${s.prenom} noté en retard`, undo: async () => { await undo(); refresh(); } });
+    },
+    delRet(el) {
+      const undo = model.deleteRetard(el.dataset.id);
+      refresh();
+      toast({ text: 'Retard supprimé', undo: async () => { await undo(); refresh(); }, undone: 'Suppression annulée' });
+    },
 
     plus(el, e, { studentId }) {
       const s = db.get('students', studentId), type = el.dataset.type;
@@ -172,10 +230,11 @@ export default {
     },
 
     toggleAbs(el, e, { studentId }) {
+      flushAmen();
       const s = db.get('students', studentId);
-      const r = model.toggleAbsent(s);
-      if (!r) return;
-      const { absent, undo } = r;
+      if (!model.currentAppel(s.classId)) return;
+      const absent = model.presenceOf(s) !== 'absent';
+      const undo = model.setPresence(s, absent ? 'absent' : 'present');
       refresh();
       toast({ text: absent ? `${s.prenom} noté absent` : `Absence retirée`, undo: async () => { await undo(); refresh(); } });
     },

@@ -104,25 +104,32 @@ async function startAppel(classId) {
   }
 }
 
-function card(s, c, absent, inAppel) {
+// Appel : un toucher fait passer l'élève de Présent à Absent, puis En retard, puis de nouveau Présent.
+const PRESENCE = { present: 'Présent', absent: 'Absent', retard: 'Retard' };
+const NEXT_PRESENCE = { present: 'absent', absent: 'retard', retard: 'present' };
+
+function card(s, c, state, inAppel) {
+  const absent = state === 'absent', late = state === 'retard';
   if (inAppel) {
-    return html`<button type="button" class="card appel${absent ? ' absent' : ''}" data-click="toggleAbs" data-sid="${s.id}" aria-pressed="${absent ? 'true' : 'false'}">
+    return html`<button type="button" class="card appel ${state}" data-click="toggleAbs" data-sid="${s.id}" aria-label="${model.fullName(s)} : ${PRESENCE[state]}">
       <span class="card-photo">${photo(s)}</span>
       <span class="card-body">
         <span class="card-name"><span class="prenom">${s.prenom || '—'}</span><span class="nom">${s.nom}</span></span>
-        <span class="appel-state">${absent ? 'Absent' : 'Présent'}</span>
+        <span class="appel-state">${PRESENCE[state]}</span>
       </span>
     </button>`;
   }
+  const besoins = model.besoinsOf(s);
   return html`<div class="card${absent ? ' absent' : ''}" data-sid="${s.id}">
     <button type="button" class="card-photo" data-click="detail" data-sid="${s.id}" aria-label="Détail de ${model.fullName(s)}">
       ${photo(s, { badge: true })}
-      ${absent ? html`<span class="abs-chip">Absent</span>` : ''}
+      ${absent ? html`<span class="abs-chip">Absent</span>` : late ? html`<span class="abs-chip late">Retard</span>` : ''}
     </button>
     <div class="card-body">
       <div class="card-name" data-click="detail" data-sid="${s.id}">
         <div class="prenom">${s.prenom || '—'}</div>
         <div class="nom">${s.nom}</div>
+        ${besoins.length ? html`<div class="besoin-tags">${besoins.join(' · ')}</div>` : ''}
       </div>
       <div class="obs-btns">
         <button type="button" class="obs neg" data-obs="neg" data-sid="${s.id}" aria-label="Comportement">
@@ -232,11 +239,14 @@ export default {
     const students = model.studentsOf(classId);
     const counts = model.countsByStudent(classId);
     const absent = model.absentNow(classId);
+    const late = model.retardNow(classId);
+    const stateOf = s => (late.has(s.id) ? 'retard' : absent.has(s.id) ? 'absent' : 'present');
+    const lateTxt = late.size ? ` · ${late.size} retard${late.size > 1 ? 's' : ''}` : '';
     return html`<div class="screen">
       <header class="topbar">
         ${backLink('#/', 'Classes')}
         <div class="heading"><span class="title">${c.name}</span>
-          <span class="sub">${students.length} élèves${absent.size ? ` · ${absent.size} absent${absent.size > 1 ? 's' : ''}` : ''} · Trimestre ${model.trimester()}</span></div>
+          <span class="sub">${students.length} élèves${absent.size ? ` · ${absent.size} absent${absent.size > 1 ? 's' : ''}` : ''}${lateTxt} · Trimestre ${model.trimester()}</span></div>
         <div class="spacer"></div>
         ${inAppel ? '' : html`
           <button type="button" class="btn soft" data-click="startAppel">${icon.roll}<span class="hide-phone">Appel</span></button>
@@ -250,11 +260,11 @@ export default {
       </header>
       <main class="content trombi${inAppel ? ' appel-mode' : ''}" data-scroll="trombi">
         ${students.length
-          ? html`<div class="trombi-grid">${students.map(s => card(s, counts.get(s.id) || { neg: 0, pos: 0 }, absent.has(s.id), inAppel))}</div>`
+          ? html`<div class="trombi-grid">${students.map(s => card(s, counts.get(s.id) || { neg: 0, pos: 0 }, stateOf(s), inAppel))}</div>`
           : html`<div class="empty-block">Aucun élève dans cette classe. Ajoutez-les depuis Administration.</div>`}
       </main>
       ${inAppel ? html`<div class="sel-bar appel-bar">
-        <span class="sel-text"><strong>${sessionTitle(classId)}</strong> · touchez les absents · ${absent.size} absent${absent.size > 1 ? 's' : ''} / ${students.length}
+        <span class="sel-text"><strong>${sessionTitle(classId)}</strong> · 1 toucher : absent, 2 touchers : en retard · ${absent.size} absent${absent.size > 1 ? 's' : ''}${lateTxt} / ${students.length}
 </span>
         <button type="button" class="toast-btn accent" data-click="endAppel">Terminer l’appel</button>
       </div>` : ''}
@@ -277,14 +287,16 @@ export default {
       cancel();
       const p = { btn, long: false, x: e.clientX, y: e.clientY };
       p.timer = setTimeout(() => {
-        p.long = true;
-        buzz(30);
         const st = db.get('students', btn.dataset.sid);
         const type = btn.dataset.obs;
+        const list = model.motifs(type);
+        if (!list.length) return; // aucun motif défini : l'appui long compte comme un toucher
+        p.long = true;
+        buzz(30);
         openMenu({
           anchor: btn, width: 280, color: COLOR[type],
           title: model.LABEL[type] + ' · ' + (st ? st.prenom : ''),
-          items: model.MOTIFS[type].map(label => ({ label, onPick: () => add(root, btn, label) })),
+          items: list.map(label => ({ label, onPick: () => add(root, btn, label) })),
         });
       }, LONG_PRESS_MS);
       press = p;
@@ -311,15 +323,16 @@ export default {
 
     startAppel(el, e, { classId }) { startAppel(classId); },
     endAppel(el, e, { classId }) {
-      const n = model.absentNow(classId).size;
+      const n = model.absentNow(classId).size, r = model.retardNow(classId).size;
+      const parts = [n && `${n} absent${n > 1 ? 's' : ''}`, r && `${r} retard${r > 1 ? 's' : ''}`].filter(Boolean);
       appel = null;
       refresh();
-      toast({ text: n ? `Appel enregistré : ${n} absent${n > 1 ? 's' : ''}` : 'Appel enregistré : tout le monde est présent' });
+      toast({ text: parts.length ? `Appel enregistré : ${parts.join(', ')}` : 'Appel enregistré : tout le monde est présent' });
     },
     toggleAbs(el) {
       const s = db.get('students', el.dataset.sid);
       if (!s) return;
-      model.toggleAbsent(s);
+      model.setPresence(s, NEXT_PRESENCE[model.presenceOf(s)]);
       buzz(18);
       refresh();
     },

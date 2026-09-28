@@ -1,11 +1,75 @@
 // Créer / Modifier un projet : titre, description, nombre de séances, critères (chacun sur 4 pts).
+// Les critères peuvent être choisis dans le programme de technologie du cycle 4 (programme.js).
 import * as db from '../db.js';
 import * as model from '../model.js';
 import { html, toast, confirmDialog } from '../ui.js';
 import { icon, backLink } from '../components.js';
 import { go, refresh } from '../nav.js';
+import { THEMES, COMPETENCES, NIVEAUX, SOURCE } from '../programme.js';
 
 let draft = null; // copie de travail, enregistrée seulement avec « Enregistrer »
+// Fenêtre « Choisir dans le programme » : target = id du critère à remplacer (null : ajout de plusieurs critères).
+let picker = null; // { target, level: 'all'|'5e'|'4e'|'3e', open: Set(n° de compétence), sel: Map(clé → { label, pronote }) }
+
+// Niveau proposé d'office : celui des classes associées au projet s'il n'y en a qu'un.
+function defaultLevel() {
+  if (!draft.id) return 'all';
+  const lv = [...new Set(model.assignmentsOfProject(draft.id).map(a => db.get('classes', a.classId)).filter(Boolean).map(c => c.level))];
+  return lv.length === 1 && NIVEAUX.includes(lv[0]) ? lv[0] : 'all';
+}
+
+function pickerView() {
+  const multi = !picker.target;
+  const target = multi ? null : crit(picker.target);
+  const levels = picker.level === 'all' ? NIVEAUX : [picker.level];
+  const pickBtn = (key, label, pronote, sub = '') => {
+    const on = picker.sel.has(key);
+    return html`<button type="button" class="prog-item${on ? ' on' : ''}" data-click="progPick" data-key="${key}" data-label="${label}" data-pronote="${pronote}">
+      <span class="prog-check">${on ? icon.check : ''}</span>
+      <span class="grow">${sub ? html`<span class="prog-lvl">${sub}</span>` : ''}${label}</span>
+    </button>`;
+  };
+  return html`<div class="scrim dim" data-click="closePicker"></div>
+    <aside class="drawer prog-drawer" role="dialog" aria-modal="true">
+      <div class="drawer-head"><span class="drawer-title grow ellipsis">${multi ? 'Choisir dans le programme' : `Critère ${target ? target.code : ''} · programme`}</span>
+        <button type="button" class="btn soft" data-click="closePicker">Fermer</button></div>
+      <div class="drawer-body" data-scroll="prog">
+        <div class="stack-tight">
+          <div class="segmented">${[['all', 'Tous'], ...NIVEAUX.map(n => [n, n])].map(([k, l]) =>
+            html`<button type="button" class="seg${picker.level === k ? ' on' : ''}" data-click="progLevel" data-k="${k}">${l}</button>`)}</div>
+          <div class="muted small">${multi ? 'Touchez les repères à évaluer : chacun devient un critère.' : 'Touchez un repère : il remplace l’intitulé du critère.'}
+            La compétence de fin de cycle est recopiée dans la colonne « Compétence Pronote ».</div>
+        </div>
+        ${THEMES.map((t, ti) => html`<div class="prog-theme">
+          <div class="caps">Thème ${ti + 1}</div>
+          <div class="prog-theme-title">${t.title}</div>
+          ${COMPETENCES.filter(c => c.theme === ti).map(c => {
+            const open = picker.open.has(c.n);
+            const count = [...picker.sel.keys()].filter(k => k.split('.')[0] === String(c.n)).length;
+            return html`<div class="prog-comp${open ? ' open' : ''}">
+              <button type="button" class="prog-comp-head" data-click="progToggle" data-n="${c.n}" aria-expanded="${open ? 'true' : 'false'}">
+                <span class="prog-n">${c.n}</span><span class="grow">${c.label}</span>
+                ${count ? html`<span class="chip accent">${count}</span>` : ''}${icon.down}
+              </button>
+              ${open ? html`<div class="prog-comp-body">
+                ${pickBtn(String(c.n), 'Toute la compétence (sans repère précis)', c.label)}
+                ${c.parts.map((p, pi) => {
+                  const items = levels.flatMap(lv => p.reperes[lv].map((r, ri) => ({ lv, r, key: `${c.n}.${pi}.${lv}.${ri}` })));
+                  return items.length ? html`<div class="prog-part">${p.title}</div>
+                    ${items.map(x => pickBtn(x.key, x.r, c.label, picker.level === 'all' ? x.lv : ''))}` : '';
+                })}
+              </div>` : ''}
+            </div>`;
+          })}
+        </div>`)}
+        <div class="muted xsmall">${SOURCE}</div>
+      </div>
+      ${multi ? html`<div class="drawer-foot">
+        <span class="grow muted">${picker.sel.size ? `${picker.sel.size} repère${picker.sel.size > 1 ? 's' : ''} choisi${picker.sel.size > 1 ? 's' : ''}` : 'Aucun repère choisi'}</span>
+        <button type="button" class="btn accent" data-click="progAdd" ${picker.sel.size ? '' : 'disabled'}>Ajouter ${picker.sel.size > 1 ? picker.sel.size + ' critères' : 'le critère'}</button>
+      </div>` : ''}
+    </aside>`;
+}
 
 function load(id) {
   if (id === 'new') return { id: null, title: '', desc: '', nSeances: 6, criteria: [{ id: db.uid(), code: 'C1', label: '', pronote: '' }] };
@@ -73,19 +137,66 @@ export default {
               <input class="input grow" value="${c.label}" data-input="label" data-id="${c.id}" placeholder="Intitulé du critère">
               <span class="c-pts muted strong-sm">4 pts</span>
               <input class="input c-pronote" value="${c.pronote || ''}" data-input="pronote" data-id="${c.id}" placeholder="—">
+              <button type="button" class="icon-btn c-del" data-click="openPicker" data-id="${c.id}" aria-label="Choisir ce critère dans le programme" title="Choisir dans le programme">${icon.book}</button>
               <button type="button" class="icon-btn c-del" data-click="delCrit" data-id="${c.id}" aria-label="Supprimer le critère">${icon.trash}</button>
             </div>`)}
-            <button type="button" class="add-row" data-click="addCrit">${icon.plusBig}Ajouter un critère</button>
+            <div class="add-rows">
+              <button type="button" class="add-row" data-click="addCrit">${icon.plusBig}Ajouter un critère</button>
+              <button type="button" class="add-row accent" data-click="openPicker">${icon.book}Choisir dans le programme</button>
+            </div>
           </div>
           <div class="crit-foot"><strong>${n} critère${n > 1 ? 's' : ''} × 4 pts = ${n * 4} pts</strong><span class="muted">ramené sur 20</span></div>
         </section>
       </main>
+      ${picker ? pickerView() : ''}
     </div>`;
   },
 
-  leave() { draft = null; },
+  leave() { draft = null; picker = null; },
 
   actions: {
+    openPicker(el) {
+      const target = el.dataset.id || null;
+      picker = { target, level: defaultLevel(), open: new Set(), sel: new Map() };
+      // Critère déjà choisi dans le programme : on ouvre directement sa compétence.
+      const c = target && crit(target);
+      const comp = c && COMPETENCES.find(x => x.label === c.pronote);
+      if (comp) picker.open.add(comp.n);
+      refresh();
+    },
+    closePicker() { picker = null; refresh(); },
+    progLevel(el) { picker.level = el.dataset.k; refresh(); },
+    progToggle(el) {
+      const n = +el.dataset.n;
+      if (picker.open.has(n)) picker.open.delete(n); else picker.open.add(n);
+      refresh();
+    },
+    progPick(el) {
+      const { key, label, pronote } = el.dataset;
+      if (picker.target) {
+        const c = crit(picker.target);
+        c.label = label; c.pronote = pronote;
+        picker = null;
+        refresh();
+        toast({ text: `Critère ${c.code} choisi dans le programme` });
+        return;
+      }
+      if (picker.sel.has(key)) picker.sel.delete(key); else picker.sel.set(key, { label, pronote });
+      refresh();
+    },
+    progAdd() {
+      const chosen = [...picker.sel.values()];
+      // Les critères encore vides (ex. le C1 d'un nouveau projet) sont remplis en premier.
+      for (const x of chosen) {
+        const empty = draft.criteria.find(c => !c.label.trim() && !(c.pronote || '').trim());
+        if (empty) { empty.label = x.label; empty.pronote = x.pronote; }
+        else draft.criteria.push({ id: db.uid(), code: nextCode(), label: x.label, pronote: x.pronote });
+      }
+      picker = null;
+      refresh();
+      toast({ text: chosen.length > 1 ? `${chosen.length} critères ajoutés` : 'Critère ajouté' });
+    },
+
     title(el) { draft.title = el.value; },
     desc(el) { draft.desc = el.value; },
     code(el) { const c = crit(el.dataset.id); const v = el.value.toUpperCase(); if (el.value !== v) el.value = v; c.code = v; },

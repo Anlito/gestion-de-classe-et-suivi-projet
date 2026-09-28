@@ -1,8 +1,8 @@
-// Réglages : trimestre, thème, stockage, données de démonstration.
+// Réglages : trimestre, motifs des observations, thème, stockage, données de démonstration.
 import * as db from '../db.js';
 import * as model from '../model.js';
 import { html, toast, confirmDialog } from '../ui.js';
-import { backLink, saveStatus } from '../components.js';
+import { icon, backLink, saveStatus } from '../components.js';
 import { refresh, currentTheme, setTheme, APP_VERSION } from '../nav.js';
 import { loadDemo } from '../demo.js';
 import { hasPin, setPin, removePin, keypad } from '../lock.js';
@@ -26,6 +26,23 @@ export default {
           <button type="button" class="btn soft" data-click="nextTri" ${t >= 3 ? 'disabled' : ''}>
             ${t >= 3 ? 'Dernier trimestre de l’année' : 'Passer au trimestre ' + (t + 1)}</button>
           <div class="muted small">Clôt le trimestre : les compteurs du trombinoscope repartent à zéro, l’historique est conservé.</div>
+        </div>
+
+        <div class="set-block">
+          <div class="set-title">Motifs des observations</div>
+          <div class="muted small">Proposés par un appui long sur les boutons − et + du trombinoscope. Touchez un motif pour le modifier.</div>
+          <div class="motif-cols">${['neg', 'pos'].map(type => html`<div class="motif-col">
+            <div class="motif-head"><i class="sw ${type}"></i>${model.LABEL[type]}</div>
+            ${model.motifs(type).map((m, i) => html`<div class="motif-row">
+              <input class="input grow" value="${m}" data-change="motifEdit" data-type="${type}" data-i="${i}" aria-label="Motif ${i + 1}">
+              <button type="button" class="icon-btn" data-click="motifDel" data-type="${type}" data-i="${i}" aria-label="Supprimer le motif ${m}">${icon.trash}</button>
+            </div>`)}
+            <button type="button" class="add-row small" data-click="motifAdd" data-type="${type}">${icon.plus}Ajouter un motif</button>
+          </div>`)}</div>
+          <div class="row-center wrap">
+            <span class="muted small grow" data-fill="motifState">${model.motifsCustomized() ? 'Motifs personnalisés.' : 'Motifs par défaut de l’app.'}</span>
+            <button type="button" class="btn soft small" data-click="motifReset" ${model.motifsCustomized() ? '' : 'disabled'}>Rétablir les motifs par défaut</button>
+          </div>
         </div>
 
         <div class="set-block">
@@ -95,6 +112,40 @@ export default {
       const undo = model.nextTrimester();
       refresh();
       toast({ text: `Trimestre ${t + 1} commencé`, undo: async () => { await undo(); refresh(); } });
+    },
+    // Modification d'un motif : enregistrée quand on quitte le champ, sans redessiner l'écran (le champ suivant garde le focus).
+    motifEdit(el) {
+      const { type } = el.dataset, i = +el.dataset.i;
+      const list = [...model.motifs(type)];
+      const v = el.value.trim();
+      if (!v) { el.value = list[i]; toast({ text: 'Un motif ne peut pas être vide : utilisez la corbeille pour le supprimer' }); return; }
+      if (v === list[i]) return;
+      list[i] = v;
+      const undo = model.setMotifs(type, list);
+      const state = document.querySelector('[data-fill="motifState"]'); if (state) state.textContent = 'Motifs personnalisés.';
+      const reset = document.querySelector('[data-click="motifReset"]'); if (reset) reset.disabled = false;
+      toast({ text: `Motif modifié : ${v}`, undo: async () => { await undo(); refresh(); } });
+    },
+    motifAdd(el) {
+      const { type } = el.dataset;
+      model.setMotifs(type, [...model.motifs(type), 'Nouveau motif']);
+      refresh();
+      const inputs = document.querySelectorAll(`[data-change="motifEdit"][data-type="${type}"]`);
+      const last = inputs[inputs.length - 1];
+      if (last) { last.focus(); last.select(); }
+    },
+    motifDel(el) {
+      const { type } = el.dataset, i = +el.dataset.i;
+      const list = [...model.motifs(type)];
+      const [removed] = list.splice(i, 1);
+      const undo = model.setMotifs(type, list);
+      refresh();
+      toast({ text: `Motif « ${removed} » supprimé`, undo: async () => { await undo(); refresh(); } });
+    },
+    motifReset() {
+      const undo = model.resetMotifs();
+      refresh();
+      toast({ text: 'Motifs par défaut rétablis', undo: async () => { await undo(); refresh(); } });
     },
     theme(el) { setTheme(el.dataset.k); refresh(); },
     async checkUpdate(el) {
