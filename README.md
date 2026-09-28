@@ -51,6 +51,13 @@ Réglages → « Remplacer par les données de démonstration » donne des class
 
 ## Historique des versions
 
+### 1.4.1 — 28 septembre 2026
+
+- **Choix dans le programme : l'intitulé du critère n'est plus modifié.** Choisir un repère ou une compétence
+  remplit seulement la colonne « Compétence Pronote » (compétence de fin de cycle) ; l'intitulé reste celui écrit
+  par le professeur. Pour un critère sans intitulé, le repère choisi s'affiche en grisé comme exemple et le curseur
+  s'y place. Un critère relié à une compétence doit avoir un intitulé pour être enregistré.
+
 ### 1.4.0 — 28 septembre 2026
 
 - **Motifs des observations modifiables** (Réglages → « Motifs des observations ») : ajouter, renommer,
@@ -70,8 +77,8 @@ Réglages → « Remplacer par les données de démonstration » donne des class
 - **Critères choisis dans le programme** : dans l'éditeur de projet, « Choisir dans le programme » ouvre les
   9 compétences de fin de cycle du programme de technologie cycle 4 (BO n° 9 du 29 février 2024), avec les
   repères de progressivité filtrables par niveau (5e / 4e / 3e). Plusieurs repères peuvent être ajoutés d'un coup ;
-  l'icône livre d'un critère le remplace. Le repère devient l'intitulé du critère et la compétence de fin de cycle
-  est recopiée dans « Compétence Pronote ». Données dans `js/programme.js`.
+  l'icône livre d'un critère le remplace. La compétence de fin de cycle est recopiée dans « Compétence Pronote »
+  (en 1.4.0 le repère remplaçait aussi l'intitulé, voir 1.4.1). Données dans `js/programme.js`.
 
 ### 1.3.1 — 27 septembre 2026
 

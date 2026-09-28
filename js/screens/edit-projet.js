@@ -37,8 +37,8 @@ function pickerView() {
         <div class="stack-tight">
           <div class="segmented">${[['all', 'Tous'], ...NIVEAUX.map(n => [n, n])].map(([k, l]) =>
             html`<button type="button" class="seg${picker.level === k ? ' on' : ''}" data-click="progLevel" data-k="${k}">${l}</button>`)}</div>
-          <div class="muted small">${multi ? 'Touchez les repères à évaluer : chacun devient un critère.' : 'Touchez un repère : il remplace l’intitulé du critère.'}
-            La compétence de fin de cycle est recopiée dans la colonne « Compétence Pronote ».</div>
+          <div class="muted small">${multi ? 'Touchez les repères à évaluer : chacun devient un critère.' : 'Touchez un repère ou une compétence pour ce critère.'}
+            Seule la colonne « Compétence Pronote » est remplie (compétence de fin de cycle) : l’intitulé reste le vôtre.</div>
         </div>
         ${THEMES.map((t, ti) => html`<div class="prog-theme">
           <div class="caps">Thème ${ti + 1}</div>
@@ -77,6 +77,11 @@ function load(id) {
   return p ? { id: p.id, title: p.title, desc: p.desc || '', nSeances: p.nSeances, criteria: p.criteria.map(c => ({ ...c })) } : null;
 }
 const crit = id => draft.criteria.find(c => c.id === id);
+// Place le curseur dans l'intitulé d'un critère s'il est encore vide (à écrire soi-même).
+function focusLabel(id) {
+  const el = document.querySelector(`[data-input="label"][data-id="${id}"]`);
+  if (el && !el.value) el.focus();
+}
 
 // Nouveau code : même lettre que le dernier critère, numéro suivant (C4 → C5, D7 → D8).
 function nextCode() {
@@ -134,7 +139,7 @@ export default {
           <div class="panel-scroll crit-list" data-scroll="crit">
             ${draft.criteria.map(c => html`<div class="crit-row">
               <input class="input c-code strong-in" value="${c.code}" data-input="code" data-id="${c.id}" aria-label="Code">
-              <input class="input grow" value="${c.label}" data-input="label" data-id="${c.id}" placeholder="Intitulé du critère">
+              <input class="input grow" value="${c.label}" data-input="label" data-id="${c.id}" placeholder="${c.hint ? 'Votre intitulé · ex. : ' + c.hint : 'Intitulé du critère'}" title="${c.hint || ''}">
               <span class="c-pts muted strong-sm">4 pts</span>
               <input class="input c-pronote" value="${c.pronote || ''}" data-input="pronote" data-id="${c.id}" placeholder="—">
               <button type="button" class="icon-btn c-del" data-click="openPicker" data-id="${c.id}" aria-label="Choisir ce critère dans le programme" title="Choisir dans le programme">${icon.book}</button>
@@ -173,12 +178,15 @@ export default {
     },
     progPick(el) {
       const { key, label, pronote } = el.dataset;
+      // L'intitulé du critère n'est jamais modifié : seule la compétence Pronote est remplie.
+      // Le repère choisi sert seulement d'exemple (texte grisé) tant que l'intitulé est vide.
       if (picker.target) {
         const c = crit(picker.target);
-        c.label = label; c.pronote = pronote;
+        c.pronote = pronote; c.hint = label;
         picker = null;
         refresh();
-        toast({ text: `Critère ${c.code} choisi dans le programme` });
+        focusLabel(c.id);
+        toast({ text: `Compétence Pronote du critère ${c.code} choisie dans le programme` });
         return;
       }
       if (picker.sel.has(key)) picker.sel.delete(key); else picker.sel.set(key, { label, pronote });
@@ -186,15 +194,18 @@ export default {
     },
     progAdd() {
       const chosen = [...picker.sel.values()];
+      let first = null;
       // Les critères encore vides (ex. le C1 d'un nouveau projet) sont remplis en premier.
       for (const x of chosen) {
-        const empty = draft.criteria.find(c => !c.label.trim() && !(c.pronote || '').trim());
-        if (empty) { empty.label = x.label; empty.pronote = x.pronote; }
-        else draft.criteria.push({ id: db.uid(), code: nextCode(), label: x.label, pronote: x.pronote });
+        let c = draft.criteria.find(k => !k.label.trim() && !(k.pronote || '').trim());
+        if (!c) { c = { id: db.uid(), code: nextCode(), label: '', pronote: '' }; draft.criteria.push(c); }
+        c.pronote = x.pronote; c.hint = x.label;
+        first = first || c;
       }
       picker = null;
+      if (first) setTimeout(() => focusLabel(first.id));
       refresh();
-      toast({ text: chosen.length > 1 ? `${chosen.length} critères ajoutés` : 'Critère ajouté' });
+      toast({ text: (chosen.length > 1 ? `${chosen.length} critères ajoutés` : 'Critère ajouté') + ' : écrivez votre intitulé' });
     },
 
     title(el) { draft.title = el.value; },
@@ -229,6 +240,8 @@ export default {
       const criteria = draft.criteria.filter(c => c.code.trim() || c.label.trim())
         .map(c => ({ id: c.id, code: c.code.trim(), label: c.label.trim(), pronote: (c.pronote || '').trim() }));
       if (!criteria.length) { toast({ text: 'Ajoutez au moins un critère' }); return; }
+      const untitled = criteria.find(c => !c.label && c.pronote);
+      if (untitled) { toast({ text: `Donnez un intitulé au critère ${untitled.code}` }); focusLabel(untitled.id); return; }
       const isNew = !draft.id;
       const rec = { title, desc: draft.desc.trim(), nSeances: draft.nSeances, criteria };
       if (!isNew) rec.id = draft.id;
