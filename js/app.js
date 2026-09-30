@@ -4,6 +4,7 @@ import * as model from './model.js';
 import { setRenderer, setTheme, currentTheme } from './nav.js';
 import { html, toast, closeLayer } from './ui.js';
 import accueil from './screens/accueil.js';
+import semaine from './screens/semaine.js';
 import trombi from './screens/trombi.js';
 import eleve from './screens/eleve.js';
 import projet from './screens/projet.js';
@@ -22,7 +23,8 @@ import { initUpdates } from './update.js';
 
 // Adresse (après #) → écran. Les parties entre parenthèses deviennent des paramètres.
 const ROUTES = [
-  [/^#?\/?$/, accueil, []],
+  [/^#?\/?$/, semaine, []],
+  [/^#\/classes$/, accueil, []],
   [/^#\/classe\/([^/]+)\/trombi$/, trombi, ['classId']],
   [/^#\/classe\/([^/]+)\/eleve\/([^/]+)$/, eleve, ['classId', 'studentId']],
   [/^#\/classe\/([^/]+)\/projet$/, projet, ['classId']],
@@ -46,7 +48,7 @@ function resolve() {
     const m = h.match(re);
     if (m) return { screen, params: Object.fromEntries(names.map((n, i) => [n, decodeURIComponent(m[i + 1])])) };
   }
-  return { screen: accueil, params: {} };
+  return { screen: semaine, params: {} };
 }
 
 // Garde la position de défilement des zones marquées data-scroll quand on redessine le même écran.

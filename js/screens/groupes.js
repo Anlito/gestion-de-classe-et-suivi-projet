@@ -27,7 +27,7 @@ export default {
     if (sel.aid !== (a && a.id)) sel = { aid: a && a.id, ids: [] };
 
     const head = html`<header class="topbar">
-      ${backLink('#/', 'Classes')}
+      ${backLink('#/', 'Accueil')}
       <div class="heading"><span class="title">${c.name}</span>
         <span class="sub">${p ? 'Groupes du projet ' + p.title : 'Groupes'}</span></div>
       <div class="spacer"></div>

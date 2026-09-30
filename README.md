@@ -33,6 +33,8 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/ical.js` | lecture des emplois du temps exportés de Pronote (.ics) : cours, statuts, vacances, heure de Paris |
 | `js/planning.js` | emploi du temps : établissements, cours, vacances, rôle des matières, correspondance des classes, import |
 | `js/screens/emploi-du-temps.js` | Administration → Emploi du temps : import, correspondance des classes, aperçu, rôles |
+| `js/screens/semaine.js` | accueil `#/` : planning de la semaine (sans emploi du temps : affiche la liste des classes) |
+| `js/screens/accueil.js` | liste des classes en tuiles (`#/classes`) |
 | `tests/index.html` | page de tests automatiques (+ vérification locale de ses propres fichiers .ics) |
 | `js/backup.js` | fichiers produits : sauvegarde JSON, CSV |
 | `js/screens/*.js` | un fichier par écran (`render`, `mount`, `actions`) |
@@ -77,6 +79,24 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 - Statistiques : un élève en retard compte comme présent ; taux = appels sans absence / appels.
 
 ## Historique des versions
+
+### 1.7.0 — 30 septembre 2026 · Planning, étape 3/7 : l'accueil devient le planning
+
+- Nouvel accueil (`js/screens/semaine.js`) : semaine du lundi au vendredi (samedi s'il y a cours), plage horaire
+  calculée d'après les cours (8 h – 17 h minimum), hauteur ajustée pour tenir sur l'écran de la Tab S7+ en paysage.
+  Semaine précédente / suivante, « Aujourd'hui », colonne du jour teintée, trait rouge de l'heure actuelle
+  (rafraîchi chaque minute), cours en cours encadré avec « En cours ».
+- Chaque cours : bord à la couleur du collège, nom de la classe de l'app (sinon le nom Pronote), heures, salle,
+  étiquette de statut (Annulé, Déplacé, Classe absente, Sortie…). Annulé / classe absente / absence personnelle :
+  barré en pointillés. Matière « En grisé », classe ignorée ou réunion sans classe : estompé. Matière « Masqué » :
+  absent. Classe pas encore reliée : bord orange et « ? » (le toucher ouvre Emploi du temps).
+- Vacances et jours fériés : colonne teintée et libellé dans l'en-tête du jour. Cours qui se chevauchent : côte à côte.
+- Toucher un cours → trombinoscope de la classe. Bouton **Classes** (liste des classes, `#/classes`) à côté
+  d'Administration. Les liens « retour » des écrans de classe s'appellent maintenant « Accueil ».
+- Téléphone (< 700 px) : un jour à la fois, onglets Lun … Ven, flèches jour précédent / suivant.
+- Sans emploi du temps importé, l'accueil reste la liste des classes (comme avant).
+- Vérifié en local sur les vrais exports : semaine en cours, décembre (6 A toujours à 15h05), vacances de la
+  Toussaint, cours déplacés / annulés, téléphone sans défilement horizontal. Données locales effacées après test.
 
 ### 1.6.0 — 30 septembre 2026 · Planning, étape 2/7 : tables et import
 

@@ -244,7 +244,7 @@ export default {
     const lateTxt = late.size ? ` · ${late.size} retard${late.size > 1 ? 's' : ''}` : '';
     return html`<div class="screen">
       <header class="topbar">
-        ${backLink('#/', 'Classes')}
+        ${backLink('#/', 'Accueil')}
         <div class="heading"><span class="title">${c.name}</span>
           <span class="sub">${students.length} élèves${absent.size ? ` · ${absent.size} absent${absent.size > 1 ? 's' : ''}` : ''}${lateTxt} · Trimestre ${model.trimester()}</span></div>
         <div class="spacer"></div>

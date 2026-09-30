@@ -84,7 +84,7 @@ export default {
     const crit = p ? p.criteria : [];
 
     const head = html`<header class="topbar">
-      ${backLink('#/', 'Classes')}
+      ${backLink('#/', 'Accueil')}
       <div class="heading"><span class="title">${c.name}</span>
         <span class="sub">${p ? `${p.title} · ${crit.length} critère${crit.length > 1 ? 's' : ''} de 1 à 4 pts · note /20 = moyenne × 5` : 'Notes'}</span></div>
       <div class="spacer"></div>

@@ -21,7 +21,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) flush
 
 function header(c, a, p) {
   return html`<header class="topbar">
-    ${backLink('#/', 'Classes')}
+    ${backLink('#/', 'Accueil')}
     <div class="heading"><span class="title">${c.name}</span>
       <span class="sub">${model.studentsOf(c.id).length} élèves · Trimestre ${model.trimester()}</span></div>
     <div class="spacer"></div>

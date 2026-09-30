@@ -1,8 +1,9 @@
-// Accueil : tuiles des classes regroupées par niveau.
+// Classes : tuiles des classes regroupées par niveau (#/classes). C'est aussi l'accueil tant
+// qu'aucun emploi du temps n'est importé (voir semaine.js).
 import * as db from '../db.js';
 import * as model from '../model.js';
 import { html, toast } from '../ui.js';
-import { icon, saveStatus } from '../components.js';
+import { icon, saveStatus, backLink } from '../components.js';
 import { refresh } from '../nav.js';
 import { loadDemo } from '../demo.js';
 
@@ -40,9 +41,11 @@ export default {
     const sections = model.SECTIONS
       .map(s => ({ ...s, classes: all.filter(c => model.sectionOf(c) === s.key) }))
       .filter(s => s.classes.length);
+    const fromPlanning = location.hash === '#/classes';
     return html`<div class="screen">
-      <header class="topbar home">
-        <div class="brand"><span class="brand-title">Carnet de classe</span>
+      <header class="topbar${fromPlanning ? '' : ' home'}">
+        ${fromPlanning ? backLink('#/', 'Planning') : ''}
+        <div class="brand"><span class="brand-title">${fromPlanning ? 'Classes' : 'Carnet de classe'}</span>
           <span class="sub">${model.schoolYear()} · Trimestre ${model.trimester()}</span></div>
         <div class="spacer"></div>
         ${saveStatus()}

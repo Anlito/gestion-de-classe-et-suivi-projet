@@ -11,7 +11,7 @@ export default {
     const projects = model.projects();
     return html`<div class="screen">
       <header class="topbar">
-        ${backLink('#/', 'Classes')}
+        ${backLink('#/', 'Accueil')}
         <div class="title">Administration</div>
         <div class="spacer"></div>${saveStatus()}
         <a class="btn soft" href="#/admin/planning">${icon.calendar}<span class="hide-narrow">Emploi du temps</span></a>
