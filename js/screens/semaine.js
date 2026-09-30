@@ -1,5 +1,8 @@
-// Accueil : planning de la semaine (cours importés de Pronote). Sans emploi du temps, l'accueil reste
-// la liste des classes (screens/accueil.js). Tablette : la semaine entière ; téléphone : un jour à la fois.
+// Accueil : planning de la semaine (maquette Planning.dc.html, cahier des charges v2 §7.0).
+// Sans emploi du temps, l'accueil reste la liste des classes (screens/accueil.js).
+// Tablette : la semaine entière ; téléphone : un jour à la fois.
+// Toucher un cours ouvre son panneau : ouvrir la classe, projet, statut, déplacer (créneaux libres en pointillés),
+// remettre à sa place, note, autre horaire.
 import * as db from '../db.js';
 import * as model from '../model.js';
 import * as planning from '../planning.js';
@@ -13,6 +16,7 @@ let weekStart = null;   // lundi affiché (AAAA-MM-JJ)
 let dayIdx = null;      // jour affiché sur téléphone (0 = lundi)
 let timer = null, onResize = null;
 let screenW = 0, screenH = 0;
+let moving = null;      // id du cours en cours de déplacement (créneaux libres affichés)
 
 // ---------- Dates ----------
 const pad = n => String(n).padStart(2, '0');
@@ -23,7 +27,21 @@ const toMin = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 6
 const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const fmtShort = iso => parse(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+const fmtSlot = (iso, debut) => parse(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }) + ' · ' + debut;
+const fmtLong = iso => parse(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 const narrow = () => window.innerWidth < 700;
+
+// Teinte du niveau de la classe (mêmes teintes que les tuiles des classes).
+const tintOf = cls => { if (!cls) return 'var(--surface)'; const s = model.SECTIONS.find(x => x.key === model.sectionOf(cls)); return s ? s.tint : 'var(--surface)'; };
+// « Projet · séance x/n » du projet en cours de la classe.
+function projetOf(classId) {
+  const a = classId && model.activeAssignments(classId)[0];
+  const p = a && db.get('projects', a.projectId);
+  if (!p) return null;
+  const pr = model.progress(a);
+  return { a, p, label: `${p.title} · séance ${pr.cur}/${pr.total}` };
+}
+const nameOf = (e, cls) => (cls ? cls.name : e.classe || e.matiere);
 
 // Cours de la semaine prêts à afficher (tels que modifiés par le professeur : planning.eff).
 function weekCours(mon) {
@@ -37,12 +55,16 @@ function weekCours(mon) {
     const link = classId ? 'ok' : !c.classe ? 'none' : entry && entry.classId === '' ? 'ignored' : 'todo';
     const off = planning.OFF.has(c.statut);
     const role = planning.roleOfCours(c);
+    const start = toMin(c.debut), end = Math.max(toMin(c.fin), start + 1);
+    const live = c.date === today && !off && now >= start && now < end;
+    const moved = !!c.deplaceDe || c.statut === 'deplace';
     return {
-      c, e, cls, link, off, start: toMin(c.debut), end: Math.max(toMin(c.fin), toMin(c.debut) + 1),
-      name: cls ? cls.name : c.classe || c.matiere,
+      c, e, cls, classId, link, off, start, end, live, moved,
+      name: nameOf(c, cls),
       dim: role === 'grise' || link === 'ignored' || link === 'none',
-      live: c.date === today && !off && now >= toMin(c.debut) && now < toMin(c.fin),
-      badge: planning.statutLabel(c),
+      past: !live && (c.date < today || (c.date === today && end <= now)),
+      chip: planning.statutLabel(c) && c.statut !== 'deplace' ? planning.statutLabel(c) : moved ? 'Déplacé' : live ? 'En cours' : '',
+      progress: live ? Math.round((now - start) / (end - start) * 100) : 0,
     };
   });
 }
@@ -67,24 +89,36 @@ function dayOff(iso) {
   return [...new Set(db.where('jours', j => iso >= j.du && iso <= j.au).map(j => j.label || (j.type === 'ferie' ? 'Férié' : 'Vacances')))];
 }
 
-function block(it, top, height, left, width) {
-  const cls = ['wk-c', it.dim ? 'dim' : '', it.off ? 'off' : '', it.live ? 'live' : '', it.link === 'todo' ? 'todo' : '', height < 44 ? 'tiny' : ''].filter(Boolean).join(' ');
-  const clickable = it.link === 'ok' || it.link === 'todo';
-  // Toucher le cours : ouvrir la classe. Bouton « ⋯ » : note, modifier, déplacer, annuler.
-  return html`<div role="button" tabindex="0" class="${cls}" style="top:${top}px;height:${height}px;left:${left}%;width:${width}%;--etab:${it.e ? it.e.color : 'var(--ink2)'}"
-    ${clickable ? html`data-click="open" data-id="${it.c.id}"` : html`data-click="sheet" data-id="${it.c.id}"`}
-    aria-label="${it.name}, ${it.c.debut} à ${it.c.fin}${it.badge ? ', ' + it.badge : ''}${it.c.note ? ', note : ' + it.c.note : ''}">
-    ${it.live ? html`<span class="wk-live">En cours</span>` : ''}
-    <span class="wk-row1"><span class="wk-name">${it.name}${it.link === 'todo' ? ' ?' : ''}</span>${it.c.note && height < 72 ? html`<span class="wk-note-ic" title="${it.c.note}">${icon.list}</span>` : ''}${it.badge ? html`<span class="wk-badge">${it.badge}</span>` : ''}</span>
-    <span class="wk-meta">${it.c.debut}–${it.c.fin}${it.c.salle ? ' · ' + it.c.salle : ''}${it.c.modifie ? ' · modifié' : ''}${it.c.source === 'manuel' ? ' · ajouté' : ''}</span>
-    ${it.c.note && height >= 72 ? html`<span class="wk-note">${icon.list}<span>${it.c.note}</span></span>` : ''}
-    <button type="button" class="wk-more" data-click="sheet" data-id="${it.c.id}" aria-label="Note, modifier ou annuler ce cours">⋯</button>
+// Pause méridienne : entre la fin des cours du matin et le début de ceux de l'après-midi de la semaine.
+function lunchOf(items) {
+  const on = items.filter(i => !i.off);
+  const morning = on.filter(i => i.start < 12 * 60 + 30), afternoon = on.filter(i => i.start >= 12 * 60 + 30);
+  if (!morning.length || !afternoon.length) return null;
+  const a = Math.max(...morning.map(i => i.end)), b = Math.min(...afternoon.map(i => i.start));
+  return b - a >= 40 ? { a, b } : null;
+}
+
+function block(it, top, height, left, width, lanesN) {
+  const wide = lanesN === 1;
+  const cls = ['wk-c', it.dim ? 'dim' : '', it.off ? 'off' : '', it.live ? 'live' : '', it.link === 'todo' ? 'todo' : '',
+    it.past && !it.off ? 'past' : '', moving && moving !== it.c.id ? 'faded' : '', moving === it.c.id ? 'sel' : '', height < 44 ? 'tiny' : ''].filter(Boolean).join(' ');
+  const proj = wide && !it.off && height >= 62 ? (it.c.deplaceDe ? 'Déplacé depuis ' + fmtSlot(it.c.deplaceDe.date, it.c.deplaceDe.debut) : (projetOf(it.classId) || {}).label) : '';
+  const time = `${it.c.debut}–${it.c.fin}`;
+  const line2 = wide ? time + (it.c.salle ? ' · ' + it.c.salle : '') : it.chip || (lanesN === 2 ? time : it.c.debut);
+  return html`<div role="button" tabindex="0" class="${cls}" data-click="sheet" data-id="${it.c.id}"
+    style="top:${top}px;height:${height}px;left:calc(${left}% + ${it.lane ? 3 : 0}px);width:calc(${width}% - ${lanesN > 1 ? 3 : 0}px);--tint:${it.off ? 'transparent' : tintOf(it.cls)};--etab:${it.e ? it.e.color : 'transparent'}"
+    aria-label="${it.name}, ${time}${it.chip ? ', ' + it.chip : ''}${it.c.note ? ', note : ' + it.c.note : ''}">
+    <span class="wk-row1"><span class="wk-name">${it.name}${it.link === 'todo' ? ' ?' : ''}</span>
+      ${it.c.note ? html`<span class="wk-note-ic" title="${it.c.note}">${icon.list}</span>` : ''}
+      ${wide && it.chip ? html`<span class="wk-chip${it.live ? ' live' : it.off ? ' warn' : ''}">${it.chip}</span>` : ''}</span>
+    <span class="wk-meta${!wide && it.chip ? ' strong' : ''}">${line2}</span>
+    ${proj ? html`<span class="wk-proj">${proj}</span>` : ''}
+    ${it.live ? html`<span class="wk-progress"><span style="width:${it.progress}%"></span></span>` : ''}
   </div>`;
 }
 
-// ---------- Fiche d'un cours (tiroir) : note, modifier / déplacer, annuler ; ajout d'un cours ----------
+// ---------- Panneau d'un cours ; formulaires « autre horaire » et « ajouter un cours » ----------
 let sheet = null; // { mode: 'view'|'edit'|'add', id?, f: { classId, etabId, date, debut, fin, salle, role, repeat }, note }
-const fmtLong = iso => parse(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
 function sheetView() {
   const c = sheet.id ? db.get('cours', sheet.id) : null;
@@ -93,36 +127,53 @@ function sheetView() {
   const classId = c ? planning.classIdOf(c) : null;
   const cls = classId ? db.get('classes', classId) : null;
   const etab = e && e.etabId ? db.get('etablissements', e.etabId) : null;
-  const title = sheet.mode === 'add' ? 'Ajouter un cours' : (cls ? cls.name : e.classe || e.matiere);
-  let body;
+  let head, body;
   if (sheet.mode === 'view') {
-    const serie = planning.suivants(c).length;
+    const proj = projetOf(classId);
+    const choix = planning.choixOf(e.statut);
+    head = html`<div class="cs-head" style="background:${tintOf(cls)}">
+        <div class="grow"><div class="cs-title">${nameOf(e, cls)}</div>
+          <div class="cs-when">${fmtLong(e.date)} · ${e.debut}–${e.fin}</div>
+          <div class="cs-where">${[e.salle && 'Salle ' + e.salle, etab && etab.initiales, e.source === 'manuel' && 'ajouté à la main'].filter(Boolean).join(' · ') || ' '}</div></div>
+        <button type="button" class="cs-close" data-click="closeSheet" aria-label="Fermer">${icon.close}</button>
+      </div>`;
     body = html`
       <div class="stack-tight">
-        <div class="strong">${fmtLong(e.date)} · ${e.debut}–${e.fin}</div>
-        <div class="muted">${[e.salle && 'Salle ' + e.salle, etab && etab.initiales + ' · ' + etab.name, e.matiere].filter(Boolean).join(' · ')}</div>
-        ${planning.statutLabel(e) ? html`<div><span class="chip warn">${planning.statutLabel(e)}</span></div>` : ''}
-        ${e.modifie ? html`<div class="abs-info">Modifié par vous. Pronote : ${fmtLong(c.date)} · ${c.debut}–${c.fin}${c.salle ? ' · ' + c.salle : ''}
-          <button type="button" class="link-btn" data-click="resetPerso">Revenir à la version Pronote</button></div>` : ''}
-        ${c.source === 'manuel' ? html`<div class="muted small">Cours ajouté à la main${c.serieId ? ' (chaque semaine)' : ''}.</div>` : ''}
+        ${cls ? html`<button type="button" class="btn accent cs-open" data-click="open" data-id="${c.id}">Ouvrir la classe ${icon.arrow}</button>`
+          : html`<div class="abs-info">${c.classe ? html`« ${c.classe} » n’est reliée à aucune classe de l’app.
+              <a class="link-btn" href="#/admin/planning">Emploi du temps → Classes</a>` : 'Cours sans classe.'}</div>`}
+        ${proj ? html`<a class="cs-proj" href="#/classe/${classId}/projet"><span class="grow"><span class="muted small">Projet</span><strong>${proj.label}</strong></span>${icon.chevron}</a>` : ''}
       </div>
-      <div class="stack">
-        <div class="caps">Note sur ce cours</div>
+      <div class="stack-tight">
+        <div class="cs-sec">Statut du cours</div>
+        ${Object.entries(planning.STATUT_CHOIX).map(([k, s]) => html`<button type="button" class="cs-opt${choix === k ? ' on' : ''}" data-click="statut" data-k="${k}">
+          <span class="grow">${s.choix}</span>${choix === k ? icon.check : ''}</button>`)}
+      </div>
+      <div class="stack-tight">
+        <div class="cs-sec">Créneau</div>
+        ${e.deplaceDe ? html`<div class="muted">Déplacé depuis <strong class="ink">${fmtSlot(e.deplaceDe.date, e.deplaceDe.debut)}</strong></div>` : ''}
+        <div class="row-center">
+          <button type="button" class="btn soft grow" data-click="startMove">Déplacer le cours</button>
+          ${e.deplaceDe ? html`<button type="button" class="btn soft grow" data-click="remettre">Remettre à sa place</button>` : ''}
+        </div>
+        <button type="button" class="link-btn self-start" data-click="editForm">Autre horaire ou salle…</button>
+      </div>
+      <div class="stack-tight">
+        <div class="cs-sec">Note sur ce cours</div>
         <textarea class="field" rows="3" data-input="noteText" placeholder="Photo de classe, élection des délégués, sortie à préparer…">${sheet.note}</textarea>
         <div class="row-end"><button type="button" class="btn soft small" data-click="saveNote">Enregistrer la note</button></div>
-        <div class="muted small">La note s’affiche sur le planning et en haut du trombinoscope quand vous ouvrez la classe depuis ce cours. Elle est conservée quand vous réimportez Pronote.</div>
       </div>
-      <div class="btn-col">
-        ${cls ? html`<button type="button" class="btn accent" data-click="open" data-id="${c.id}">Ouvrir la ${cls.name}</button>` : ''}
-        <button type="button" class="btn soft" data-click="editForm">Modifier ou déplacer${serie ? '…' : ''}</button>
-        ${e.statut === 'annule_perso'
-          ? html`<button type="button" class="btn soft" data-click="annule" data-v="0">Rétablir ce cours</button>`
-          : planning.OFF.has(e.statut) ? '' : html`<button type="button" class="btn danger-soft" data-click="annule" data-v="1">Annuler ce cours (cette fois)</button>`}
+      ${e.modifie || c.source === 'manuel' ? html`<div class="stack-tight">
+        ${e.modifie ? html`<div class="muted small">Modifié par vous. Pronote : ${fmtLong(c.date)} · ${c.debut}–${c.fin}${c.salle ? ' · ' + c.salle : ''}.</div>
+          <button type="button" class="link-btn self-start" data-click="resetPerso">Revenir entièrement à la version Pronote</button>` : ''}
         ${c.source === 'manuel' ? html`<button type="button" class="btn danger-soft" data-click="delCours">Supprimer ce cours ajouté</button>` : ''}
-      </div>`;
+      </div>` : ''}`;
   } else {
     const f = sheet.f;
     const add = sheet.mode === 'add';
+    head = html`<div class="drawer-head"><span class="drawer-title grow ellipsis">${add ? 'Ajouter un cours' : 'Autre horaire · ' + nameOf(e, cls)}</span>
+        <button type="button" class="btn soft" data-click="${add ? 'closeSheet' : 'backView'}">Annuler</button>
+        <button type="button" class="btn accent" data-click="${add ? 'saveAdd' : 'saveEdit'}">Enregistrer</button></div>`;
     body = html`<div class="stack">
       ${add ? html`<label class="lbl">Classe
         <select class="input" data-change="fClass"><option value="">— Choisir —</option>${model.classes().map(k => html`<option value="${k.id}" ${f.classId === k.id ? 'selected' : ''}>${k.name}</option>`)}</select></label>` : ''}
@@ -141,13 +192,57 @@ function sheetView() {
     </div>`;
   }
   return html`<div class="scrim dim" data-click="closeSheet"></div>
-    <aside class="drawer" role="dialog" aria-modal="true">
-      <div class="drawer-head"><span class="drawer-title grow ellipsis">${sheet.mode === 'edit' ? 'Modifier · ' : ''}${title}</span>
-        ${sheet.mode === 'view' ? html`<button type="button" class="btn soft" data-click="closeSheet">Fermer</button>`
-          : html`<button type="button" class="btn soft" data-click="${sheet.mode === 'edit' ? 'backView' : 'closeSheet'}">Annuler</button>
-            <button type="button" class="btn accent" data-click="${sheet.mode === 'add' ? 'saveAdd' : 'saveEdit'}">Enregistrer</button>`}</div>
+    <aside class="drawer cours-sheet" role="dialog" aria-modal="true">
+      ${head}
       <div class="drawer-body" data-scroll="sheet">${body}</div>
     </aside>`;
+}
+
+// Chevauchements : avertit et demande confirmation. Renvoie true pour continuer.
+async function okMalgreChevauchement(placements, ignore = []) {
+  const conflicts = planning.chevauchements(placements, ignore);
+  if (!conflicts.length) return true;
+  const lines = conflicts.slice(0, 4).map(({ cours: x }) => {
+    const k = planning.classIdOf(x.src);
+    return `${fmtSlot(x.date, x.debut)}–${x.fin} : ${nameOf(x, k && db.get('classes', k))}`;
+  });
+  const n = conflicts.length;
+  const choice = await choiceDialog({
+    title: n > 1 ? `Ce cours en chevauche ${n} autres` : 'Ce cours en chevauche un autre',
+    text: lines.join(' · ') + (n > 4 ? ` · et ${n - 4} autre${n - 4 > 1 ? 's' : ''}` : ''),
+    choices: [
+      { label: 'Enregistrer quand même', value: true, style: 'soft' },
+      { label: 'Revenir en arrière', value: false, style: 'accent' },
+    ],
+  });
+  return choice === true;
+}
+// « Cette fois » ou « toutes les semaines suivantes » (null si on renonce).
+async function askSerie(c) {
+  const n = planning.suivants(c).length;
+  if (!n) return false;
+  const e = planning.eff(c);
+  const choice = await choiceDialog({
+    title: 'Appliquer la modification à…',
+    text: `D’autres cours de cette classe ont lieu le ${DAYS[(parse(e.date).getDay() + 6) % 7].toLowerCase()} à ${e.debut} jusqu’à la fin de l’année. Les cours passés ne changent pas.`,
+    choices: [
+      { label: 'Cette fois seulement', value: 'one', style: 'soft' },
+      { label: 'Ce cours et toutes les semaines suivantes', sub: `${n + 1} cours jusqu’à la fin de l’année`, value: 'all', style: 'soft' },
+      { label: 'Annuler', value: null, style: 'soft' },
+    ],
+  });
+  return choice === null ? null : choice === 'all';
+}
+// Déplacement / changement d'horaire commun au glisser vers un créneau et au formulaire.
+async function deplacer(c, changes) {
+  const serie = await askSerie(c);
+  if (serie === null) return false;
+  const placements = planning.placementsDeplacement(c, changes, serie);
+  if (!(await okMalgreChevauchement(placements, placements.map(p => p.id)))) return false;
+  const undo = planning.editCours(c, changes, serie);
+  toast({ text: (serie ? `${placements.length} cours déplacés` : `${nameOf(c, db.get('classes', planning.classIdOf(c)))} déplacé au ${fmtSlot(changes.date, changes.debut)}`),
+    undo: async () => { await undo(); refresh(); } });
+  return true;
 }
 
 export default {
@@ -165,36 +260,46 @@ export default {
     if (dayIdx == null || dayIdx >= nDays) { const t = dates.indexOf(today); dayIdx = t >= 0 ? t : 0; }
     const shown = phone ? [dates[dayIdx]] : dates;
 
-    // Plage horaire : celle des cours de la semaine, arrondie à l'heure (8 h – 17 h par défaut).
+    // Plage horaire : celle des cours de la semaine, arrondie à l'heure (8 h – 17 h 30 au minimum).
     const from = Math.floor(Math.min(8 * 60, ...items.map(i => i.start)) / 60) * 60;
-    const to = Math.ceil(Math.max(17 * 60, ...items.map(i => i.end)) / 60) * 60;
-    // Hauteur : la journée tient dans l'écran de la tablette, sans descendre sous 0,9 px par minute.
+    const to = Math.ceil(Math.max(17.5 * 60, ...items.map(i => i.end)) / 30) * 30;
     // Hauteur de référence : la plus grande vue pour cette largeur (le clavier ou une liste ouverte la réduisent un instant).
     if (screenW !== window.innerWidth) { screenW = window.innerWidth; screenH = 0; }
     screenH = Math.max(screenH, window.innerHeight);
-    const avail = screenH - 64 - 56 - 40;
+    const avail = screenH - 64 - 48 - 16;
     const ppm = Math.max(phone ? 1.1 : 0.9, avail / (to - from));
     const H = Math.round((to - from) * ppm);
     const y = m => Math.round((m - from) * ppm);
+    const lunch = lunchOf(items);
 
     const isThisWeek = mondayOf(today) === weekStart;
-    const etabs = planning.etablissements();
+    const live = items.find(it => it.live && it.classId);
     const t = nowMin();
+    const mc = moving ? db.get('cours', moving) : null;
+    if (moving && !mc) moving = null;
+    // Créneaux libres pendant un déplacement.
+    const targets = d => {
+      if (!mc || d < today || dayOff(d).length) return [];
+      const me = planning.eff(mc);
+      const busy = items.filter(it => it.c.date === d && !it.off && it.c.id !== mc.id);
+      return planning.creneaux(mc).filter(s => !(d === today && toMin(s.debut) <= t) && !(d === me.date && s.debut === me.debut) && !busy.some(b => toMin(s.debut) < b.end && b.start < toMin(s.fin)));
+    };
 
     return html`<div class="screen">
       <header class="topbar home wk-top">
         <button type="button" class="icon-btn" data-click="prev" aria-label="${phone ? 'Jour précédent' : 'Semaine précédente'}">${icon.back}</button>
         <div class="wk-title">
-          <span class="brand-title">${phone ? parse(shown[0]).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : `Semaine du ${fmtShort(dates[0])} au ${fmtShort(dates[nDays - 1])}`}</span>
+          <span class="brand-title">${phone ? parse(shown[0]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : `Semaine du ${fmtShort(dates[0])} au ${fmtShort(dates[nDays - 1])}`}</span>
           <span class="sub">${model.schoolYear()} · Trimestre ${model.trimester()}</span>
         </div>
         <button type="button" class="icon-btn flip" data-click="next" aria-label="${phone ? 'Jour suivant' : 'Semaine suivante'}">${icon.back}</button>
-        ${(phone ? shown[0] !== today : !isThisWeek) ? html`<button type="button" class="btn soft small" data-click="today">Aujourd’hui</button>` : ''}
+        ${(phone ? shown[0] !== today : !isThisWeek) ? html`<button type="button" class="btn soft small" data-click="today">${phone ? 'Aujourd’hui' : 'Cette semaine'}</button>` : ''}
         <div class="spacer"></div>
         ${saveStatus()}
+        ${live ? html`<button type="button" class="btn accent wk-livebtn" data-click="open" data-id="${live.c.id}"><span class="dot"></span><span class="hide-phone">En cours · </span><strong>${live.name}</strong>${icon.arrow}</button>` : ''}
         <button type="button" class="btn soft" data-click="add" aria-label="Ajouter un cours">${icon.plusBig}<span class="hide-narrow">Cours</span></button>
         <a class="btn soft" href="#/classes">${icon.tabTrombi}<span class="hide-narrow">Classes</span></a>
-        <a class="btn accent" href="#/admin">${icon.sliders}<span class="hide-narrow">Administration</span></a>
+        <a class="btn soft" href="#/admin">${icon.sliders}<span class="hide-narrow">Administration</span></a>
       </header>
       ${phone ? html`<nav class="wk-days">${dates.map((d, i) => html`<button type="button" class="wk-day-tab${i === dayIdx ? ' on' : ''}${d === today ? ' today' : ''}" data-click="day" data-i="${i}">
         <span>${DAYS[i].slice(0, 3)}</span><strong>${parse(d).getDate()}</strong></button>`)}</nav>` : ''}
@@ -202,21 +307,26 @@ export default {
         <div class="wk-grid" style="--cols:${shown.length}">
           <div class="wk-corner"></div>
           ${shown.map(d => { const off = dayOff(d); return html`<div class="wk-dh${d === today ? ' today' : ''}${off.length ? ' holiday' : ''}">
-            ${phone ? '' : html`<span class="wk-dname">${DAYS[dates.indexOf(d)]}</span> <span class="wk-dnum">${parse(d).getDate()}</span>`}
+            ${phone ? '' : html`<span class="wk-dname">${DAYS[dates.indexOf(d)]}</span><span class="wk-dnum">${parse(d).getDate()}</span>`}
             ${off.length ? html`<span class="wk-off">${off.join(' · ')}</span>` : ''}</div>`; })}
-          <div class="wk-hours" style="height:${H}px">${Array.from({ length: (to - from) / 60 + 1 }, (_, i) => html`<span style="top:${y(from + i * 60)}px">${pad(from / 60 + i)}h</span>`)}</div>
+          <div class="wk-hours" style="height:${H}px">${Array.from({ length: Math.floor((to - from) / 60) + 1 }, (_, i) => html`<span style="top:${y(from + i * 60)}px">${pad(from / 60 + i)}h</span>`)}</div>
           ${shown.map(d => {
             const dayItems = lanes(items.filter(it => it.c.date === d));
             const off = dayOff(d).length;
+            const showLunch = lunch && !off && !dayItems.some(it => !it.off && it.start < lunch.b && lunch.a < it.end);
             return html`<div class="wk-col${d === today ? ' today' : ''}${off ? ' holiday' : ''}" style="height:${H}px;--hour:${Math.round(60 * ppm)}px;--first:${y(from)}px">
-              ${dayItems.map(it => block(it, y(it.start), Math.max(22, y(it.end) - y(it.start) - 2), it.lane * 100 / it.lanes, 100 / it.lanes))}
+              ${showLunch ? html`<div class="wk-lunch" style="top:${y(lunch.a) + 4}px;height:${y(lunch.b) - y(lunch.a) - 8}px">Pause méridienne</div>` : ''}
+              ${dayItems.map(it => block(it, y(it.start) + 1, Math.max(22, y(it.end) - y(it.start) - 3), it.lane * 100 / it.lanes, 100 / it.lanes, it.lanes))}
+              ${targets(d).map(s => html`<button type="button" class="wk-target" style="top:${y(toMin(s.debut)) + 1}px;height:${Math.max(26, y(toMin(s.fin)) - y(toMin(s.debut)) - 3)}px"
+                data-click="moveTo" data-date="${d}" data-debut="${s.debut}" data-fin="${s.fin}">${icon.plus}${s.debut}</button>`)}
               ${d === today && t >= from && t <= to ? html`<div class="wk-now" style="top:${y(t)}px"></div>` : ''}
-              ${!dayItems.length && !off ? html`<div class="wk-empty">Pas de cours</div>` : ''}
+              ${!dayItems.length && !off && !mc ? html`<div class="wk-empty">Pas de cours</div>` : ''}
             </div>`;
           })}
         </div>
-        ${etabs.length > 1 ? html`<div class="wk-legend">${etabs.map(e => html`<span><i style="background:${e.color}"></i>${e.initiales} · ${e.name}</span>`)}</div>` : ''}
       </main>
+      ${mc ? html`<div class="sel-bar move-bar"><span class="sel-text">Déplacer <strong>${nameOf(planning.eff(mc), db.get('classes', planning.classIdOf(mc)))}</strong> · touchez un créneau libre</span>
+        <button type="button" class="toast-btn" data-click="cancelMove">Annuler</button></div>` : ''}
       ${sheet ? sheetView() : ''}
     </div>`;
   },
@@ -227,7 +337,7 @@ export default {
     const now = root.querySelector('.wk-now');
     const main = root.querySelector('.wk');
     if (now && main && main.scrollTop === 0 && main.scrollHeight > main.clientHeight) main.scrollTop = Math.max(0, now.offsetTop - 120);
-    if (!timer) timer = setInterval(() => { if ((location.hash || '#/') === '#/' && !document.hidden && !sheet) refresh(); }, 60 * 1000);
+    if (!timer) timer = setInterval(() => { if ((location.hash || '#/') === '#/' && !document.hidden && !sheet && !moving) refresh(); }, 60 * 1000);
     // Redessiner seulement quand la LARGEUR change (tablette tournée). Sur Android, ouvrir une liste, un champ
     // date/heure ou le clavier réduit la HAUTEUR : redessiner à ce moment fermait la liste avant le choix.
     if (!onResize) {
@@ -246,7 +356,7 @@ export default {
   },
 
   leave() {
-    sheet = null;
+    sheet = null; moving = null;
     clearInterval(timer); timer = null;
     if (onResize) { removeEventListener('resize', onResize); onResize = null; }
   },
@@ -269,24 +379,49 @@ export default {
       const c = db.get('cours', el.dataset.id);
       if (!c) return;
       const classId = planning.classIdOf(c);
-      if (classId) { planning.openedFromPlanning(c); sheet = null; go(`#/classe/${classId}/trombi`); return; }
-      toast({ text: `« ${c.classe} » n’est reliée à aucune classe de l’app : choisissez-la dans Emploi du temps → Classes`, ms: 5000 });
-      go('#/admin/planning');
+      if (classId) { planning.openedFromPlanning(c); sheet = null; moving = null; go(`#/classe/${classId}/trombi`); }
     },
-    // ----- Fiche d'un cours -----
+
+    // ----- Panneau d'un cours -----
     sheet(el) {
+      if (moving) return;
       const c = db.get('cours', el.dataset.id);
       if (!c) return;
       sheet = { mode: 'view', id: c.id, note: c.note || '' };
       refresh();
     },
     closeSheet() { sheet = null; refresh(); },
+    statut(el) {
+      const c = db.get('cours', sheet.id);
+      const k = el.dataset.k;
+      if (planning.choixOf(planning.eff(c).statut) === k) return;
+      const undo = planning.setStatut(c, k);
+      refresh();
+      toast({ text: `${nameOf(c, db.get('classes', planning.classIdOf(c)))} · ${planning.STATUT_CHOIX[k].choix}`, undo: async () => { await undo(); refresh(); } });
+    },
+    startMove() { moving = sheet.id; sheet = null; refresh(); },
+    cancelMove() { moving = null; refresh(); },
+    async moveTo(el) {
+      const c = db.get('cours', moving);
+      if (!c) { moving = null; refresh(); return; }
+      const { date, debut, fin } = el.dataset;
+      const done = await deplacer(c, { date, debut, fin });
+      if (done) moving = null;
+      refresh();
+    },
+    remettre() {
+      const c = db.get('cours', sheet.id);
+      const e = planning.eff(c);
+      const undo = planning.remettre(c);
+      refresh();
+      toast({ text: `${nameOf(e, db.get('classes', planning.classIdOf(c)))} remis au ${fmtSlot(c.date, c.debut)}`, undo: async () => { await undo(); refresh(); } });
+    },
     noteText(el) { sheet.note = el.value; },
     saveNote() {
       const c = db.get('cours', sheet.id);
       const undo = planning.setNote(c, sheet.note);
       refresh();
-      toast({ text: sheet.note.trim() ? 'Note enregistrée' : 'Note effacée', undo: async () => { await undo(); sheet && (sheet.note = (db.get('cours', sheet.id) || {}).note || ''); refresh(); } });
+      toast({ text: sheet.note.trim() ? 'Note enregistrée' : 'Note effacée', undo: async () => { await undo(); if (sheet) sheet.note = (db.get('cours', sheet.id) || {}).note || ''; refresh(); } });
     },
     editForm() {
       const e = planning.eff(db.get('cours', sheet.id));
@@ -295,6 +430,7 @@ export default {
     },
     backView() { sheet.mode = 'view'; refresh(); },
     add() {
+      moving = null;
       const d = narrow() ? addDays(weekStart, dayIdx || 0) : (mondayOf(todayISO()) === weekStart ? todayISO() : weekStart);
       sheet = { mode: 'add', f: { classId: '', etabId: '', date: d, debut: '08:00', fin: '09:00', salle: '', role: 'suivi', repeat: false } };
       refresh();
@@ -315,43 +451,23 @@ export default {
     async saveEdit() {
       const f = sheet.f, c = db.get('cours', sheet.id);
       if (!f.date || !f.debut || !f.fin || f.fin <= f.debut) { toast({ text: 'Vérifiez la date et les heures (la fin doit suivre le début)' }); return; }
-      const n = planning.suivants(c).length;
-      let serie = false;
-      if (n) {
-        const e = planning.eff(c);
-        const choice = await choiceDialog({
-          title: 'Appliquer la modification à…',
-          text: `D’autres cours de cette classe ont lieu le ${DAYS[(parse(e.date).getDay() + 6) % 7].toLowerCase()} à ${e.debut} jusqu’à la fin de l’année. Les cours passés ne changent pas.`,
-          choices: [
-            { label: 'Cette fois seulement', value: 'one', style: 'soft' },
-            { label: `Ce cours et toutes les semaines suivantes`, sub: `${n + 1} cours jusqu’à la fin de l’année`, value: 'all', style: 'soft' },
-            { label: 'Annuler', value: null, style: 'soft' },
-          ],
-        });
-        if (!choice) return;
-        serie = choice === 'all';
-      }
-      const undo = planning.editCours(c, { date: f.date, debut: f.debut, fin: f.fin, salle: f.salle.trim() }, serie);
+      const done = await deplacer(c, { date: f.date, debut: f.debut, fin: f.fin, salle: f.salle.trim() });
+      if (!done) return;
       sheet = { mode: 'view', id: c.id, note: c.note || '' };
       if (f.date < weekStart || f.date > addDays(weekStart, 6)) { weekStart = mondayOf(f.date); dayIdx = null; }
       refresh();
-      toast({ text: serie ? `${n + 1} cours modifiés` : 'Cours modifié', undo: async () => { await undo(); refresh(); } });
     },
-    saveAdd() {
+    async saveAdd() {
       const f = sheet.f;
       if (!f.classId) { toast({ text: 'Choisissez la classe' }); return; }
       if (!f.date || !f.debut || !f.fin || f.fin <= f.debut) { toast({ text: 'Vérifiez la date et les heures (la fin doit suivre le début)' }); return; }
+      const placements = planning.datesAjout(f.date, f.repeat).map(date => ({ date, debut: f.debut, fin: f.fin }));
+      if (!(await okMalgreChevauchement(placements))) return;
       const { undo, n } = planning.addCours({ classId: f.classId, etabId: f.etabId || null, date: f.date, debut: f.debut, fin: f.fin, salle: f.salle.trim(), role: f.role }, f.repeat);
       sheet = null;
       weekStart = mondayOf(f.date); dayIdx = null;
       refresh();
       toast({ text: n > 1 ? `${n} cours ajoutés (chaque semaine)` : 'Cours ajouté', undo: async () => { await undo(); refresh(); } });
-    },
-    annule(el) {
-      const c = db.get('cours', sheet.id);
-      const undo = planning.setAnnule(c, el.dataset.v === '1');
-      refresh();
-      toast({ text: el.dataset.v === '1' ? 'Cours annulé' : 'Cours rétabli', undo: async () => { await undo(); refresh(); } });
     },
     resetPerso() {
       const c = db.get('cours', sheet.id);

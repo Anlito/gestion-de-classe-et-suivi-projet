@@ -80,6 +80,28 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 
 ## Historique des versions
 
+### 1.8.2 — 30 septembre 2026 · Planning au design de la maquette + alerte de chevauchement
+
+Référence graphique : maquette `Planning.dc.html` et « Cahier des charges v2 » §7.0, fournis par le professeur
+(projet de maquettes hors dépôt).
+- Blocs de cours en aplat à la **teinte du niveau** (mêmes teintes que les tuiles des classes), fin liseré à la couleur
+  du collège (demande initiale), ligne « Projet · séance x/n » (projet en cours de la classe) ou « Déplacé depuis … ».
+  Pastille à droite : statut (jaune si annulé / classe absente), « Déplacé », « En cours » (foncée). Cours passés
+  atténués (55 %), cours en cours contouré avec barre de progression, trait « maintenant » foncé, bande
+  « Pause méridienne » (calculée entre les cours du matin et de l'après-midi de la semaine). Grille 8 h – 17 h 30 minimum.
+- En-tête : « Cette semaine », bouton accent **En cours · 3e E →** (ouvre la classe du cours en cours), + Cours,
+  Classes, Administration.
+- **Toucher un cours ouvre son panneau** (plus de bouton ⋯) : en-tête à la teinte du niveau, **Ouvrir la classe**,
+  lien vers le projet, **Statut du cours** (Cours normal / Annulé / Classe absente / Sortie pédagogique, stocké dans
+  `cours.perso.statut`), **Créneau** : « Déplacer le cours » (les créneaux libres — horaires habituels de
+  l'établissement, à venir, hors vacances — s'affichent en pointillés, on touche la cible ; barre « Déplacer … ·
+  touchez un créneau libre » avec Annuler), « Remettre à sa place » (annule seulement le déplacement),
+  « Autre horaire ou salle… » (formulaire), note, « Revenir entièrement à la version Pronote ».
+- **Alerte de chevauchement** : ajouter, déplacer ou changer l'horaire d'un cours qui chevauche un autre cours affiché
+  (annulés, classe absente et masqués exclus) → « Ce cours en chevauche N autres » avec la liste, « Enregistrer quand
+  même » ou « Revenir en arrière ». Pour un cours répété chaque semaine, toute l'année est vérifiée.
+- Téléphone : titre raccourci (le jour est dans les onglets), boutons compacts.
+
 ### 1.8.1 — 30 septembre 2026 · Correctif : les listes se refermaient toutes seules
 
 - Sur la tablette, ouvrir une liste (ex. choix de la classe dans « + Cours ») ou un champ date / heure / texte

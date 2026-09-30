@@ -195,12 +195,24 @@ export const statutLabel = c => c.statutLabel || (STATUTS[c.statut] && STATUTS[c
 // Renvoie une copie : { ...cours, ...perso, statut, statutLabel, modifie (bool), src (l'enregistrement) }.
 export function eff(c) {
   const p = c.perso || {};
-  const annule = c.source === 'manuel' ? !!c.annule : !!p.annule;
   const e = { ...c, ...p, src: c, modifie: c.source !== 'manuel' && Object.keys(p).length > 0 };
-  if (annule) Object.assign(e, { statut: 'annule_perso', statutLabel: 'Annulé' });
-  delete e.perso;
+  // Statut choisi par le professeur (perso.statut, ou statut direct d'un cours ajouté) ; « annule » = ancien format.
+  const st = c.source === 'manuel' ? (c.annule ? 'annule' : c.statut) : p.statut || (p.annule ? 'annule' : null);
+  if (st) Object.assign(e, { statut: st, statutLabel: STATUT_CHOIX[st] ? STATUT_CHOIX[st].label : '' });
+  // Déplacé par le professeur : on garde l'ancien créneau pour « Déplacé depuis … ».
+  e.deplaceDe = c.source !== 'manuel' && (p.date || p.debut) && (p.date !== c.date || p.debut !== c.debut) ? { date: c.date, debut: c.debut } : null;
+  delete e.perso; delete e.annule;
   return e;
 }
+// Statuts que le professeur peut choisir (panneau du cours).
+export const STATUT_CHOIX = {
+  normal: { label: '' , choix: 'Cours normal' },
+  annule: { label: 'Annulé', choix: 'Annulé' },
+  classe_absente: { label: 'Classe absente', choix: 'Classe absente' },
+  sortie: { label: 'Sortie pédagogique', choix: 'Sortie pédagogique' },
+};
+// Choix correspondant à un statut (les statuts Pronote « déplacé », « modifié »… sont des cours normaux).
+export const choixOf = statut => (statut === 'annule_perso' ? 'annule' : STATUT_CHOIX[statut] ? statut : 'normal');
 export const roleOfCours = c => (c.source === 'manuel' ? c.role || 'suivi' : roleOf(c.matiere));
 // Cours dont le statut supprime l'appel et les alertes (annulé, classe absente, sortie, absence personnelle).
 export const OFF = new Set(['annule', 'annule_perso', 'classe_absente', 'abs_perso']);
@@ -239,10 +251,14 @@ export function suivants(c) {
 // Applique des changements à un cours dans une écriture : cours manuel → directement ;
 // cours Pronote → dans « perso » (un champ revenu à la valeur Pronote est retiré).
 function applyTo(w, c, patch) {
-  if (c.source === 'manuel') return w.update('cours', c.id, patch);
+  if (c.source === 'manuel') {
+    const p = { ...patch };
+    if ('statut' in p) { p.statutLabel = STATUT_CHOIX[p.statut] ? STATUT_CHOIX[p.statut].label : ''; p.annule = undefined; }
+    return w.update('cours', c.id, p);
+  }
   const perso = { ...(c.perso || {}) };
   for (const [k, v] of Object.entries(patch)) {
-    if (k === 'annule') { if (v) perso.annule = true; else delete perso.annule; continue; }
+    if (k === 'statut') { delete perso.annule; if (v === choixOf(c.statut)) delete perso.statut; else perso.statut = v; continue; }
     if ((c[k] || '') === (v || '')) delete perso[k]; else perso[k] = v;
   }
   return w.update('cours', c.id, { perso });
@@ -262,17 +278,66 @@ export function editCours(c, changes, serie = false) {
     }
   });
 }
-export const setAnnule = (c, annule) => db.commit(w => applyTo(w, c, { annule }));
+export const setStatut = (c, statut) => db.commit(w => applyTo(w, c, { statut }));
 export const setNote = (c, note) => db.commit(w => w.update('cours', c.id, { note: note.trim() || undefined }));
 // Revenir à la version Pronote (les modifications sont effacées ; la note est gardée).
 export const resetPerso = c => db.commit(w => w.update('cours', c.id, { perso: undefined }));
+// « Remettre à sa place » : annule seulement le déplacement (date et heures), garde statut, salle et note.
+export function remettre(c) {
+  return db.commit(w => {
+    const perso = { ...(c.perso || {}) };
+    delete perso.date; delete perso.debut; delete perso.fin;
+    w.update('cours', c.id, { perso: Object.keys(perso).length ? perso : undefined });
+  });
+}
+
+// ---------- Chevauchements et créneaux libres ----------
+const mins = s => +s.slice(0, 2) * 60 + +s.slice(3, 5);
+// Cours affichés (hors annulés / classe absente / masqués) qui chevauchent un créneau.
+// placements : [{ date, debut, fin }] ; ignore : ids de cours à ne pas compter (le cours déplacé lui-même).
+export function chevauchements(placements, ignore = []) {
+  const skip = new Set(ignore);
+  const byDate = new Map();
+  for (const e of db.all('cours').map(eff)) {
+    if (skip.has(e.id) || OFF.has(e.statut) || roleOfCours(e) === 'masque') continue;
+    if (!byDate.has(e.date)) byDate.set(e.date, []);
+    byDate.get(e.date).push(e);
+  }
+  const out = [];
+  for (const p of placements) {
+    for (const e of byDate.get(p.date) || []) if (mins(p.debut) < mins(e.fin) && mins(e.debut) < mins(p.fin)) out.push({ at: p, cours: e });
+  }
+  return out;
+}
+// Dates d'un ajout : une date, ou chaque semaine jusqu'à la fin de l'année (vacances et fériés sautés).
+export function datesAjout(date, repeat) {
+  const dates = [date];
+  if (repeat) { const end = finAnnee(date); for (let d = addDays(date, 7); d <= end; d = addDays(d, 7)) if (!isOffDay(d)) dates.push(d); }
+  return dates;
+}
+// Nouveaux placements d'un déplacement (ce cours, et si serie les semaines suivantes).
+export function placementsDeplacement(c, changes, serie) {
+  const e = eff(c);
+  const shift = changes.date ? dayDiff(e.date, changes.date) : 0;
+  const list = [{ id: c.id, date: changes.date || e.date, debut: changes.debut || e.debut, fin: changes.fin || e.fin }];
+  if (serie) for (const t of suivants(c)) { const et = eff(t); list.push({ id: t.id, date: shift ? addDays(et.date, shift) : et.date, debut: changes.debut || et.debut, fin: changes.fin || et.fin }); }
+  return list;
+}
+// Créneaux horaires habituels (paires début–fin) : ceux de l'établissement du cours, sinon de tous les cours.
+export function creneaux(c) {
+  const src = db.all('cours').filter(x => x.source === 'pronote' && (!c.etabId || x.etabId === c.etabId) && roleOf(x.matiere) !== 'masque');
+  const seen = new Map();
+  for (const x of src) { const k = x.debut + '-' + x.fin; seen.set(k, (seen.get(k) || 0) + 1); }
+  // Créneaux fréquents seulement (les horaires exceptionnels restent possibles par « Autre horaire »).
+  const min = Math.max(2, Math.floor(src.length / 200));
+  return [...seen].filter(([, n]) => n >= min).map(([k]) => ({ debut: k.slice(0, 5), fin: k.slice(6) })).sort((a, b) => a.debut.localeCompare(b.debut));
+}
 
 // Ajout à la main. repeat : chaque semaine jusqu'à la fin de l'année (vacances et fériés sautés).
 export function addCours({ classId, etabId = null, date, debut, fin, salle = '', role = 'suivi' }, repeat = false) {
   const cls = db.get('classes', classId);
   const base = { source: 'manuel', classId, classe: cls ? cls.name : '', etabId, debut, fin, salle, role, matiere: '', statut: 'normal', statutLabel: '' };
-  const dates = [date];
-  if (repeat) { const end = finAnnee(date); for (let d = addDays(date, 7); d <= end; d = addDays(d, 7)) if (!isOffDay(d)) dates.push(d); }
+  const dates = datesAjout(date, repeat);
   const serieId = repeat ? db.uid() : undefined;
   let first = null;
   const undo = db.commit(w => { for (const d of dates) { const r = w.put('cours', { ...base, date: d, serieId }); first = first || r; } });
