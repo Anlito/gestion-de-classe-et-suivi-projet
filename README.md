@@ -98,6 +98,13 @@ Même méthode que le chantier Planning : une étape = une version, tests sur la
   crée son propre identifiant client OAuth « Application Web » (guide intégré dans Administration → Sauvegarde) et le
   saisit sur **chacun de ses appareils** (réglage local `meta.sync.clientId`). Ses données vont dans **son** Drive.
   Jeton d'accès valable 1 h (Google Identity Services) : reconnexion d'un toucher si besoin.
+- À faire à l'étape C : **réécrire le guide intégré « Comment obtenir mon identifiant ? »** (retour du professeur :
+  peu clair sur tablette). Reprendre la démarche détaillée : 5 parties (créer le projet ; activer Google Drive API ;
+  Google Auth Platform → « Commencer » : infos, Audience Externe, contact, puis Audience → **Utilisateurs test : son
+  adresse**, puis Accès aux données → filtre **drive.file** ; Clients → Application Web → origine **sans « / » final** ;
+  coller l'ID client dans l'app), noms exacts des menus, copier l'**ID client** et non le code secret (GOCSPX-…),
+  erreurs fréquentes (`origin_mismatch` / `redirect_uri_mismatch` : adresse, délai de prise en compte ;
+  `access_denied` : utilisateur test ; « application non validée » : Continuer). Mise en page aérée pour tablette.
 - À traiter à l'étape C : après un remplacement complet des données sur un appareil (restauration d'une
   sauvegarde, données de démonstration, « tout effacer »), ne pas fusionner aveuglément avec Drive — demander
   s'il faut remplacer Drive par cet appareil ou recharger depuis Drive.
