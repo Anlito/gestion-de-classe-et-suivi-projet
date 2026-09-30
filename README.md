@@ -34,6 +34,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/planning.js` | emploi du temps : établissements, cours, vacances, rôle des matières, correspondance des classes, import |
 | `js/screens/emploi-du-temps.js` | Administration → Emploi du temps : import, correspondance des classes, aperçu, rôles |
 | `js/stats.js` | statistiques de présence (élève, classe, projet ; retard = présent) |
+| `js/sync.js` | fusion des données entre appareils (synchronisation Google Drive) |
 | `js/alertes.js` | alertes dans l'app (appel non fait, séances à remplir), coin de l'écran, tous les écrans |
 | `js/screens/semaine.js` | accueil `#/` : planning de la semaine (sans emploi du temps : affiche la liste des classes) |
 | `js/screens/accueil.js` | liste des classes en tuiles (`#/classes`) |
@@ -61,6 +62,29 @@ Servir le dossier avec n'importe quel serveur web local (par exemple `python -m 
 puis ouvrir http://localhost:8765. Sur `localhost`, le service worker charge toujours les fichiers frais.
 Réglages → « Remplacer par les données de démonstration » donne des classes fictives pour essayer.
 
+## Chantier en cours : synchronisation Google Drive (décisions prises)
+
+Même méthode que le chantier Planning : une étape = une version, tests sur la tablette, retour du professeur.
+Étapes : **A** fondations de la fusion (1.12.0) · **B** connexion Google Drive et choix du mode (1.13.0) ·
+**C** synchronisation automatique et indicateur « Synchronisé à … » (1.14.0).
+
+- Dans Administration → Sauvegarde : choix du mode **« Sauvegarde manuelle »** (fichier, comme avant) ou
+  **« Synchronisation Google Drive »**.
+- **Plusieurs appareils en alternance** (tablette, téléphone, ordinateur) : fusion **enregistrement par
+  enregistrement**, la version la plus récente (`updatedAt`) gagne ; les suppressions laissent une trace
+  (table `effacements`) pour être répercutées ; traces oubliées après 180 jours.
+- **Pas de chiffrement** (choix du professeur) : les données sont lisibles dans son Drive → ne jamais partager le
+  dossier. Dossier **visible « Carnet de classe »** dans Drive, portée OAuth `drive.file` (l'app ne voit que les
+  fichiers qu'elle a créés).
+- Réglages propres à l'appareil, jamais synchronisés : `lastBackupAt`, `lastModified`, `sync` (`db.LOCAL_META`).
+- Photos : envoyées à part (un fichier par photo, seulement quand elle change).
+- Accès Google : identifiant client OAuth « Application Web » créé par le professeur dans sa Google Cloud Console
+  (projet « Carnet de classe », Google Drive API activée, écran de consentement en mode Test avec son adresse comme
+  utilisateur test, origine JavaScript `https://anlito.github.io`). L'identifiant client n'est pas secret.
+  Jeton d'accès valable 1 h (Google Identity Services) : reconnexion d'un toucher si besoin.
+- À traiter à l'étape C : après un remplacement complet des données sur un appareil (restauration d'une
+  sauvegarde, données de démonstration, « tout effacer »), ne pas fusionner aveuglément avec Drive — demander
+  s'il faut remplacer Drive par cet appareil ou recharger depuis Drive.
 ## Chantier Planning (terminé en 1.11.0) : décisions prises
 
 Méthode suivie : après chaque étape, nouvelle version, liste de tests à faire sur la tablette, attente du retour du professeur. Les 7 étapes sont faites (1.5.0 → 1.11.0).
@@ -83,6 +107,17 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 
 ## Historique des versions
 
+### 1.12.0 — 1er octobre 2026 · Synchronisation Drive, étape A : fondations de la fusion
+
+- Nouvelle table `effacements` (`DB_VERSION` 6) : chaque suppression (`commit` → `w.del`) laisse une trace
+  `{ id: 'store:recId', store, recId, at }` (sauf réglages propres à l'appareil). « Annuler » remet l'enregistrement
+  avec une date plus récente que la trace : il l'emporte.
+- `db.exportForSync()` : données à synchroniser (photos sans image) ; `db.applyRemote(changes)` : applique des
+  changements venus d'un autre appareil tels quels (dates conservées, sans nouvelle trace ni annulation).
+- Nouveau `js/sync.js` : `mergeData(local, drive)` — fusion enregistrement par enregistrement (le plus récent gagne,
+  égalité = version locale), traces de suppression, photos à télécharger, statistiques ; résultat stable (une
+  2e fusion ne change plus rien).
+- Tests : 44 (12 nouveaux sur la fusion). Aucun changement visible dans l'app.
 ### 1.11.0 — 1er octobre 2026 · Planning, étape 7/7 : statistiques de présence
 
 - Nouveau `js/stats.js` : **taux de présence = appels où l'élève n'était pas absent / appels de sa classe**, un

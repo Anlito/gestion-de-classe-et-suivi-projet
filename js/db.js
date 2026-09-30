@@ -12,8 +12,11 @@
 //   chiffré déposé sur Google Drive.
 
 const DB_NAME = 'carnet-de-classe';
-const DB_VERSION = 5; // 2 : absences · 3 : appels · 4 : retards · 5 : emploi du temps (établissements, cours, jours)
+const DB_VERSION = 6; // 2 : absences · 3 : appels · 4 : retards · 5 : emploi du temps · 6 : effacements (synchronisation)
 export const SNAPSHOT_FORMAT = 1;
+// Réglages propres à cet appareil, jamais synchronisés (voir sync.js).
+export const LOCAL_META = new Set(['lastBackupAt', 'lastModified', 'sync']);
+export const TOMBS = 'effacements';
 
 export const STORES = [
   'meta',          // réglages : année scolaire, trimestre en cours, dernière sauvegarde…
@@ -34,6 +37,7 @@ export const STORES = [
   'etablissements', // { name, initiales, color, classes:{ [classe Pronote normalisée]: { name, classId } }, importedAt } — voir planning.js
   'cours',         // { etabId, date, debut:'HH:MM', fin, classe (nom Pronote), salle, matiere, statut, statutLabel, source }
   'jours',         // { etabId, du, au, type:'vacances'|'ferie', label } — vacances et jours fériés
+  'effacements',   // { id: 'store:recId', store, recId, at } — trace de chaque suppression, pour la synchronisation
 ];
 
 let idb = null;
@@ -121,6 +125,14 @@ export function commit(fn, { track = true } = {}) {
       ops.push({ store, id, before, after: undefined });
       cache[store].delete(id);
       if (store === 'photos') dropPhotoURL(id);
+      // Trace de la suppression : un autre appareil synchronisé supprimera aussi cet enregistrement.
+      // (Annuler remet l'enregistrement avec une date plus récente que la trace : il l'emporte.)
+      if (store !== TOMBS && !(store === 'meta' && LOCAL_META.has(id))) {
+        const tid = store + ':' + id;
+        const tomb = { id: tid, store, recId: id, at: now, updatedAt: now };
+        ops.push({ store: TOMBS, id: tid, before: cache[TOMBS].get(tid), after: tomb, noUndo: true });
+        cache[TOMBS].set(tid, tomb);
+      }
     },
     meta(key, value) { return w.put('meta', { id: key, value }); },
   };
@@ -202,6 +214,47 @@ export async function importSnapshot(snap) {
       : list;
   }
   await replaceAll(prepared);
+}
+
+// ---------- Synchronisation (voir sync.js) ----------
+// Données à synchroniser : tous les enregistrements, sauf les réglages propres à l'appareil ; les photos
+// sans leur image ({ id, updatedAt } : les images voyagent à part, une par fichier).
+export function exportForSync() {
+  const stores = {};
+  for (const s of STORES) {
+    if (s === TOMBS) continue;
+    let list = all(s);
+    if (s === 'meta') list = list.filter(r => !LOCAL_META.has(r.id));
+    if (s === 'photos') list = list.map(p => ({ id: p.id, updatedAt: p.updatedAt }));
+    stores[s] = list;
+  }
+  return { stores, tombs: all(TOMBS) };
+}
+// Applique des changements venus d'un autre appareil, tels quels (dates conservées, pas de nouvelle trace,
+// pas d'annulation). changes = { puts: { store: [rec] }, dels: [{ store, id }], tombs: [rec] }.
+// Une photo sans image garde l'image locale si elle existe (l'image arrive séparément).
+export async function applyRemote(changes) {
+  const ops = [];
+  for (const [store, list] of Object.entries(changes.puts || {})) {
+    for (const rec of list) {
+      const r = store === 'photos' && !rec.blob ? { ...(cache.photos.get(rec.id) || {}), ...rec } : rec;
+      if (store === 'photos' && !r.blob) continue; // image pas encore téléchargée
+      cache[store].set(r.id, r);
+      if (store === 'photos') dropPhotoURL(r.id);
+      ops.push({ store, id: r.id, after: r });
+    }
+  }
+  for (const { store, id } of changes.dels || []) {
+    if (!cache[store].has(id)) continue;
+    cache[store].delete(id);
+    if (store === 'photos') dropPhotoURL(id);
+    ops.push({ store, id, after: undefined });
+  }
+  for (const t of changes.tombs || []) { cache[TOMBS].set(t.id, t); ops.push({ store: TOMBS, id: t.id, after: t }); }
+  if (!ops.length) return 0;
+  await write(ops);
+  emit({ stores: [...new Set(ops.map(o => o.store))], remote: true });
+  return ops.length;
 }
 
 export async function replaceAll(prepared) {
