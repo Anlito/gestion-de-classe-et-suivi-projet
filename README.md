@@ -82,6 +82,23 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 
 ## Historique des versions
 
+### 1.10.0 — 1er octobre 2026 · Planning, étape 6/7 : réimportation et conflits
+
+- `planning.previewOf` renvoie désormais `conflits` (les autres changements s'appliquent directement) :
+  - **modif** : Pronote a changé un cours que le professeur avait modifié (`cours.perso` : déplacé, salle, statut).
+    Choix « **Ma version** » (par défaut : ses modifications restent prioritaires sur les points qu'il avait changés ;
+    les autres changements Pronote s'appliquent) ou « **Version Pronote** » (modifications effacées).
+  - **suppr** : Pronote a retiré un cours portant des données du professeur (modification, note,
+    « pas une séance projet », appel ou séance reliés). Choix « **Garder le cours** » (par défaut : devient un cours
+    ajouté à la main, `source: 'manuel'`, `retirePronote: true`, même identifiant, hors de la comparaison avec
+    Pronote : plus de conflit aux imports suivants) ou « **Le supprimer** » (appels et séances gardés, détachés).
+  - Notes, appels et séances restent attachés au cours dans tous les cas.
+- Aperçu de l'import : pastille « n conflits » et bloc « n conflits à régler », chaque conflit avec le résultat de
+  chaque choix (date, horaire, salle, statut), boutons « Tout : mes versions » / « Tout : Pronote ».
+  Choix mémorisés dans `plan.choix` et appliqués par `planning.applyImport`.
+- Alertes masquées dans l'administration (elles recouvraient les boutons de l'import).
+- Vérifié avec des exports fictifs générés depuis la démonstration : conflit de salle sur un cours déplacé,
+  cours retirés avec note / avec appel, choix appliqués, réimport du même fichier sans nouveau conflit.
 ### 1.9.5 — 30 septembre 2026 · 1 créneau = 1 appel + 1 séance
 
 - Décision du professeur : chaque créneau (1 h, 1 h 30…) a **son appel et sa séance de projet**, même quand deux

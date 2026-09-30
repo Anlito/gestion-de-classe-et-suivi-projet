@@ -609,6 +609,16 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .stat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .diff-list { margin: 6px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.5; max-height: 260px; overflow: auto; }
 .set-block details summary { cursor: pointer; font-size: 14px; font-weight: 700; padding: 4px 0; }
+.cf-box { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: var(--warnTint); }
+.cf-item { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: var(--surface); font-size: 15px; }
+.cf-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cf-opt { min-height: 56px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: var(--bg); text-align: left; }
+.cf-opt .grow { display: flex; flex-direction: column; gap: 2px; }
+.cf-opt.on { background: var(--accentTint); box-shadow: inset 0 0 0 2px var(--accentInk); }
+.cf-radio { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; }
+.cf-opt.on .cf-radio { background: var(--accent); border-color: var(--accent); }
+.cf-radio svg { width: 14px; height: 14px; }
+@media (max-width: 480px) { .cf-opts { grid-template-columns: minmax(0, 1fr); } }
 .wiz-foot { width: 100%; max-width: 760px; margin: 0 auto; display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 16px; }
 
 /* ---------- Accueil : planning de la semaine (maquette Planning.dc.html) ---------- */

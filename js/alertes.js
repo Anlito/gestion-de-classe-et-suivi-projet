@@ -46,7 +46,8 @@ export function render() {
   const el = document.getElementById('alerts');
   if (!el) return;
   const hash = location.hash || '#/';
-  if (hash.startsWith('#/imprimer') || document.querySelector('.lock')) { el.innerHTML = ''; return; }
+  // Pas d'alertes à l'impression, sur l'écran verrouillé, ni dans l'administration (formulaires, import).
+  if (hash.startsWith('#/imprimer') || hash.startsWith('#/admin') || document.querySelector('.lock')) { el.innerHTML = ''; return; }
   // Appels et séances faits sans cours (ex. séance créée dans l'onglet Projet après le cours) : reliés d'abord.
   try { planning.lierAppels(); } catch (e) { console.error(e); }
   const list = alertes();

@@ -140,20 +140,47 @@ export async function readFiles(files) {
   for (const p of plans) if (!p.color) { p.color = PALETTE.find(c => !used.has(c)) || freeColor(); used.add(p.color); }
   return plans;
 }
+// Aperçu d'un import, avec les CONFLITS (réglés par le professeur avant de valider) :
+// - « modif » : Pronote a changé un cours que le professeur avait modifié (cours.perso : déplacé, salle, statut) ;
+//   choix 'moi' (par défaut : ses modifications l'emportent) ou 'pronote' ;
+// - « suppr » : Pronote a retiré un cours qui a des données du professeur (modification, note, « pas une séance
+//   projet », appel ou séance reliés) ; choix 'garder' (par défaut : devient un cours ajouté à la main, hors de
+//   la comparaison avec Pronote) ou 'supprimer' (appels et séances sont gardés, détachés du cours).
+// Les autres changements s'appliquent directement.
 export function previewOf(plan) {
   const existing = plan.etab ? coursOfEtab(plan.etab.id).filter(c => c.source === 'pronote') : [];
   const d = diffCours(existing, plan.cours);
-  // Un cours disparu de Pronote mais modifié, annoté, ou avec un appel / une séance, est conservé (conflits : étape 6).
   const linked = liens();
   const keep = c => isPerso(c) || linked.has(c.id);
-  const gardes = d.suppressions.filter(keep);
-  return { ...d, suppressions: d.suppressions.filter(c => !keep(c)), gardes, jours: plan.jours.length, joursAvant: plan.etab ? joursOfEtab(plan.etab.id).length : 0 };
+  const conflits = [
+    ...d.modifs.filter(({ old }) => hasPerso(old)).map(({ old, now }) => ({ type: 'modif', id: old.id, old, now })),
+    ...d.suppressions.filter(keep).map(c => ({ type: 'suppr', id: c.id, old: c, raisons: raisons(c, linked) })),
+  ];
+  return {
+    ...d, conflits,
+    modifs: d.modifs.filter(({ old }) => !hasPerso(old)),
+    suppressions: d.suppressions.filter(c => !keep(c)),
+    jours: plan.jours.length, joursAvant: plan.etab ? joursOfEtab(plan.etab.id).length : 0,
+  };
 }
-const isPerso = c => !!((c.perso && Object.keys(c.perso).length) || c.note || c.pasSeance);
+export const choixParDefaut = conflit => (conflit.type === 'modif' ? 'moi' : 'garder');
+const hasPerso = c => !!(c.perso && Object.keys(c.perso).length);
+const isPerso = c => !!(hasPerso(c) || c.note || c.pasSeance);
 // Cours reliés à un appel ou à une séance.
 const liens = () => new Set([...db.all('appels'), ...db.all('seances')].map(x => x.coursId).filter(Boolean));
+// Ce que le professeur a sur ce cours (pour expliquer un conflit).
+function raisons(c, linked = liens()) {
+  const r = [];
+  if (hasPerso(c)) r.push('modifié par vous');
+  if (c.note) r.push('note');
+  if (db.all('appels').some(a => a.coursId === c.id)) r.push('appel');
+  if (db.all('seances').some(s => s.coursId === c.id)) r.push('séance de projet');
+  if (c.pasSeance) r.push('« pas une séance projet »');
+  return r.length ? r : linked.has(c.id) ? ['appel ou séance'] : [];
+}
 
 // Enregistre l'import (une seule action, annulable). Les cours inchangés gardent leur identifiant.
+// p.choix : { [id du cours en conflit]: 'moi'|'pronote'|'garder'|'supprimer' } (sinon choix par défaut).
 export function applyImport(plans) {
   return db.commit(w => {
     for (const p of plans) {
@@ -165,11 +192,35 @@ export function applyImport(plans) {
       const d = previewOf({ ...p, etab: p.etab && etab });
       for (const c of d.suppressions) w.del('cours', c.id);
       for (const { old, now } of d.modifs) w.update('cours', old.id, now);
+      for (const k of d.conflits) {
+        const choix = (p.choix && p.choix[k.id]) || choixParDefaut(k);
+        if (k.type === 'modif') {
+          // Les champs Pronote sont toujours mis à jour ; « moi » garde les modifications (perso), « pronote » les efface.
+          w.update('cours', k.id, choix === 'pronote' ? { ...k.now, perso: undefined } : k.now);
+        } else if (choix === 'supprimer') {
+          delierIn(w, new Set([k.id]));
+          w.del('cours', k.id);
+        } else {
+          w.update('cours', k.id, versManuel(k.old));
+        }
+      }
       for (const c of d.ajouts) w.put('cours', { ...c, etabId: etab.id, source: 'pronote' });
       for (const j of joursOfEtab(etab.id)) w.del('jours', j.id);
       for (const j of p.jours) w.put('jours', { ...j, etabId: etab.id });
     }
   });
+}
+
+// Cours Pronote gardé alors que Pronote l'a retiré : devient un cours « ajouté à la main » tel qu'il s'affichait
+// (même identifiant : note, appel et séance restent reliés).
+function versManuel(c) {
+  const e = eff(c);
+  const role = roleOf(c.matiere);
+  return {
+    source: 'manuel', classId: classIdOf(c), date: e.date, debut: e.debut, fin: e.fin, salle: e.salle || '',
+    role: role === 'masque' ? 'grise' : role, statut: choixOf(e.statut), statutLabel: STATUT_CHOIX[choixOf(e.statut)].label,
+    perso: undefined, retirePronote: true,
+  };
 }
 
 // Suppression d'un établissement et de son emploi du temps (les classes de l'app ne sont pas touchées ;

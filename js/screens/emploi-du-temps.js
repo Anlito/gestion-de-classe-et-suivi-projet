@@ -104,9 +104,47 @@ function mapView() {
     </div>`;
 }
 
+// ---------- Assistant : conflits (Pronote a changé un cours que vous aviez modifié, ou retiré un cours à vous) ----------
+const FIELD_LABEL = { fin: 'fin', salle: 'salle', matiere: 'matière', statutLabel: 'statut' };
+const nomCours = c => { const k = planning.classIdOf(c); const cl = k && db.get('classes', k); return cl ? cl.name : c.classe || c.matiere; };
+const ligne = e => `${fmtDay(e.date)} · ${e.debut}–${e.fin}${e.salle ? ' · ' + e.salle : ''}${planning.statutLabel(e) ? ' · ' + planning.statutLabel(e) : ''}`;
+function conflitsView(p, pi, conflits) {
+  if (!conflits.length) return '';
+  p.choix = p.choix || {};
+  const opt = (k, value, label, detail) => {
+    const on = (p.choix[k.id] || planning.choixParDefaut(k)) === value;
+    return html`<button type="button" class="cf-opt${on ? ' on' : ''}" data-click="choix" data-p="${pi}" data-id="${k.id}" data-v="${value}">
+      <span class="cf-radio">${on ? icon.check : ''}</span><span class="grow"><strong>${label}</strong><span class="muted small">${detail}</span></span></button>`;
+  };
+  return html`<div class="cf-box">
+    <div class="row-center wrap"><span class="set-title grow">${conflits.length} conflit${conflits.length > 1 ? 's' : ''} à régler</span>
+      <button type="button" class="btn soft small" data-click="toutChoix" data-p="${pi}" data-v="moi">Tout : mes versions</button>
+      <button type="button" class="btn soft small" data-click="toutChoix" data-p="${pi}" data-v="pronote">Tout : Pronote</button></div>
+    <div class="muted small">Vos notes, appels et séances restent attachés au cours quel que soit votre choix.</div>
+    ${conflits.map(k => {
+      if (k.type === 'modif') {
+        const changes = Object.keys(FIELD_LABEL).filter(f => (k.old[f] || '') !== (k.now[f] || ''))
+          .map(f => `${FIELD_LABEL[f]} : ${k.old[f] || '—'} → ${k.now[f] || '—'}`).join(' ; ');
+        const mine = planning.eff({ ...k.old, ...k.now }), theirs = planning.eff({ ...k.old, ...k.now, perso: undefined });
+        return html`<div class="cf-item">
+          <div><strong>${nomCours(k.old)}</strong> · ${fmtDay(k.old.date)} ${k.old.debut}
+            <div class="muted small">Pronote a changé ce cours (${changes || 'détails'}), que vous aviez modifié.</div></div>
+          <div class="cf-opts">${opt(k, 'moi', 'Ma version', ligne(mine))}${opt(k, 'pronote', 'Version Pronote', ligne(theirs))}</div>
+        </div>`;
+      }
+      return html`<div class="cf-item">
+        <div><strong>${nomCours(k.old)}</strong> · ${ligne(planning.eff(k.old))}
+          <div class="muted small">Retiré de Pronote. Vous aviez sur ce cours : ${k.raisons.join(', ')}.</div></div>
+        <div class="cf-opts">${opt(k, 'garder', 'Garder le cours', 'Il reste au planning comme un cours ajouté à la main')}
+          ${opt(k, 'supprimer', 'Le supprimer', k.raisons.some(r => r === 'appel' || r === 'séance de projet') ? 'L’appel et la séance sont gardés, détachés du cours' : 'La note est perdue')}</div>
+      </div>`;
+    })}
+  </div>`;
+}
+
 // ---------- Assistant : aperçu ----------
 function previewView() {
-  return html`${wiz.plans.map(p => {
+  return html`${wiz.plans.map((p, pi) => {
     const d = planning.previewOf(p);
     const byRole = {};
     for (const c of p.cours) { const r = planning.roleOf(c.matiere); byRole[r] = (byRole[r] || 0) + 1; }
@@ -119,7 +157,7 @@ function previewView() {
         ${first ? '' : html`<span class="chip warn">${plural(d.modifs.length, 'modifié', 'modifiés')}</span>
           <span class="chip">${plural(d.suppressions.length, 'supprimé', 'supprimés')}</span>
           <span class="chip">${plural(d.inchanges, 'inchangé', 'inchangés')}</span>
-          ${d.gardes.length ? html`<span class="chip accent">${plural(d.gardes.length, 'cours retiré de Pronote mais gardé (modifié ou annoté par vous)', 'cours retirés de Pronote mais gardés (modifiés ou annotés par vous)')}</span>` : ''}`}
+          ${d.conflits.length ? html`<span class="chip warn">${plural(d.conflits.length, 'conflit', 'conflits')}</span>` : ''}`}
         <span class="chip">${plural(d.jours, 'période de vacances ou férié', 'périodes de vacances ou fériés')}</span>
       </div>
       <div class="muted small">${range(p.cours)} · ${Object.entries(byRole).map(([r, n]) => `${n} ${planning.ROLES[r].label.toLowerCase()}`).join(' · ')}
@@ -127,6 +165,7 @@ function previewView() {
       ${d.modifs.length ? html`<details><summary>Voir les ${d.modifs.length} modifications</summary><ul class="diff-list">${d.modifs.slice(0, 60).map(({ old, now }) =>
         html`<li>${coursLine(now)}<span class="muted"> — avant : ${['fin', 'salle', 'matiere', 'statutLabel'].filter(f => (old[f] || '') !== (now[f] || '')).map(f => (old[f] || '—')).join(', ') || planning.statutLabel(old) || 'cours normal'}</span></li>`)}</ul></details>` : ''}
       ${d.suppressions.length && !first ? html`<details><summary>Voir les ${d.suppressions.length} suppressions</summary><ul class="diff-list">${d.suppressions.slice(0, 60).map(c => html`<li>${coursLine(c)}</li>`)}</ul></details>` : ''}
+      ${conflitsView(p, pi, d.conflits)}
     </div>`;
   })}
   <div class="wiz-foot">
@@ -206,6 +245,18 @@ export default {
       refresh();
     },
     backToMap() { wiz.step = 'map'; wiz.i = wiz.plans.length - 1; refresh(); },
+    choix(el) {
+      const p = wiz.plans[+el.dataset.p];
+      p.choix = { ...(p.choix || {}), [el.dataset.id]: el.dataset.v };
+      refresh();
+    },
+    // « Tout : mes versions » garde aussi les cours retirés ; « Tout : Pronote » applique Pronote partout.
+    toutChoix(el) {
+      const p = wiz.plans[+el.dataset.p];
+      const mine = el.dataset.v === 'moi';
+      p.choix = Object.fromEntries(planning.previewOf(p).conflits.map(k => [k.id, k.type === 'modif' ? (mine ? 'moi' : 'pronote') : (mine ? 'garder' : 'supprimer')]));
+      refresh();
+    },
     cancelWiz() { wiz = null; refresh(); },
     applyImport() {
       const plans = wiz.plans;
