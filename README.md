@@ -31,6 +31,8 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/model.js` | règles métier : trimestres, observations, motifs, appel/absences/retards, besoins, projets, groupes, notes |
 | `js/programme.js` | programme de technologie cycle 4 : 3 thèmes, 9 compétences, repères par niveau |
 | `js/ical.js` | lecture des emplois du temps exportés de Pronote (.ics) : cours, statuts, vacances, heure de Paris |
+| `js/planning.js` | emploi du temps : établissements, cours, vacances, rôle des matières, correspondance des classes, import |
+| `js/screens/emploi-du-temps.js` | Administration → Emploi du temps : import, correspondance des classes, aperçu, rôles |
 | `tests/index.html` | page de tests automatiques (+ vérification locale de ses propres fichiers .ics) |
 | `js/backup.js` | fichiers produits : sauvegarde JSON, CSV |
 | `js/screens/*.js` | un fichier par écran (`render`, `mount`, `actions`) |
@@ -59,7 +61,7 @@ Réglages → « Remplacer par les données de démonstration » donne des class
 
 Après chaque étape : nouvelle version, liste de tests à faire sur la tablette, attendre le retour du professeur.
 
-- Deux établissements (COLLEGE PONT ROUSSEAU, COLLEGE RENE BERNIER), un fichier .ics chacun.
+- Deux établissements (initiales PR et RB), un fichier .ics chacun.
 - **Une classe de l'app par groupe Pronote** (ex. `[3C2D1]` → classe « 3C2D1 »). Les noms de classes sont rendus
   uniques par les initiales du collège (PR, RB) : pas de champ « établissement » sur les classes. La
   correspondance classe Pronote → classe de l'app est propre à chaque établissement, proposée automatiquement
@@ -75,6 +77,29 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 - Statistiques : un élève en retard compte comme présent ; taux = appels sans absence / appels.
 
 ## Historique des versions
+
+### 1.6.0 — 30 septembre 2026 · Planning, étape 2/7 : tables et import
+
+- Nouvelles tables (`DB_VERSION` 5) : `etablissements` (nom, initiales, couleur, correspondance des classes),
+  `cours` (date, début, fin, classe Pronote, salle, matière, statut, source), `jours` (vacances, fériés).
+  Réglage `meta.matiereRoles`. Tout est dans la sauvegarde JSON et l'instantané (`exportSnapshot`).
+- **Administration → Emploi du temps** : « Importer des fichiers Pronote » (plusieurs .ics à la fois) →
+  pour chaque établissement, initiales (proposées d'après le nom : PR, RB) et couleur, puis correspondance
+  classe/groupe Pronote → classe de l'app ou « Ignorer » (proposition automatique : comparaison sans espaces,
+  crochets, initiales ni « e » de « 4e » ; en cas de doublon, la classe qui porte les initiales du collège) →
+  aperçu (ajoutés / modifiés / supprimés / inchangés, cours par rôle) → « Valider l'import » (annulable).
+  Correspondance mémorisée et modifiable (bouton « Classes »), couleur modifiable, suppression d'un établissement.
+- Réimportation déjà sûre : cours reconnus par date + début + classe, identifiants conservés, pas de doublon
+  (la protection des modifications manuelles et les conflits viendront à l'étape 6).
+- **Rôle des matières** réglable : Cours suivi / Appel seulement / En grisé / Masqué (défauts : technologie =
+  suivi, vie de classe = appel, le reste masqué). Tous les cours sont stockés ; le rôle ne joue qu'à l'affichage.
+- Cascades : supprimer une classe rend sa correspondance « à choisir » ; « Nouvelle année » efface cours et
+  vacances de l'année écoulée (établissements et rôles conservés).
+- Démonstration : emploi du temps fictif (« COLLEGE DES TILLEULS », 2 h de technologie par classe et par semaine,
+  vacances, quelques statuts dans les jours qui viennent).
+- Tests : 32 (6 nouveaux sur initiales, rapprochement des classes, réimportation).
+- Vérifié en local avec les deux exports réels : 200 + 492 cours, propositions de classes justes, réimportation
+  du même fichier = 0 changement, sauvegarde/restauration identique.
 
 ### 1.5.0 — 30 septembre 2026 · Planning, étape 1/7 : lecture des fichiers Pronote
 

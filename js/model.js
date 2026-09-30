@@ -1,6 +1,7 @@
 // model.js — Règles métier : trimestres, observations, notes libres, projets, notation.
 import * as db from './db.js';
 import { todayISO, fmtDay } from './ui.js';
+import { forgetClassIn } from './planning.js';
 
 export const CLASS_LEVELS = ['6e', '5e', '4e', '3e'];
 export const LABEL = { neg: 'Comportement', pos: 'Aide / soutien / rangement' };
@@ -348,6 +349,7 @@ export function deleteClassIn(w, classId) {
   for (const s of db.where('students', x => x.classId === classId)) deleteStudentIn(w, s.id);
   for (const a of db.where('assignments', x => x.classId === classId)) deleteAssignmentIn(w, a.id);
   for (const s of ['observations', 'absences', 'retards', 'appels']) for (const o of db.where(s, x => x.classId === classId)) w.del(s, o.id);
+  forgetClassIn(w, classId);
   w.del('classes', classId);
 }
 export const deleteClass = classId => db.commit(w => deleteClassIn(w, classId));

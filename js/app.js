@@ -15,6 +15,7 @@ import editClasse from './screens/edit-classe.js';
 import editProjet from './screens/edit-projet.js';
 import sauvegarde from './screens/sauvegarde.js';
 import imprimer from './screens/imprimer.js';
+import emploiDuTemps from './screens/emploi-du-temps.js';
 import { initLock } from './lock.js';
 import { initUpdates } from './update.js';
 
@@ -30,6 +31,7 @@ const ROUTES = [
   [/^#\/admin$/, admin, []],
   [/^#\/admin\/reglages$/, reglages, []],
   [/^#\/admin\/sauvegarde$/, sauvegarde, []],
+  [/^#\/admin\/planning$/, emploiDuTemps, []],
   [/^#\/imprimer\/(eleve|fiches|recap)\/([^/]+)$/, imprimer, ['kind', 'id']],
   [/^#\/admin\/classe\/([^/]+)$/, editClasse, ['id']],
   [/^#\/admin\/projet\/([^/]+)$/, editProjet, ['id']],

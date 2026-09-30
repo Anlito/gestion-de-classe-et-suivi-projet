@@ -2,6 +2,7 @@
 import * as db from './db.js';
 import { schoolYearFor, MOTIFS } from './model.js';
 import { todayISO } from './ui.js';
+import { normClasse } from './ical.js';
 
 const PRENOMS = ['Inès', 'Noah', 'Chloé', 'Yanis', 'Léna', 'Mathis', 'Jade', 'Enzo', 'Manon', 'Adam', 'Louise', 'Rayan', 'Lina', 'Hugo', 'Zoé',
   'Nathan', 'Maëlys', 'Lucas', 'Sarah', 'Tom', 'Emma', 'Ilyes', 'Camille', 'Théo', 'Anaïs', 'Sacha', 'Romane', 'Kylian', 'Alice', 'Bilal',
@@ -80,6 +81,55 @@ function seanceDates(k, lastAgo) {
   return out;
 }
 
+// Emploi du temps FICTIF d'un collège imaginaire : chaque classe de démonstration a 2 heures de technologie
+// par semaine, toute l'année, avec vacances, un cours de vie de classe et une réunion (masquée par défaut).
+const CRENEAUX = [['08:15', '09:10'], ['09:11', '10:06'], ['10:22', '11:17'], ['11:18', '12:13'], ['13:54', '14:49'], ['15:05', '16:00'], ['16:14', '17:09']];
+function demoPlanning(put, classes) {
+  const y = +schoolYearFor().slice(0, 4);
+  const iso = (yy, m, d) => `${yy}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const jours = [
+    [iso(y, 10, 17), iso(y, 11, 1), 'vacances', 'Vacances'], [iso(y, 11, 11), iso(y, 11, 11), 'ferie', 'Férié'],
+    [iso(y, 12, 19), iso(y + 1, 1, 3), 'vacances', 'Vacances'], [iso(y + 1, 2, 20), iso(y + 1, 3, 7), 'vacances', 'Vacances'],
+    [iso(y + 1, 4, 17), iso(y + 1, 5, 2), 'vacances', 'Vacances'], [iso(y + 1, 5, 8), iso(y + 1, 5, 8), 'ferie', 'Férié'],
+  ];
+  const off = d => jours.some(([du, au]) => d >= du && d <= au);
+  const pronoteName = c => c.name.replace(/^(\d)e /, '$1 ');
+  const etab = put('etablissements', {
+    name: 'COLLEGE DES TILLEULS', initiales: 'TL', color: '#3d7dd8', importedAt: new Date().toISOString(),
+    classes: Object.fromEntries(classes.map(c => [normClasse(pronoteName(c)), { name: pronoteName(c), classId: c.id }])),
+  });
+  for (const [du, au, type, label] of jours) put('jours', { etabId: etab.id, du, au, type, label });
+  // Créneaux de la semaine (jour 1 = lundi … 5 = vendredi) : chaque classe en a deux, des jours différents.
+  const slots = [];
+  for (let d = 1; d <= 5; d++) for (const t of CRENEAUX) slots.push([d, t]);
+  const weekly = [];
+  classes.forEach((c, k) => {
+    weekly.push({ c, slot: slots[(k * 2) % slots.length], matiere: 'TECHNOLOGIE' });
+    weekly.push({ c, slot: slots[(k * 2 + 17) % slots.length], matiere: 'TECHNOLOGIE' });
+  });
+  weekly.push({ c: classes.find(c => c.name === '5e A'), slot: [4, CRENEAUX[6]], matiere: 'VIE DE CLASSE' });
+  weekly.push({ c: null, slot: [2, ['17:15', '18:30']], matiere: 'COORDINATION/CONCERTATION' });
+  const today = todayISO();
+  const near = [];
+  for (let day = new Date(y, 8, 1, 12); day < new Date(y + 1, 6, 4, 12); day.setDate(day.getDate() + 1)) {
+    const date = todayISO(day), wd = day.getDay();
+    if (wd === 0 || wd === 6 || off(date)) continue;
+    for (const { c, slot: [d, [debut, fin]], matiere } of weekly) {
+      if (d !== wd) continue;
+      const rec = put('cours', { etabId: etab.id, date, debut, fin, classe: c ? pronoteName(c) : '', salle: c ? 'Techno 1' : 'Salle des profs',
+        matiere, statut: 'normal', statutLabel: '', source: 'pronote' });
+      if (c && matiere === 'TECHNOLOGIE' && date > today && date <= todayISO(new Date(Date.now() + 9 * 864e5))) near.push(rec);
+    }
+  }
+  // Quelques statuts Pronote dans les jours qui viennent.
+  const set = (rec, statut, statutLabel) => { if (rec) Object.assign(rec, { statut, statutLabel }); };
+  set(near[1], 'annule', 'Annulé');
+  set(near[4], 'classe_absente', 'Classe absente');
+  set(near[7], 'sortie', 'Sortie pédagogique');
+  set(near[10], 'salle', 'Changement de salle');
+  if (near[1]) put('cours', { ...near[1], id: undefined, debut: '16:14', fin: '17:09', statut: 'deplace', statutLabel: 'Déplacé' });
+}
+
 export async function loadDemo() {
   const r = rng(20262027);
   const pick = arr => arr[Math.floor(r() * arr.length)];
@@ -94,8 +144,10 @@ export async function loadDemo() {
   const proj = {};
   for (const [k, [title, desc, nSeances, crit]] of Object.entries(PROJECTS)) proj[k] = put('projects', { title, desc, nSeances, criteria: crit() });
 
+  const allClasses = [];
   for (const [name, level, segpa, eff, assigns] of CLASSES) {
     const cls = put('classes', { name, level, segpa, year: schoolYearFor() });
+    allClasses.push(cls);
     const students = [];
     const noms = NOMS.map(n => [r(), n]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
     const prenoms = PRENOMS.map(n => [r(), n]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
@@ -164,5 +216,6 @@ export async function loadDemo() {
       if (r() < 0.12) put('notes', { studentId: s.id, text: pick(['Travaille mieux en binôme.', 'À placer devant, consignes écrites au tableau.', 'Très investi dans le projet.', 'Oublie souvent son matériel.']), at: new Date(now - Math.floor(r() * 15) * 864e5).toISOString() });
     }
   }
+  demoPlanning(put, allClasses);
   await db.replaceAll(data);
 }

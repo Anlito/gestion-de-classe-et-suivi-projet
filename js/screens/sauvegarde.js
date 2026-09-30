@@ -91,7 +91,7 @@ export default {
       const s = res.summary;
       const ok = await confirmDialog({
         title: 'Restaurer cette sauvegarde ?',
-        text: `Sauvegarde du ${s.date ? fmtDayYear(s.date) : '?'}${s.year ? ' (année ' + s.year + ')' : ''} : ${s.classes} classes, ${s.students} élèves, ${s.photos} photos, ${s.projects} projets. Toutes les données actuelles de cet appareil seront remplacées.`,
+        text: `Sauvegarde du ${s.date ? fmtDayYear(s.date) : '?'}${s.year ? ' (année ' + s.year + ')' : ''} : ${s.classes} classes, ${s.students} élèves, ${s.photos} photos, ${s.projects} projets${s.cours ? `, ${s.cours} cours d’emploi du temps` : ''}. Toutes les données actuelles de cet appareil seront remplacées.`,
         ok: 'Remplacer et restaurer', danger: true,
       });
       if (!ok) return;

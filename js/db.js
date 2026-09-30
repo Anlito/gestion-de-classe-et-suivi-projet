@@ -12,7 +12,7 @@
 //   chiffré déposé sur Google Drive.
 
 const DB_NAME = 'carnet-de-classe';
-const DB_VERSION = 4; // 2 : ajout des absences · 3 : ajout des appels · 4 : ajout des retards
+const DB_VERSION = 5; // 2 : absences · 3 : appels · 4 : retards · 5 : emploi du temps (établissements, cours, jours)
 export const SNAPSHOT_FORMAT = 1;
 
 export const STORES = [
@@ -31,6 +31,9 @@ export const STORES = [
   'absences',      // { studentId, classId, appelId, date:'AAAA-MM-JJ', at, trimester, assignmentId, seanceId, seanceN, seanceLabel }
   'appels',        // { classId, date, at, n (1er, 2e appel du jour…), assignmentId, seanceId, seanceN, label }
   'retards',       // { studentId, classId, appelId, date:'AAAA-MM-JJ', at, trimester, assignmentId, seanceId, seanceN, seanceLabel }
+  'etablissements', // { name, initiales, color, classes:{ [classe Pronote normalisée]: { name, classId } }, importedAt } — voir planning.js
+  'cours',         // { etabId, date, debut:'HH:MM', fin, classe (nom Pronote), salle, matiere, statut, statutLabel, source }
+  'jours',         // { etabId, du, au, type:'vacances'|'ferie', label } — vacances et jours fériés
 ];
 
 let idb = null;

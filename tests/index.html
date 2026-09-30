@@ -26,8 +26,8 @@
 <main>
   <h1>Tests du Carnet de classe</h1>
   <section>
-    <h2>1. Lecteur des emplois du temps Pronote</h2>
-    <div class="muted">Tests automatiques sur un emploi du temps fictif.</div>
+    <h2>1. Emploi du temps Pronote</h2>
+    <div class="muted">Tests automatiques (lecture des fichiers, correspondance des classes, réimportation) sur des données fictives.</div>
     <div id="summary"></div>
     <ul class="res" id="results"></ul>
   </section>
@@ -40,7 +40,9 @@
   </section>
 </main>
 <script type="module">
-import { tests } from './ical.test.js';
+import { tests as icalTests } from './ical.test.js';
+import { tests as planningTests } from './planning.test.js';
+const tests = [...icalTests, ...planningTests];
 import { parseICS, STATUTS } from '../js/ical.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

@@ -2,6 +2,7 @@
 import * as db from './db.js';
 import * as model from './model.js';
 import { todayISO } from './ui.js';
+import { clearYearIn } from './planning.js';
 
 // Le navigateur sait-il ouvrir une fenêtre « Enregistrer sous » (choix du dossier) ?
 export const canChooseFolder = () => typeof window.showSaveFilePicker === 'function';
@@ -87,7 +88,7 @@ export async function readBackup(file) {
   if (!snap || snap.app !== 'carnet-de-classe' || !snap.data) throw new Error('Ce fichier n’est pas une sauvegarde du Carnet de classe.');
   const n = k => (Array.isArray(snap.data[k]) ? snap.data[k].length : 0);
   const year = (snap.data.meta || []).find(m => m.id === 'schoolYear');
-  return { snap, summary: { date: snap.exportedAt, classes: n('classes'), students: n('students'), photos: n('photos'), projects: n('projects'), year: year ? year.value : '' } };
+  return { snap, summary: { date: snap.exportedAt, classes: n('classes'), students: n('students'), photos: n('photos'), projects: n('projects'), cours: n('cours'), year: year ? year.value : '' } };
 }
 export async function restore(snap) { await db.importSnapshot(snap); }
 
@@ -167,6 +168,7 @@ export function startNewYear() {
   const next = nextSchoolYear(model.schoolYear());
   return db.commit(w => {
     for (const c of db.all('classes')) model.deleteClassIn(w, c.id);
+    clearYearIn(w);
     w.meta('schoolYear', next);
     w.meta('trimester', 1);
     w.meta('trimesterStarts', { 1: todayISO() });

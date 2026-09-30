@@ -63,7 +63,7 @@ test('Échappements iCal', () => eq(unescapeText('a\\, b\\; c\\nd\\\\e'), 'a, b;
 test('Codes HTML (Pronote)', () => eq(unescapeText('&lt\\;3C&gt\\; 3C1 &amp; co &#233;'), '<3C> 3C1 & co é'));
 test('Établissement lu dans X-WR-CALDESC (ligne repliée)', () => eq(R.etablissement, 'COLLEGE DES TILLEULS'));
 test('Établissement : autres formes', () => {
-  eq(etablissementFrom('Calendrier X généré le 30 sept. 2026 - COLLEGE RENE BERNIER - semaines 36 - 26'), 'COLLEGE RENE BERNIER');
+  eq(etablissementFrom('Calendrier X généré le 30 sept. 2026 - COLLEGE JULES VERNE - semaines 36 - 26'), 'COLLEGE JULES VERNE');
   eq(etablissementFrom(''), '');
 });
 test('Heure de Paris en septembre (UTC+2) : 13:05Z → 15:05', () => eq([at(0).date, at(0).debut, at(0).fin], ['2026-09-07', '15:05', '16:00']));

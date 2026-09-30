@@ -90,7 +90,7 @@ export function dayBefore(iso) {
 }
 
 // ---------- Contenu Pronote ----------
-// « Calendrier … généré par le logiciel PRONOTE … le 30 sept. 2026 - COLLEGE PONT ROUSSEAU - semaines 36 - 26 »
+// « Calendrier … généré par le logiciel PRONOTE … le 30 sept. 2026 - COLLEGE JULES VERNE - semaines 36 - 26 »
 export function etablissementFrom(desc) {
   const parts = (desc || '').split(/\s+-\s+/);
   const i = parts.findIndex(p => /^semaines?\b/i.test(p));
@@ -166,7 +166,7 @@ function addEvent(res, ev) {
   const f = descriptionFields(ev.DESCRIPTION ? unescapeText(ev.DESCRIPTION.value) : '');
   // Matière : champ « Matière », sinon début du résumé (« Cours annulé : TECHNOLOGIE - 4E »).
   const matiere = (f['matière'] || summary.replace(/^[^:]*:\s*/, '').split(' - ')[0] || '').trim();
-  // Groupe (Pont Rousseau : « [3C1] ») prioritaire sur la classe ; plusieurs classes = événement collectif.
+  // Groupe (ex. « [3C1] ») prioritaire sur la classe ; plusieurs classes = événement collectif.
   const classe = (f.groupe || f.classe || '').trim();
   res.cours.push({
     date: start.date, debut: start.time, fin: end && !end.allDay ? end.time : start.time,
