@@ -99,8 +99,8 @@ Même méthode que le chantier Planning : une étape = une version, tests sur la
   crée son propre identifiant client OAuth « Application Web » (guide intégré dans Administration → Sauvegarde) et le
   saisit sur **chacun de ses appareils** (réglage local `meta.sync.clientId`). Ses données vont dans **son** Drive.
   Jeton d'accès valable 1 h (Google Identity Services) : reconnexion d'un toucher si besoin.
-- Synchronisation **automatique** (1.14.0) : à l'ouverture, 5 s après des modifications, au retour dans l'app
-  (après 1 min), toutes les 5 min ; indicateur dans l'en-tête (toucher = synchroniser / reconnecter / choisir).
+- Synchronisation **automatique** (1.14.0, rythme revu en 1.14.1) : à l'ouverture, 5 s après des modifications,
+  au retour dans l'app (après 10 s), vérification de Drive toutes les 30 s tant que l'app est affichée ; indicateur dans l'en-tête (toucher = synchroniser / reconnecter / choisir).
   **Jamais de fusion automatique** pour la 1re synchronisation d'un appareil qui a des classes, ni après un
   remplacement complet des données (restauration, démonstration, tout effacer) : l'app demande quoi faire.
 - Guide « Comment obtenir mon identifiant ? » réécrit en 5 parties (1.14.0), d'après les retours sur tablette.
@@ -126,6 +126,17 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 - Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
+
+### 1.14.1 — 1er octobre 2026 · Correctif : les modifications de l'ordinateur n'arrivaient pas sur la tablette
+- Retour du professeur : tablette → ordinateur OK, mais ordinateur → tablette seulement après une synchro manuelle
+  ou une modification sur la tablette. Causes : vérification de Drive toutes les **5 min** seulement tant que l'app
+  reste affichée ; et données reçues pendant une saisie / un panneau ouvert jamais affichées ensuite.
+- Vérification de Drive **toutes les 30 s** tant que l'app est affichée (quand rien n'a changé : 2 petites
+  requêtes, rien de téléchargé) ; au retour dans l'app après 10 s (au lieu de 1 min), y compris `focus`/`pageshow`.
+- Données reçues pendant une saisie ou avec un panneau ouvert : l'écran se met à jour dès qu'il est libre
+  (nouvel essai toutes les 2 s).
+- Vérifié avec un Drive simulé : classe renommée par « l'ordinateur » affichée seule en 22 s ; pendant une saisie,
+  la saisie n'est pas interrompue puis l'écran se met à jour. Tests : 51 / 51.
 
 ### 1.14.0 — 1er octobre 2026 · Synchronisation Drive, étape C : synchronisation automatique
 - Nouveau `js/autosync.js` : synchronisation **automatique** en mode Drive — à l'ouverture, 5 s après la dernière

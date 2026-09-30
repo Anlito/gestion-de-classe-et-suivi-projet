@@ -12,8 +12,10 @@ import { html, toast, choiceDialog, fmtTime } from './ui.js';
 import { go, refresh } from './nav.js';
 
 const DELAI_MODIF = 5000;
-const PERIODE = 5 * 60 * 1000;
-const RETOUR = 60 * 1000;
+// Vérification régulière de Drive tant que l'app est affichée : quand rien n'a changé, c'est 2 toutes petites
+// requêtes, sans rien télécharger (1.14.1 : 5 min → 30 s, les modifications de l'ordinateur arrivaient trop tard).
+const PERIODE = 30 * 1000;
+const RETOUR = 10 * 1000;
 
 // État affiché : 'off' (mode manuel) | 'idle' | 'running' | 'auth' | 'offline' | 'error' | 'reinit' | 'setup'
 let state = { phase: 'off', text: '' };
@@ -91,10 +93,17 @@ export async function run(interactive = false) {
     const s = await drive.synchroniser(t => { state.text = t; }, opts);
     setState('idle');
     // L'écran affiche les nouveautés — sauf pendant une saisie, une liste ou un panneau ouvert (ils seraient fermés).
-    if ((s.recus || s.supprimes) && !occupe()) refresh();
+    if (s.recus || s.supprimes) afficher();
     if (interactive) toast({ text: s.rien ? 'Déjà à jour' : `Synchronisé : ${s.recus} reçu${s.recus > 1 ? 's' : ''}, ${s.envoyes} envoyé${s.envoyes > 1 ? 's' : ''}, ${s.supprimes} supprimé${s.supprimes > 1 ? 's' : ''}${s.photos ? `, ${s.photos} photo${s.photos > 1 ? 's' : ''}` : ''}`, ms: 5000 });
     return s;
   } catch (e) { return fail(e, interactive); }
+}
+// Redessine l'écran avec les données reçues ; si l'écran est occupé, réessaie toutes les 2 s jusqu'à ce qu'il se libère.
+let attente = null;
+function afficher() {
+  clearTimeout(attente);
+  if (occupe()) { attente = setTimeout(afficher, 2000); return; }
+  refresh();
 }
 const occupe = () => !!(document.querySelector('#layer > *') || document.querySelector('.drawer, .draw-box, .appel-mode, .busy')
   || (document.activeElement && document.activeElement.matches('input, select, textarea')));
@@ -158,7 +167,10 @@ export function initAutoSync() {
     if (!active()) { go('#/admin/sauvegarde'); return; }
     run(true);
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - lastRun > RETOUR) schedule(1000); });
+  const retour = () => { if (!document.hidden && Date.now() - lastRun > RETOUR) schedule(1000); };
+  document.addEventListener('visibilitychange', retour);
+  addEventListener('focus', retour);
+  addEventListener('pageshow', retour);
   addEventListener('online', () => schedule(1000));
   interval = interval || setInterval(() => { if (!document.hidden) schedule(0); }, PERIODE);
   schedule(1500); // à l'ouverture
