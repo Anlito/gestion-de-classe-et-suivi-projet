@@ -1,0 +1,4 @@
+# Emplois du temps réels (Pronote) : jamais dans le dépôt public
+*.ics
+# Fichiers de test locaux
+local-test/

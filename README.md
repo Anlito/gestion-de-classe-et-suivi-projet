@@ -30,6 +30,8 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/db.js` | stockage IndexedDB + copie en mémoire, `commit()` avec annulation, instantané de sauvegarde |
 | `js/model.js` | règles métier : trimestres, observations, motifs, appel/absences/retards, besoins, projets, groupes, notes |
 | `js/programme.js` | programme de technologie cycle 4 : 3 thèmes, 9 compétences, repères par niveau |
+| `js/ical.js` | lecture des emplois du temps exportés de Pronote (.ics) : cours, statuts, vacances, heure de Paris |
+| `tests/index.html` | page de tests automatiques (+ vérification locale de ses propres fichiers .ics) |
 | `js/backup.js` | fichiers produits : sauvegarde JSON, CSV |
 | `js/screens/*.js` | un fichier par écran (`render`, `mount`, `actions`) |
 | `css/app.css` | styles (thèmes clair / sombre) |
@@ -42,6 +44,10 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 3. Nouvelle table de données : l'ajouter à `STORES` dans `js/db.js` **et** augmenter `DB_VERSION`.
    Penser aux suppressions en cascade dans `model.js` (`deleteStudentIn`, `deleteClassIn`, `deleteAssignmentIn`).
 4. Ajouter une entrée dans l'historique ci-dessous.
+5. **Confidentialité : le dépôt est public.** Ne jamais y mettre de vraies données : emplois du temps Pronote
+   (`*.ics`, bloqués par `.gitignore`), noms d'élèves ou de collègues, sauvegardes. Les tests et la démonstration
+   utilisent uniquement des données fictives.
+6. Lancer la page de tests (`tests/index.html`) : tout doit être vert.
 
 ### Tester sur l'ordinateur
 
@@ -49,7 +55,46 @@ Servir le dossier avec n'importe quel serveur web local (par exemple `python -m 
 puis ouvrir http://localhost:8765. Sur `localhost`, le service worker charge toujours les fichiers frais.
 Réglages → « Remplacer par les données de démonstration » donne des classes fictives pour essayer.
 
+## Chantier en cours : Planning (décisions prises)
+
+Après chaque étape : nouvelle version, liste de tests à faire sur la tablette, attendre le retour du professeur.
+
+- Deux établissements (COLLEGE PONT ROUSSEAU, COLLEGE RENE BERNIER), un fichier .ics chacun.
+- **Une classe de l'app par groupe Pronote** (ex. `[3C2D1]` → classe « 3C2D1 »). Les noms de classes sont rendus
+  uniques par les initiales du collège (PR, RB) : pas de champ « établissement » sur les classes. La
+  correspondance classe Pronote → classe de l'app est propre à chaque établissement, proposée automatiquement
+  (comparaison sans espaces, crochets ni initiales) puis validée, mémorisée et modifiable dans l'admin.
+- **Le planning ne montre que les cours** (+ vacances et fériés, discrets). Pas d'événements Agenda : le professeur
+  ajoute une **note sur un cours** quand un événement le concerne (photo, élection…) ; notes conservées à la
+  réimportation.
+- Rôle des matières (réglable) : TECHNOLOGIE, SCIENCES TECHNOLOGIE = cours suivi (appel + séance) ; VIE DE CLASSE =
+  appel seulement ; tout le reste = **masqué** par défaut (autre choix : affiché en grisé).
+- « Cours déplacé » = cours qui a lieu (alertes) ; pas d'alerte pour annulé, classe absente, sortie pédagogique,
+  absence personnelle, vacances, fériés.
+- Alertes dans l'app : appel non fait 15 min après le début ; séances non remplies à partir de 18h.
+- Statistiques : un élève en retard compte comme présent ; taux = appels sans absence / appels.
+
 ## Historique des versions
+
+### 1.5.0 — 30 septembre 2026 · Planning, étape 1/7 : lecture des fichiers Pronote
+
+Chantier « Planning » (emploi du temps importé de Pronote, appel rattaché aux cours, alertes, statistiques
+de présence), mené en 7 étapes : 1 lecture iCal · 2 tables et import · 3 accueil planning · 4 saisie manuelle
+et notes sur un cours · 5 appel rattaché et alertes · 6 réimportation et conflits · 7 statistiques.
+
+- Nouveau `js/ical.js` : lit un export iCal de Pronote (un fichier par établissement, nom lu dans
+  `X-WR-CALDESC`). Dépliage des lignes, échappements iCal et codes HTML, conversion UTC → heure de Paris
+  (changement d'heure compris), statuts (`CATEGORIES` « Cours - … »), vacances et jours fériés (fin exclusive).
+  Garde seulement date, début, fin, classe ou groupe (« Groupe » prioritaire, ex. `[3C2D1]`), salle, matière,
+  statut. Jamais les professeurs, résumés ni UID. « Agenda » et « Sessions de stage » ignorés (décision : le
+  planning ne montre que les cours ; une note sur un cours servira pour les événements, étape 4).
+- Constats sur les exports réels : un « Cours déplacé » est le nouveau créneau (le cours a lieu) et l'ancien
+  créneau apparaît en « Cours annulé » ; les réunions (COORDINATION/CONCERTATION) sont des cours sans classe.
+- Clé de réimportation : établissement + date + heure de début + classe (les UID changent à chaque export).
+- Page `tests/index.html` : 26 tests automatiques sur un emploi du temps fictif, et vérification locale
+  de ses propres fichiers (lus sur l'appareil, rien n'est enregistré).
+- `.gitignore` : `*.ics` et `local-test/` ne peuvent pas être envoyés sur GitHub.
+- Aucun changement visible dans l'app pour l'instant.
 
 ### 1.4.1 — 28 septembre 2026
 

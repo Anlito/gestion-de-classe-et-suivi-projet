@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tests · Carnet de classe</title>
+<style>
+  :root { --bg: #fbf7f2; --surface: #fff; --ink: #2b2d42; --ink2: #686b82; --line: #efe8df; --pos: #23784a; --posTint: #dcf3e4; --neg: #c2443a; --negTint: #fde4e0; --accent: #c9c2f6; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  section { background: var(--surface); border-radius: 16px; padding: 16px 20px; }
+  h1 { font-size: 24px; margin: 0; } h2 { font-size: 19px; margin: 0 0 10px; } h3 { font-size: 16px; margin: 16px 0 6px; }
+  .muted { color: var(--ink2); font-size: 14px; }
+  .banner { padding: 12px 16px; border-radius: 12px; font-weight: 700; }
+  .banner.ok { background: var(--posTint); color: var(--pos); } .banner.ko { background: var(--negTint); color: var(--neg); }
+  ul.res { list-style: none; margin: 10px 0 0; padding: 0; } ul.res li { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .ok-i { color: var(--pos); font-weight: 800; } .ko-i { color: var(--neg); font-weight: 800; } .err { color: var(--neg); font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; } td, th { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; width: 60px; }
+  .pick { display: inline-block; padding: 12px 18px; border-radius: 12px; background: var(--accent); font-weight: 700; cursor: pointer; }
+  .pick input { display: none; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tests du Carnet de classe</h1>
+  <section>
+    <h2>1. Lecteur des emplois du temps Pronote</h2>
+    <div class="muted">Tests automatiques sur un emploi du temps fictif.</div>
+    <div id="summary"></div>
+    <ul class="res" id="results"></ul>
+  </section>
+  <section>
+    <h2>2. Vérifier mes fichiers Pronote</h2>
+    <p class="muted">Choisissez vos fichiers .ics exportés de Pronote. Ils sont lus <strong>sur cet appareil uniquement</strong> :
+      rien n'est envoyé ni enregistré. La page affiche ce que l'app en retiendra.</p>
+    <label class="pick">Choisir mes fichiers .ics<input type="file" id="files" accept=".ics,text/calendar" multiple></label>
+    <div id="mine"></div>
+  </section>
+</main>
+<script type="module">
+import { tests } from './ical.test.js';
+import { parseICS, STATUTS } from '../js/ical.js';
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- Tests automatiques ----------
+let pass = 0;
+const lis = tests.map(t => {
+  try { t.fn(); pass++; return `<li><span class="ok-i">✓</span> ${esc(t.name)}</li>`; }
+  catch (e) { return `<li><span class="ko-i">✗</span> ${esc(t.name)}<div class="err">${esc(e.message)}</div></li>`; }
+});
+document.getElementById('results').innerHTML = lis.join('');
+const allOk = pass === tests.length;
+document.getElementById('summary').innerHTML = `<div class="banner ${allOk ? 'ok' : 'ko'}">${allOk ? 'Tout est bon' : 'Des tests échouent'} : ${pass} / ${tests.length}</div>`;
+window.__testsResult = { pass, total: tests.length };
+
+// ---------- Résumé de vrais fichiers (lecture locale) ----------
+const count = (list, f) => { const m = new Map(); for (const x of list) { const k = f(x); m.set(k, (m.get(k) || 0) + 1); } return [...m].sort((a, b) => b[1] - a[1]); };
+const rows = pairs => `<table>${pairs.map(([k, n]) => `<tr><td>${esc(k || '—')}</td><td class="n">${n}</td></tr>`).join('')}</table>`;
+const fr = iso => new Date(iso + 'T12:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+function summarize(name, r) {
+  const dates = r.cours.map(c => c.date).sort();
+  const privacy = !/professeur/i.test(JSON.stringify(r));
+  return `<h3>${esc(name)} → ${esc(r.etablissement || 'établissement non trouvé')}</h3>
+    <div class="muted">${r.cours.length} cours du ${dates.length ? fr(dates[0]) : '—'} au ${dates.length ? fr(dates[dates.length - 1]) : '—'}
+      · ignorés : ${r.ignores.agenda} agenda, ${r.ignores.stage} stage, ${r.ignores.autres} autres
+      · ${privacy ? '<span class="ok-i">aucun nom de professeur conservé</span>' : '<span class="ko-i">des noms de professeurs restent !</span>'}
+      ${r.erreurs.length ? `· <span class="ko-i">${r.erreurs.length} erreur(s)</span>` : ''}</div>
+    <div class="cols">
+      <div><h3>Classes et groupes</h3>${rows(count(r.cours, c => c.classe))}</div>
+      <div><h3>Matières</h3>${rows(count(r.cours, c => c.matiere))}
+        <h3>Statuts</h3>${rows(count(r.cours, c => (STATUTS[c.statut].label && c.statutLabel) || 'Cours normal'))}</div>
+      <div><h3>Heures de début</h3>${rows(count(r.cours, c => c.debut).sort((a, b) => a[0].localeCompare(b[0])))}</div>
+      <div><h3>Vacances et jours fériés</h3><table>${r.jours.map(j => `<tr><td>${esc(j.label)}</td><td>${fr(j.du)}${j.au !== j.du ? ' → ' + fr(j.au) : ''}</td></tr>`).join('')}</table></div>
+    </div>`;
+}
+window.__summarize = (name, text) => summarize(name, parseICS(text));
+
+document.getElementById('files').addEventListener('change', async e => {
+  const out = [];
+  for (const f of e.target.files) {
+    try { out.push(summarize(f.name, parseICS(await f.text()))); }
+    catch (err) { out.push(`<h3>${esc(f.name)}</h3><div class="err">Lecture impossible : ${esc(err.message)}</div>`); }
+  }
+  document.getElementById('mine').innerHTML = out.join('');
+});
+</script>
+</body>
+</html>
