@@ -78,10 +78,20 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
   absence personnelle, vacances, fériés.
 - Alertes dans l'app : appel non fait 15 min après le début ; séances non remplies à partir de 18h.
 - Statistiques : un élève en retard compte comme présent ; taux = appels sans absence / appels.
-- Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; un appel par cours ; une séance de projet par jour et par classe.
+- Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; un appel par cours ; une séance de projet par **bloc de cours enchaînés** (même classe, même jour, moins de 20 min d'écart = cours de 2 h) ; deux cours séparés dans la journée = deux séances.
 
 ## Historique des versions
 
+### 1.9.4 — 30 septembre 2026 · Deux cours de la même classe dans la journée
+
+- Nouvelle règle (`planning.coursEnchaines`, `ENCHAINEMENT` = 20 min) : les cours de la même classe le même jour
+  séparés de moins de 20 min (09:10 → 09:11, 10:06 → 10:22 après la récréation) forment **un bloc** = un cours de
+  2 h = **une seule séance**. Des cours **séparés** dans la journée (matin et après-midi) ont **chacun leur séance**.
+  (Remplace la règle de 1.9.2 « une séance par jour », qui faisait reprendre la séance du matin l'après-midi.)
+- Appel : un par cours (inchangé). À l'appel, la séance reprise est celle du cours, sinon d'un cours du même bloc,
+  sinon une séance du jour créée sans cours (onglet Projet) ; sinon « Commencer la séance n ».
+- Alerte « séance à remplir » : une par bloc (horaire du bloc entier), écartée si le bloc a une séance, si une
+  séance du jour a été créée sans cours, ou si « Pas une séance projet » est choisi pour un cours du bloc.
 ### 1.9.3 — 30 septembre 2026 · Durées de cours variables (1 h, 1 h 30…)
 
 - Règle : **chaque cours garde sa propre durée** ; rien ne suppose des créneaux d'une heure. Appel (un par cours),

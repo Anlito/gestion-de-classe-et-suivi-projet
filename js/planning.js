@@ -224,6 +224,25 @@ export function lierAppels() {
   return liaisons.length;
 }
 
+// ---------- Cours enchaînés (cours de 2 h découpé par Pronote) ----------
+// Deux cours de la même classe le même jour, séparés de moins de ENCHAINEMENT minutes (ex. 09:10 → 09:11,
+// ou 10:06 → 10:22 après la récréation), forment un seul cours : une seule séance de projet.
+// Des cours séparés dans la journée (matin et après-midi) ont chacun leur séance.
+export const ENCHAINEMENT = 20;
+export function coursEnchaines(c) {
+  const e = c.src ? c : eff(c);
+  const cid = classIdOf(e.src);
+  if (!cid) return [e];
+  const day = db.all('cours').map(eff).filter(x => x.date === e.date && !OFF.has(x.statut) && classIdOf(x.src) === cid)
+    .sort((a, b) => a.debut.localeCompare(b.debut));
+  let i = day.findIndex(x => x.id === e.id);
+  if (i < 0) return [e];
+  let a = i, b = i;
+  while (a > 0 && mins(day[a].debut) - mins(day[a - 1].fin) <= ENCHAINEMENT) a--;
+  while (b < day.length - 1 && mins(day[b + 1].debut) - mins(day[b].fin) <= ENCHAINEMENT) b++;
+  return day.slice(a, b + 1);
+}
+
 // « Pas une séance projet » : le cours n'aura pas d'alerte « séance à remplir ».
 export const setPasSeance = (c, v = true) => db.commit(w => w.update('cours', c.id, { pasSeance: v || undefined }));
 // Dans une suppression de classe : les correspondances qui la visaient redeviennent « à choisir ».
