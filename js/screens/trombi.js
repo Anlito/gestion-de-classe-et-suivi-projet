@@ -3,6 +3,7 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import * as planning from '../planning.js';
+import * as stats from '../stats.js';
 import { html, toast, openMenu, buzz, todayISO, fmtDayLong, choiceDialog } from '../ui.js';
 import { icon, backLink, saveStatus, tabBar, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
@@ -13,6 +14,41 @@ const COLOR = { neg: 'var(--neg)', pos: 'var(--pos)' };
 
 let appel = null;   // classId en mode appel
 let draw = null;    // { classId, sid, spinning, restarted }
+let presence = null; // { classId, period: 1|2|3|'annee' } : panneau des statistiques de présence de la classe
+
+// ---------- Présence de la classe (panneau) ----------
+function presenceView(classId) {
+  const t = model.trimester();
+  const per = presence.period;
+  const P = stats.presenceClasse(classId, per === 'annee' ? null : per);
+  const rows = P.eleves.filter(e => e.appels).sort((a, b) => a.taux - b.taux || b.retards - a.retards || model.cmp(a.s.nom, b.s.nom));
+  return html`<div class="scrim dim" data-click="closePresence"></div>
+    <aside class="drawer" role="dialog" aria-modal="true">
+      <div class="drawer-head"><span class="drawer-title grow">Présence</span>
+        <button type="button" class="btn soft" data-click="closePresence">Fermer</button></div>
+      <div class="drawer-body" data-scroll="presence">
+        <div class="segmented">${[1, 2, 3].map(k => html`<button type="button" class="seg${per === k ? ' on' : ''}" data-click="presencePeriod" data-k="${k}" ${k > t ? 'disabled' : ''}>T${k}</button>`)}
+          <button type="button" class="seg${per === 'annee' ? ' on' : ''}" data-click="presencePeriod" data-k="annee">Année</button></div>
+        <div class="pres-kpis">
+          <div class="pres-kpi"><span class="pres-n">${stats.pct(P.moyenne)}</span><span class="muted small">présence moyenne</span></div>
+          <div class="pres-kpi"><span class="pres-n">${P.appels}</span><span class="muted small">appel${P.appels > 1 ? 's' : ''}</span></div>
+          <div class="pres-kpi"><span class="pres-n">${P.absences}</span><span class="muted small">absence${P.absences > 1 ? 's' : ''}</span></div>
+          <div class="pres-kpi"><span class="pres-n">${P.retards}</span><span class="muted small">retard${P.retards > 1 ? 's' : ''}</span></div>
+        </div>
+        ${P.appels ? html`
+          ${P.plusAbsents.length ? html`<div class="stack-tight"><div class="caps">Les plus absents</div>
+            ${P.plusAbsents.map(e => html`<div class="pres-row"><span class="grow"><strong>${e.s.prenom}</strong> ${e.s.nom}</span><span>${e.absences} abs.</span><strong class="pres-pct">${stats.pct(e.taux)}</strong></div>`)}</div>` : html`<div class="muted">Aucune absence sur la période.</div>`}
+          <div class="stack-tight"><div class="caps">Toute la classe</div>
+            ${rows.map(e => html`<button type="button" class="pres-row btnrow" data-click="detail" data-sid="${e.s.id}">
+              <span class="grow"><strong>${e.s.prenom}</strong> ${e.s.nom}</span>
+              <span class="muted small">${e.absences ? e.absences + ' abs.' : ''}${e.absences && e.retards ? ' · ' : ''}${e.retards ? e.retards + ' ret.' : ''}</span>
+              <span class="pres-bar"><span style="width:${Math.round(e.taux * 100)}%"></span></span>
+              <strong class="pres-pct">${stats.pct(e.taux)}</strong></button>`)}
+          </div>` : html`<div class="muted">Aucun appel sur cette période.</div>`}
+        <div class="muted small">Présence = appels où l’élève n’était pas absent, sur les appels de la classe. Un retard compte comme présent.</div>
+      </div>
+    </aside>`;
+}
 
 // ---------- Élèves déjà interrogés pendant ce cours (mémorisés sur l'appareil) ----------
 // Remis à zéro à chaque nouvel appel (nouveau cours), ou chaque jour si aucun appel n'a été fait.
@@ -292,6 +328,7 @@ export default {
     if (!c) { go('#/', { replace: true }); return null; }
     if (appel && appel !== classId) appel = null;
     if (draw && draw.classId !== classId) draw = null;
+    if (presence && presence.classId !== classId) presence = null;
     const inAppel = appel === classId;
     const students = model.studentsOf(classId);
     const counts = model.countsByStudent(classId);
@@ -308,6 +345,7 @@ export default {
         ${inAppel ? '' : html`
           <button type="button" class="btn soft" data-click="startAppel">${icon.roll}<span class="hide-phone">Appel</span></button>
           <button type="button" class="btn soft" data-click="draw">${icon.dice}<span class="hide-phone">Tirage</span></button>
+          <button type="button" class="btn soft" data-click="presence">${icon.tabProjet}<span class="hide-phone">Présence</span></button>
           <div class="legend hide-narrow">
             <span><i class="sw neg"></i>Comportement</span>
             <span><i class="sw pos"></i>Aide / soutien / rangement</span>
@@ -328,11 +366,12 @@ export default {
         <button type="button" class="toast-btn accent" data-click="endAppel">Terminer l’appel</button>
       </div>` : ''}
       ${draw ? drawView(classId) : ''}
+      ${presence ? presenceView(classId) : ''}
       ${tabBar(classId, 'trombi')}
     </div>`;
   },
 
-  leave() { appel = null; draw = null; },
+  leave() { appel = null; draw = null; presence = null; },
 
   mount(root, params) {
     if (autoAppel && params && autoAppel === params.classId) { autoAppel = null; setTimeout(() => startAppel(params.classId)); }
@@ -379,7 +418,10 @@ export default {
   },
 
   actions: {
-    detail(el, e, { classId }) { go(`#/classe/${classId}/eleve/${el.dataset.sid}`); },
+    detail(el, e, { classId }) { presence = null; go(`#/classe/${classId}/eleve/${el.dataset.sid}`); },
+    presence(el, e, { classId }) { presence = { classId, period: model.trimester() }; refresh(); },
+    presencePeriod(el) { presence.period = el.dataset.k === 'annee' ? 'annee' : +el.dataset.k; refresh(); },
+    closePresence() { presence = null; refresh(); },
 
     startAppel(el, e, { classId }) { startAppel(classId); },
     endAppel(el, e, { classId }) {

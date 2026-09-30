@@ -1,6 +1,7 @@
 // Détail élève : compteurs corrigeables, absences et retards, besoins particuliers, comparaison par trimestre, historique, notes libres.
 import * as db from '../db.js';
 import * as model from '../model.js';
+import * as stats from '../stats.js';
 import { html, toast, fmtDay, fmtDayYear } from '../ui.js';
 import { icon, backLink, tabBar, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
@@ -75,6 +76,13 @@ export default {
               </div>`)}
             </div>
           </div>
+          ${(() => {
+            const pt = stats.presenceEleve(s, t), pa = stats.presenceEleve(s);
+            return html`<div class="abs-block presence-block">
+              <div class="grow"><div class="abs-n">${stats.pct(pt.taux)} <span class="abs-label">de présence ce trimestre</span></div>
+                <div class="muted small">${pt.appels ? `${pt.appels} appel${pt.appels > 1 ? 's' : ''}` : 'Aucun appel'} · ${stats.pct(pa.taux)} sur l’année${pa.appels ? ` (${pa.appels} appels)` : ''} · retard = présent</div></div>
+            </div>`;
+          })()}
           <div class="abs-block">
             <div class="grow"><div class="abs-n">${model.absenceCount(s.id, t)} <span class="abs-label">absence${model.absenceCount(s.id, t) > 1 ? 's' : ''} ce trimestre</span></div>
               <div class="muted small">${model.absenceCount(s.id)} sur l’année</div></div>

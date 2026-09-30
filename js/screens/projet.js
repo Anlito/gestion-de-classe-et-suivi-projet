@@ -2,6 +2,7 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import * as planning from '../planning.js';
+import * as stats from '../stats.js';
 import { todayISO } from '../ui.js';
 import { html, toast, openMenu, confirmDialog, fmtDayLong, fmtDate } from '../ui.js';
 import { icon, backLink, saveStatus, tabBar } from '../components.js';
@@ -63,6 +64,11 @@ export default {
               ${a.status === 'avenir' ? html`<span class="chip warn">À venir</span>` : ''}
             </div>
             ${p.desc ? html`<div class="proj-desc">${p.desc}</div>` : ''}
+            ${(() => {
+              const pp = stats.presenceProjet(a);
+              return pp.appels ? html`<div class="proj-presence">Présence sur les séances du projet : <strong>${stats.pct(pp.moyenne)}</strong>
+                <span class="muted">· ${pp.appels} appel${pp.appels > 1 ? 's' : ''} · ${pp.absences} absence${pp.absences > 1 ? 's' : ''}${pp.retards ? ` · ${pp.retards} retard${pp.retards > 1 ? 's' : ''}` : ''}${pp.plusAbsents.length ? ` · plus absents : ${pp.plusAbsents.slice(0, 3).map(e => `${e.s.prenom} (${e.absences})`).join(', ')}` : ''}</span></div>` : '';
+            })()}
           </div>
 
           ${archived ? html`<div class="results">

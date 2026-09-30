@@ -1,6 +1,7 @@
 // Documents imprimables (→ « Enregistrer au format PDF ») : fiche élève, fiches de toute la classe, récapitulatif de classe.
 import * as db from '../db.js';
 import * as model from '../model.js';
+import * as stats from '../stats.js';
 import { html, raw, fmtDay, fmtDayYear, fmtDate } from '../ui.js';
 import { icon } from '../components.js';
 import { go } from '../nav.js';
@@ -8,12 +9,17 @@ import { projectResults, recapRows } from '../backup.js';
 
 function counters(s) {
   const t = model.trimester();
+  const year = (fn) => [1, 2, 3].filter(k => k <= t).reduce((x, k) => x + fn(k), 0);
+  const pres = k => { const p = stats.presenceEleve(s, k); return p.appels ? `${stats.pct(p.taux)} (${p.appels} appels)` : '—'; };
+  const pa = stats.presenceEleve(s);
   return html`<table class="doc-table counters-t">
-    <tr><th></th>${[1, 2, 3].map(k => html`<th>Trimestre ${k}</th>`)}</tr>
-    ${['neg', 'pos'].map(type => html`<tr><th class="left">${model.LABEL[type]}</th>${[1, 2, 3].map(k => html`<td>${k > t ? 'à venir' : model.countsOf(s.id, k)[type]}</td>`)}</tr>`)}
-    <tr><th class="left">Absences</th>${[1, 2, 3].map(k => html`<td>${k > t ? 'à venir' : model.absenceCount(s.id, k)}</td>`)}</tr>
-    <tr><th class="left">Retards</th>${[1, 2, 3].map(k => html`<td>${k > t ? 'à venir' : model.retardCount(s.id, k)}</td>`)}</tr>
-  </table>`;
+    <tr><th></th>${[1, 2, 3].map(k => html`<th>Trimestre ${k}</th>`)}<th>Année</th></tr>
+    <tr><th class="left">Présence</th>${[1, 2, 3].map(k => html`<td>${k > t ? 'à venir' : pres(k)}</td>`)}<td>${pa.appels ? `${stats.pct(pa.taux)} (${pa.appels} appels)` : '—'}</td></tr>
+    ${['neg', 'pos'].map(type => html`<tr><th class="left">${model.LABEL[type]}</th>${[1, 2, 3].map(k => html`<td>${k > t ? 'à venir' : model.countsOf(s.id, k)[type]}</td>`)}<td>${year(k => model.countsOf(s.id, k)[type])}</td></tr>`)}
+    <tr><th class="left">Absences</th>${[1, 2, 3].map(k => html`<td>${k > t ? 'à venir' : model.absenceCount(s.id, k)}</td>`)}<td>${model.absenceCount(s.id)}</td></tr>
+    <tr><th class="left">Retards</th>${[1, 2, 3].map(k => html`<td>${k > t ? 'à venir' : model.retardCount(s.id, k)}</td>`)}<td>${model.retardCount(s.id)}</td></tr>
+  </table>
+  <p class="doc-muted">Présence : appels où l’élève n’était pas absent (un retard compte comme présent).</p>`;
 }
 
 function fiche(s) {
@@ -67,11 +73,16 @@ function recap(c) {
   return html`<section class="doc-page">
     <div class="doc-kicker">Récapitulatif · ${model.schoolYear()} · édité le ${fmtDayYear(new Date())}</div>
     <div class="doc-name">${c.name} <span class="doc-muted">· ${body.length} élèves</span></div>
+    ${(() => {
+      const pt = stats.presenceClasse(c.id, model.trimester()), pa = stats.presenceClasse(c.id);
+      return html`<p class="doc-abs"><strong>Présence moyenne :</strong> ${stats.pct(pt.moyenne)} au trimestre ${model.trimester()} (${pt.appels} appels) ·
+        ${stats.pct(pa.moyenne)} sur l’année (${pa.appels} appels)${pa.plusAbsents.length ? html` · <strong>Plus absents :</strong> ${pa.plusAbsents.map(e => `${model.fullName(e.s)} (${e.absences})`).join(', ')}` : ''}</p>`;
+    })()}
     <table class="doc-table recap">
       <tr>${head.map((h, i) => html`<th class="${i < 2 ? 'left' : ''}">${h}</th>`)}</tr>
       ${body.map(r => html`<tr>${r.map((v, i) => html`<td class="${i < 2 ? 'left' : ''}">${i === 0 ? html`<strong>${v}</strong>` : v}</td>`)}</tr>`)}
     </table>
-    <p class="doc-muted">Colonnes « Comportement » et « Aide » : nombre d’observations du trimestre ; « Absences » et « Retards » : relevés à l’appel. Notes de projet : niveaux 1 à 4 ramenés sur 20, ajustements individuels compris.</p>
+    <p class="doc-muted">Colonnes « Comportement » et « Aide » : nombre d’observations du trimestre ; « Absences » et « Retards » : relevés à l’appel ; « Présence » : appels sans absence / appels de la classe (un retard compte comme présent). Notes de projet : niveaux 1 à 4 ramenés sur 20, ajustements individuels compris.</p>
   </section>`;
 }
 

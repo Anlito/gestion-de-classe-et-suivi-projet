@@ -84,7 +84,7 @@ function seanceDates(k, lastAgo) {
 // Emploi du temps FICTIF d'un collège imaginaire : chaque classe de démonstration a 2 heures de technologie
 // par semaine, toute l'année, avec vacances, un cours de vie de classe et une réunion (masquée par défaut).
 const CRENEAUX = [['08:15', '09:10'], ['09:11', '10:06'], ['10:22', '11:17'], ['11:18', '12:13'], ['13:54', '14:49'], ['15:05', '16:00'], ['16:14', '17:09']];
-function demoPlanning(put, classes) {
+function demoPlanning(put, classes, students = null, r = null) {
   const y = +schoolYearFor().slice(0, 4);
   const iso = (yy, m, d) => `${yy}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   const jours = [
@@ -121,6 +121,22 @@ function demoPlanning(put, classes) {
       if (c && matiere === 'TECHNOLOGIE' && date > today && date <= todayISO(new Date(Date.now() + 9 * 864e5))) near.push(rec);
     }
   }
+  // Appels fictifs sur les cours passés (pour les statistiques de présence) : quelques absences et retards.
+  if (students && r) {
+    const past = put.data.cours.filter(c => c.classe && c.date < today && c.date >= iso(y, 9, 1));
+    for (const c of past) {
+      const cls = classes.find(k => pronoteName(k) === c.classe);
+      if (!cls) continue;
+      const at = new Date(c.date + 'T' + c.debut + ':00');
+      at.setMinutes(at.getMinutes() + 3);
+      const ap = put('appels', { classId: cls.id, date: c.date, at: at.toISOString(), n: 1, coursId: c.id, assignmentId: null, seanceId: null, seanceN: null, label: 'cours de ' + c.debut });
+      for (const s of students.get(cls.id) || []) {
+        const x = r();
+        const base = { studentId: s.id, classId: cls.id, appelId: ap.id, date: c.date, at: ap.at, trimester: 1, assignmentId: null, seanceId: null, seanceN: null, seanceLabel: '' };
+        if (x < 0.05) put('absences', base); else if (x < 0.08) put('retards', base);
+      }
+    }
+  }
   // Quelques statuts Pronote dans les jours qui viennent.
   const set = (rec, statut, statutLabel) => { if (rec) Object.assign(rec, { statut, statutLabel }); };
   set(near[1], 'annule', 'Annulé');
@@ -136,6 +152,8 @@ export async function loadDemo() {
   const now = Date.now();
   const data = Object.fromEntries(db.STORES.map(s => [s, []]));
   const put = (s, rec) => { rec.id = rec.id || db.uid(); rec.updatedAt = now; data[s].push(rec); return rec; };
+  put.data = data;
+  const studentsByClass = new Map();
 
   put('meta', { id: 'schoolYear', value: schoolYearFor() });
   put('meta', { id: 'trimester', value: 1 });
@@ -159,6 +177,7 @@ export async function loadDemo() {
       students.push(put('students', { classId: cls.id, nom, prenom, photoId }));
     }
 
+    studentsByClass.set(cls.id, students);
     const seanceLabels = [];
     let lastAgo = 2;
     for (const [pk, status, done] of assigns) {
@@ -216,6 +235,6 @@ export async function loadDemo() {
       if (r() < 0.12) put('notes', { studentId: s.id, text: pick(['Travaille mieux en binôme.', 'À placer devant, consignes écrites au tableau.', 'Très investi dans le projet.', 'Oublie souvent son matériel.']), at: new Date(now - Math.floor(r() * 15) * 864e5).toISOString() });
     }
   }
-  demoPlanning(put, allClasses);
+  demoPlanning(put, allClasses, studentsByClass, r);
   await db.replaceAll(data);
 }

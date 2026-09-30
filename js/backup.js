@@ -3,6 +3,7 @@ import * as db from './db.js';
 import * as model from './model.js';
 import { todayISO } from './ui.js';
 import { clearYearIn } from './planning.js';
+import * as stats from './stats.js';
 
 // Le navigateur sait-il ouvrir une fenêtre « Enregistrer sous » (choix du dossier) ?
 export const canChooseFolder = () => typeof window.showSaveFilePicker === 'function';
@@ -117,20 +118,34 @@ export function recapRows(classId) {
   const students = model.studentsOf(classId);
   const assigns = model.selectableAssignments(classId, ['fini', 'cours', 'avenir'])
     .filter(a => students.some(s => model.computeNote(model.studentLevels(a.id, s.id), db.get('projects', a.projectId).criteria).filled));
+  // Présence : appels sans absence / appels de la classe (retard = présent), par trimestre, sur l'année, par projet.
+  const pc = p => (p.appels ? String(Math.round(p.taux * 100)) + ' %' : '');
+  const projFilter = a => (x => x.assignmentId === a.id && x.seanceId);
   const head = ['NOM', 'Prénom'];
-  for (const t of [1, 2, 3]) head.push(`T${t} Comportement`, `T${t} Aide`, `T${t} Absences`, `T${t} Retards`);
-  for (const a of assigns) { const p = db.get('projects', a.projectId); head.push(`${p.title} /20`, `${p.title} mention`); }
+  for (const t of [1, 2, 3]) head.push(`T${t} Présence`, `T${t} Comportement`, `T${t} Aide`, `T${t} Absences`, `T${t} Retards`);
+  head.push('Année Présence');
+  for (const a of assigns) { const p = db.get('projects', a.projectId); head.push(`${p.title} /20`, `${p.title} mention`, `${p.title} présence`); }
   const rows = [head];
   for (const s of students) {
     const row = [s.nom, s.prenom];
     for (const t of [1, 2, 3]) {
-      if (t > model.trimester()) row.push('', '', '', '');
-      else { const c = model.countsOf(s.id, t); row.push(c.neg, c.pos, model.absenceCount(s.id, t), model.retardCount(s.id, t)); }
+      if (t > model.trimester()) row.push('', '', '', '', '');
+      else { const c = model.countsOf(s.id, t); row.push(pc(stats.presenceEleve(s, t)), c.neg, c.pos, model.absenceCount(s.id, t), model.retardCount(s.id, t)); }
     }
+    row.push(pc(stats.presenceEleve(s)));
     for (const a of assigns) {
       const r = model.computeNote(model.studentLevels(a.id, s.id), db.get('projects', a.projectId).criteria);
-      row.push(r.n == null ? '' : num(r.n) + (r.complete ? '' : ' (provisoire)'), r.complete ? model.mention(r.n) : '');
+      row.push(r.n == null ? '' : num(r.n) + (r.complete ? '' : ' (provisoire)'), r.complete ? model.mention(r.n) : '', pc(stats.presenceEleve(s, null, projFilter(a))));
     }
+    rows.push(row);
+  }
+  // Dernière ligne : moyenne de la classe (présence).
+  if (students.length) {
+    const avg = p => (p.moyenne == null ? '' : String(Math.round(p.moyenne * 100)) + ' %');
+    const row = ['MOYENNE DE LA CLASSE', ''];
+    for (const t of [1, 2, 3]) row.push(t > model.trimester() ? '' : avg(stats.presenceClasse(classId, t)), '', '', '', '');
+    row.push(avg(stats.presenceClasse(classId)));
+    for (const a of assigns) row.push('', '', avg(stats.presenceProjet(a)));
     rows.push(row);
   }
   return { rows, assigns };

@@ -1,6 +1,6 @@
 // nav.js — Navigation entre écrans (adresse après le « # ») et rafraîchissement de l'écran courant.
 // Numéro de version affiché dans les Réglages (à augmenter avec VERSION dans sw.js à chaque mise à jour).
-export const APP_VERSION = '1.10.0';
+export const APP_VERSION = '1.11.0';
 let renderer = () => {};
 export function setRenderer(fn) { renderer = fn; }
 export const refresh = () => renderer();

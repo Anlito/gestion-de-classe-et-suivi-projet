@@ -33,6 +33,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/ical.js` | lecture des emplois du temps exportés de Pronote (.ics) : cours, statuts, vacances, heure de Paris |
 | `js/planning.js` | emploi du temps : établissements, cours, vacances, rôle des matières, correspondance des classes, import |
 | `js/screens/emploi-du-temps.js` | Administration → Emploi du temps : import, correspondance des classes, aperçu, rôles |
+| `js/stats.js` | statistiques de présence (élève, classe, projet ; retard = présent) |
 | `js/alertes.js` | alertes dans l'app (appel non fait, séances à remplir), coin de l'écran, tous les écrans |
 | `js/screens/semaine.js` | accueil `#/` : planning de la semaine (sans emploi du temps : affiche la liste des classes) |
 | `js/screens/accueil.js` | liste des classes en tuiles (`#/classes`) |
@@ -60,9 +61,9 @@ Servir le dossier avec n'importe quel serveur web local (par exemple `python -m 
 puis ouvrir http://localhost:8765. Sur `localhost`, le service worker charge toujours les fichiers frais.
 Réglages → « Remplacer par les données de démonstration » donne des classes fictives pour essayer.
 
-## Chantier en cours : Planning (décisions prises)
+## Chantier Planning (terminé en 1.11.0) : décisions prises
 
-Après chaque étape : nouvelle version, liste de tests à faire sur la tablette, attendre le retour du professeur.
+Méthode suivie : après chaque étape, nouvelle version, liste de tests à faire sur la tablette, attente du retour du professeur. Les 7 étapes sont faites (1.5.0 → 1.11.0).
 
 - Deux établissements (initiales PR et RB), un fichier .ics chacun.
 - **Une classe de l'app par groupe Pronote** (ex. `[3C2D1]` → classe « 3C2D1 »). Les noms de classes sont rendus
@@ -82,6 +83,20 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 
 ## Historique des versions
 
+### 1.11.0 — 1er octobre 2026 · Planning, étape 7/7 : statistiques de présence
+
+- Nouveau `js/stats.js` : **taux de présence = appels où l'élève n'était pas absent / appels de sa classe**, un
+  retard compte comme présent. Trimestre d'un appel déduit de sa date et de `meta.trimesterStarts`
+  (`stats.trimesterOf`). `presenceEleve`, `presenceClasse` (moyenne des taux des élèves, plus absents, plus en
+  retard), `presenceProjet` (appels rattachés à une séance du projet).
+- **Fiche élève** : bloc « x % de présence ce trimestre · y % sur l'année (n appels) ». **Fiche PDF** : ligne
+  « Présence » par trimestre et colonne « Année » (comportement, aide, absences, retards aussi en total annuel).
+- **Classe** : bouton « Présence » dans le trombinoscope → panneau T1 / T2 / T3 / Année : présence moyenne, appels,
+  absences, retards, les plus absents, toute la classe triée (barre et %), toucher un élève ouvre sa fiche.
+- **Projet** : « Présence sur les séances du projet : x % · n appels · absences · retards · plus absents ».
+- **Récapitulatif CSV** : colonnes « Tn Présence », « Année Présence », « <projet> présence », dernière ligne
+  « MOYENNE DE LA CLASSE ». **Récapitulatif PDF** : mêmes colonnes + ligne « Présence moyenne … · Plus absents ».
+- Démonstration : appels fictifs sur les cours passés (quelques absences et retards) pour essayer les statistiques.
 ### 1.10.0 — 1er octobre 2026 · Planning, étape 6/7 : réimportation et conflits
 
 - `planning.previewOf` renvoie désormais `conflits` (les autres changements s'appliquent directement) :
