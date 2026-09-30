@@ -14,13 +14,9 @@ import { go, refresh } from './nav.js';
 export const DELAI_APPEL = 15;       // minutes après le début du cours
 export const HEURE_SEANCES = 18 * 60; // 18 h
 const toMin = s => +s.slice(0, 2) * 60 + +s.slice(3, 5);
-// Le cours est couvert par une séance : la sienne, celle d'un cours enchaîné (cours de 2 h : une seule séance),
-// ou une séance du jour créée sans cours (onglet Projet). Un cours séparé dans la journée a besoin de la sienne.
-const couvert = e => planning.coursEnchaines(e).some(x => model.seanceOfCours(x.id)) || db.all('seances').some(s => {
-  if (s.date !== e.date || (s.coursId && db.get('cours', s.coursId))) return false;
-  const a = db.get('assignments', s.assignmentId);
-  return a && a.classId === planning.classIdOf(e.src);
-});
+// 1 créneau = 1 séance : le cours est couvert par la séance qui lui est reliée (les séances créées dans l'onglet
+// Projet sont reliées à un créneau du jour par planning.lierAppels).
+const couvert = e => !!model.seanceOfCours(e.id);
 
 // Liste des alertes à l'instant « now » : [{ type: 'appel'|'seance', cours (affiché), classId, cls }].
 export function alertes(now = new Date()) {
@@ -34,13 +30,8 @@ export function alertes(now = new Date()) {
     if (role !== 'suivi' && role !== 'appel') continue;
     const cls = db.get('classes', classId);
     if (m >= toMin(e.debut) + DELAI_APPEL && !model.appelOfCours(e.id)) out.push({ type: 'appel', cours: e, classId, cls });
-    if (m >= HEURE_SEANCES && role === 'suivi' && m >= toMin(e.debut) && model.activeAssignments(classId).length) {
-      // Une seule alerte par bloc de cours enchaînés (affichée sur le 1er cours, avec l'horaire du bloc).
-      const bloc = planning.coursEnchaines(e);
-      if (bloc[0].id === e.id && !bloc.some(x => x.pasSeance) && !couvert(e)) {
-        out.push({ type: 'seance', cours: { ...e, fin: bloc[bloc.length - 1].fin }, classId, cls });
-      }
-    }
+    if (m >= HEURE_SEANCES && role === 'suivi' && m >= toMin(e.debut) && !e.pasSeance && !couvert(e)
+      && model.activeAssignments(classId).length) out.push({ type: 'seance', cours: e, classId, cls });
   }
   return out;
 }
@@ -56,6 +47,8 @@ export function render() {
   if (!el) return;
   const hash = location.hash || '#/';
   if (hash.startsWith('#/imprimer') || document.querySelector('.lock')) { el.innerHTML = ''; return; }
+  // Appels et séances faits sans cours (ex. séance créée dans l'onglet Projet après le cours) : reliés d'abord.
+  try { planning.lierAppels(); } catch (e) { console.error(e); }
   const list = alertes();
   const appels = list.filter(a => a.type === 'appel'), seances = list.filter(a => a.type === 'seance');
   if (!list.length) { el.innerHTML = ''; return; }

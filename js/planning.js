@@ -186,13 +186,47 @@ function delierIn(w, ids) {
   for (const s of ['appels', 'seances']) for (const r of db.where(s, x => x.coursId && ids.has(x.coursId))) w.update(s, r.id, { coursId: null });
 }
 
+// Règle : 1 créneau (cours) = 1 appel + 1 séance de projet, quelle que soit sa durée, même si deux créneaux
+// de la même classe se suivent.
 // Rattache les appels faits sans cours (avant l'import, ou hors planning) au cours correspondant :
 // même classe, même date, heure de l'appel entre 30 min avant le début et 15 min après la fin du cours.
-// La séance de l'appel est reliée au même cours. Sans cours correspondant, l'appel reste tel quel.
+// La séance de l'appel est reliée au même cours. Puis les séances encore sans cours (créées dans l'onglet
+// Projet) sont reliées, dans l'ordre, aux cours suivis du même jour qui n'ont pas encore de séance.
+// Sans cours correspondant, appel ou séance restent tels quels.
 export function lierAppels() {
+  if (!db.all('cours').length) return 0;
+  const n = lierAppelsSeuls();
+  return n + lierSeances();
+}
+function lierSeances() {
+  const vivant = id => id && db.get('cours', id);
+  const libres = db.where('seances', s => !vivant(s.coursId));
+  if (!libres.length) return 0;
+  const avecSeance = new Set(db.all('seances').map(s => s.coursId).filter(vivant));
+  const liaisons = [];
+  const groupes = new Map();
+  for (const s of libres) {
+    const a = db.get('assignments', s.assignmentId);
+    if (!a) continue;
+    const k = a.classId + '|' + s.date;
+    if (!groupes.has(k)) groupes.set(k, []);
+    groupes.get(k).push(s);
+  }
+  for (const [k, seances] of groupes) {
+    const [classId, date] = k.split('|');
+    const cours = db.all('cours').map(eff)
+      .filter(e => e.date === date && !OFF.has(e.statut) && roleOfCours(e) === 'suivi' && classIdOf(e.src) === classId && !avecSeance.has(e.id))
+      .sort((x, y) => x.debut.localeCompare(y.debut));
+    seances.sort((x, y) => x.n - y.n).forEach((s, i) => { if (cours[i]) liaisons.push([s, cours[i]]); });
+  }
+  if (!liaisons.length) return 0;
+  db.commit(w => { for (const [s, e] of liaisons) w.update('seances', s.id, { coursId: e.id }); }, { track: false });
+  return liaisons.length;
+}
+function lierAppelsSeuls() {
   // Libres : sans cours, ou dont le cours n'existe plus (import annulé, établissement supprimé…).
   const libres = db.where('appels', a => !a.coursId || !db.get('cours', a.coursId));
-  if (!libres.length || !db.all('cours').length) return 0;
+  if (!libres.length) return 0;
   const pris = new Set(db.all('appels').map(a => a.coursId).filter(id => id && db.get('cours', id)));
   const parJour = new Map();
   for (const e of db.all('cours').map(eff)) {
@@ -222,25 +256,6 @@ export function lierAppels() {
     }
   }, { track: false });
   return liaisons.length;
-}
-
-// ---------- Cours enchaînés (cours de 2 h découpé par Pronote) ----------
-// Deux cours de la même classe le même jour, séparés de moins de ENCHAINEMENT minutes (ex. 09:10 → 09:11,
-// ou 10:06 → 10:22 après la récréation), forment un seul cours : une seule séance de projet.
-// Des cours séparés dans la journée (matin et après-midi) ont chacun leur séance.
-export const ENCHAINEMENT = 20;
-export function coursEnchaines(c) {
-  const e = c.src ? c : eff(c);
-  const cid = classIdOf(e.src);
-  if (!cid) return [e];
-  const day = db.all('cours').map(eff).filter(x => x.date === e.date && !OFF.has(x.statut) && classIdOf(x.src) === cid)
-    .sort((a, b) => a.debut.localeCompare(b.debut));
-  let i = day.findIndex(x => x.id === e.id);
-  if (i < 0) return [e];
-  let a = i, b = i;
-  while (a > 0 && mins(day[a].debut) - mins(day[a - 1].fin) <= ENCHAINEMENT) a--;
-  while (b < day.length - 1 && mins(day[b + 1].debut) - mins(day[b].fin) <= ENCHAINEMENT) b++;
-  return day.slice(a, b + 1);
 }
 
 // « Pas une séance projet » : le cours n'aura pas d'alerte « séance à remplir ».

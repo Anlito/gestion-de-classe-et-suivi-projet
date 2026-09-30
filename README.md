@@ -78,10 +78,21 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
   absence personnelle, vacances, fériés.
 - Alertes dans l'app : appel non fait 15 min après le début ; séances non remplies à partir de 18h.
 - Statistiques : un élève en retard compte comme présent ; taux = appels sans absence / appels.
-- Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; un appel par cours ; une séance de projet par **bloc de cours enchaînés** (même classe, même jour, moins de 20 min d'écart = cours de 2 h) ; deux cours séparés dans la journée = deux séances.
+- Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
 
+### 1.9.5 — 30 septembre 2026 · 1 créneau = 1 appel + 1 séance
+
+- Décision du professeur : chaque créneau (1 h, 1 h 30…) a **son appel et sa séance de projet**, même quand deux
+  créneaux de la même classe se suivent. Les règles « une séance par jour » (1.9.2) et « cours enchaînés » (1.9.4)
+  sont retirées (`coursEnchaines` supprimé).
+- Appel d'un créneau : sa séance reliée, sinon une séance du jour encore sans cours (onglet Projet), sinon
+  « Commencer la séance n » — aussi pour le 2e créneau d'une suite.
+- Migration étendue (`planning.lierAppels`, au démarrage, après import et à chaque rafraîchissement des alertes) :
+  après les appels, les **séances sans cours** sont reliées, dans l'ordre de leur numéro, aux créneaux suivis du même
+  jour et de la même classe qui n'ont pas encore de séance (ex. séances créées dans l'onglet Projet le matin).
+- Alerte « séance à remplir » : une par créneau sans séance reliée.
 ### 1.9.4 — 30 septembre 2026 · Deux cours de la même classe dans la journée
 
 - Nouvelle règle (`planning.coursEnchaines`, `ENCHAINEMENT` = 20 min) : les cours de la même classe le même jour

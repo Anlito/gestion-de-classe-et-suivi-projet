@@ -68,12 +68,10 @@ async function startAppel(classId) {
   let ctx = null;
   const act = model.activeAssignments(classId)[0];
   if (planning.roleOfCours(k) === 'suivi' && act && !k.pasSeance) {
-    // Séance reliée à ce cours, sinon celle d'un cours enchaîné (2e heure d'un cours de 2 h : même séance),
-    // sinon une séance du jour créée dans l'onglet Projet sans cours. Un cours séparé (ex. l'après-midi alors
-    // qu'il y a eu cours le matin) a sa propre séance.
-    const enchaines = planning.coursEnchaines(k);
-    let s = enchaines.map(x => model.seanceOfCours(x.id)).find(Boolean)
-      || model.seancesOf(act.id).filter(x => x.date === k.date && (!x.coursId || !db.get('cours', x.coursId))).pop();
+    // 1 créneau = 1 séance : la séance reliée à ce cours, sinon une séance du jour encore sans cours (créée dans
+    // l'onglet Projet) ; sinon on propose d'en commencer une nouvelle, même si un autre créneau précède.
+    let s = model.seanceOfCours(k.id)
+      || model.seancesOf(act.id).filter(x => x.date === k.date && (!x.coursId || !db.get('cours', x.coursId))).shift();
     if (s && (!s.coursId || !db.get('cours', s.coursId))) model.updateSeance(s.id, { coursId: k.id });
     if (!s) {
       const p = db.get('projects', act.projectId);
