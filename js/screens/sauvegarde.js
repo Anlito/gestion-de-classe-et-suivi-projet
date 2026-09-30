@@ -23,7 +23,7 @@ function driveView() {
     <div class="abs-info small-text">Les données (élèves, besoins particuliers, notes, appels…) sont envoyées <strong>sans chiffrement</strong> dans votre
       Google Drive, dossier « Carnet de classe ». <strong>Ne partagez jamais ce dossier.</strong></div>
     <label class="lbl">Identifiant client Google (propre à vous, à saisir sur chaque appareil)
-      <input class="input" value="${id}" data-input="clientId" placeholder="123456-abc….apps.googleusercontent.com" autocomplete="off" spellcheck="false"></label>
+      <input class="input" value="${id}" data-input="clientId" placeholder="123456-abc….apps.googleusercontent.com" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url"></label>
     <div class="row-center wrap">
       <button type="button" class="btn soft small" data-click="saveClient">Enregistrer l’identifiant</button>
       <span class="muted small">${ok ? '✓ Identifiant enregistré sur cet appareil' : 'Aucun identifiant valide pour l’instant'}</span>
@@ -164,8 +164,13 @@ export default {
     },
     clientId(el) { clientDraft = el.value; },
     saveClient() {
-      const id = (clientDraft != null ? clientDraft : drive.config().clientId || '').trim();
-      if (!drive.validClientId(id)) { toast({ text: 'Identifiant non reconnu : il doit se terminer par .apps.googleusercontent.com', ms: 5000 }); return; }
+      const typed = clientDraft != null ? clientDraft : drive.config().clientId || '';
+      const id = drive.extractClientId(typed);
+      if (!id) {
+        const shown = typed.replace(/[​-‍⁠﻿]/g, '⍰').slice(0, 90);
+        toast({ text: `Identifiant non reconnu. Il ressemble à « 123456789012-abc…apps.googleusercontent.com ». Reçu : « ${shown || 'rien'} »`, ms: 12000 });
+        return;
+      }
       const changed = id !== drive.config().clientId;
       if (changed) { drive.disconnect(); drive.setConfig({ clientId: id, folderId: null, dataFileId: null }); }
       clientDraft = null;

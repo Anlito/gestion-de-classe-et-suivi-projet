@@ -123,6 +123,12 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 
 ## Historique des versions
 
+### 1.13.1 — 1er octobre 2026 · Correctif : identifiant client refusé
+
+- Le collage de l'identifiant depuis la console Google était refusé (espace, caractère invisible, majuscule ou espace
+  ajoutés par le clavier, texte autour). `drive.extractClientId` retrouve l'identifiant dans le texte collé (ignore
+  espaces, caractères invisibles, majuscules, texte autour) ; en cas d'échec, le message montre ce qui a été reçu.
+  Champ sans majuscule ni correction automatiques. 7 tests (51 au total).
 ### 1.13.0 — 1er octobre 2026 · Synchronisation Drive, étape B : connexion et synchronisation manuelle
 
 - **Application autonome** : chaque professeur saisit son propre identifiant client Google (aucun accès du

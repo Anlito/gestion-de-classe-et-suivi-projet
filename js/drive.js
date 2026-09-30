@@ -22,8 +22,15 @@ const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 export const config = () => db.getMeta('sync', {}) || {};
 export function setConfig(patch) { db.commit(w => w.meta('sync', { ...config(), ...patch }), { track: false }); }
 export const isDrive = () => config().mode === 'drive';
-// Identifiant client OAuth « Application Web » : se termine par .apps.googleusercontent.com
-export const validClientId = id => /^[\w-]+\.apps\.googleusercontent\.com$/.test((id || '').trim());
+// Identifiant client OAuth « Application Web » : « 123456789012-abc….apps.googleusercontent.com ».
+export const validClientId = id => /^[0-9]+-[a-z0-9_-]+\.apps\.googleusercontent\.com$/.test(id || '');
+// Retrouve l'identifiant dans un texte collé : espaces, retours à la ligne, caractères invisibles, majuscules
+// (clavier) et texte autour (« ID client : … ») sont ignorés. Renvoie l'identifiant ou null.
+export function extractClientId(text) {
+  const clean = (text || '').normalize('NFKC').replace(/[\s ​-‍⁠﻿]+/g, '').toLowerCase();
+  const m = clean.match(/[0-9]+-[a-z0-9_-]+\.apps\.googleusercontent\.com/);
+  return m ? m[0] : null;
+}
 
 // ---------- Connexion Google (Google Identity Services, jeton valable 1 h) ----------
 let token = null;       // { value, exp }
