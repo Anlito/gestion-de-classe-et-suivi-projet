@@ -100,9 +100,11 @@ export function photoURL(photoId) {
 //   w.del(store, id)           supprime
 //   w.meta(key, value)         change un réglage
 // Renvoie une fonction undo() qui rétablit exactement l'état précédent.
-export function commit(fn, { track = true } = {}) {
+// oldest = true : valeurs par défaut créées automatiquement (date 0), pour qu'une vraie valeur venue d'un autre
+// appareil l'emporte toujours à la synchronisation.
+export function commit(fn, { track = true, oldest = false } = {}) {
   const ops = [];
-  const now = Date.now();
+  const now = oldest ? 0 : Date.now();
   const w = {
     put(store, rec) {
       if (!rec.id) rec.id = uid();
@@ -237,15 +239,19 @@ export async function applyRemote(changes) {
   const ops = [];
   for (const [store, list] of Object.entries(changes.puts || {})) {
     for (const rec of list) {
-      const r = store === 'photos' && !rec.blob ? { ...(cache.photos.get(rec.id) || {}), ...rec } : rec;
+      // Modifié ici pendant la synchronisation (plus récent) : on garde la version locale.
+      const cur = cache[store].get(rec.id);
+      if (cur && (cur.updatedAt || 0) > (rec.updatedAt || 0)) continue;
+      const r = store === 'photos' && !rec.blob ? { ...(cur || {}), ...rec } : rec;
       if (store === 'photos' && !r.blob) continue; // image pas encore téléchargée
       cache[store].set(r.id, r);
       if (store === 'photos') dropPhotoURL(r.id);
       ops.push({ store, id: r.id, after: r });
     }
   }
-  for (const { store, id } of changes.dels || []) {
-    if (!cache[store].has(id)) continue;
+  for (const { store, id, at } of changes.dels || []) {
+    const cur = cache[store].get(id);
+    if (!cur || (at != null && (cur.updatedAt || 0) > at)) continue; // absent, ou modifié ici après la suppression
     cache[store].delete(id);
     if (store === 'photos') dropPhotoURL(id);
     ops.push({ store, id, after: undefined });

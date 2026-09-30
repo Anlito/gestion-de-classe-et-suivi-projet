@@ -35,6 +35,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/screens/emploi-du-temps.js` | Administration → Emploi du temps : import, correspondance des classes, aperçu, rôles |
 | `js/stats.js` | statistiques de présence (élève, classe, projet ; retard = présent) |
 | `js/sync.js` | fusion des données entre appareils (synchronisation Google Drive) |
+| `js/drive.js` | connexion Google (identifiant client propre à chaque professeur) et échanges avec son Drive |
 | `js/alertes.js` | alertes dans l'app (appel non fait, séances à remplir), coin de l'écran, tous les écrans |
 | `js/screens/semaine.js` | accueil `#/` : planning de la semaine (sans emploi du temps : affiche la liste des classes) |
 | `js/screens/accueil.js` | liste des classes en tuiles (`#/classes`) |
@@ -62,6 +63,21 @@ Servir le dossier avec n'importe quel serveur web local (par exemple `python -m 
 puis ouvrir http://localhost:8765. Sur `localhost`, le service worker charge toujours les fichiers frais.
 Réglages → « Remplacer par les données de démonstration » donne des classes fictives pour essayer.
 
+## Installer l'application pour un autre professeur
+
+L'application est autonome : il suffit de donner l'adresse. Chaque professeur garde ses données sur ses appareils,
+et, s'il le souhaite, dans **son** Google Drive — personne d'autre n'y a accès.
+
+1. Ouvrir https://anlito.github.io/gestion-de-classe-et-suivi-projet/ dans Chrome (tablette, téléphone ou ordinateur),
+   puis menu ⋮ → « Installer l'application » (ou « Ajouter à l'écran d'accueil »).
+2. Créer ses classes (Administration), éventuellement importer son emploi du temps Pronote (Administration → Emploi du temps).
+3. Pour utiliser plusieurs appareils : Administration → Sauvegarde et exports → **Google Drive**, puis suivre le guide
+   « Comment obtenir mon identifiant ? » (projet Google Cloud à son nom, API Google Drive, écran de consentement en mode
+   Test avec sa propre adresse comme utilisateur test, portée ``drive.file``, client « Application Web » avec l'origine
+   ``https://anlito.github.io``). Coller l'identifiant, « Se connecter à Google », « Synchroniser maintenant ».
+   Sur chaque autre appareil : même identifiant, même compte Google, « Synchroniser maintenant ».
+4. Si un professeur héberge sa propre copie du projet (autre adresse), l'origine à autoriser est la sienne : le guide
+   affiche automatiquement l'adresse exacte à copier.
 ## Chantier en cours : synchronisation Google Drive (décisions prises)
 
 Même méthode que le chantier Planning : une étape = une version, tests sur la tablette, retour du professeur.
@@ -78,9 +94,9 @@ Même méthode que le chantier Planning : une étape = une version, tests sur la
   fichiers qu'elle a créés).
 - Réglages propres à l'appareil, jamais synchronisés : `lastBackupAt`, `lastModified`, `sync` (`db.LOCAL_META`).
 - Photos : envoyées à part (un fichier par photo, seulement quand elle change).
-- Accès Google : identifiant client OAuth « Application Web » créé par le professeur dans sa Google Cloud Console
-  (projet « Carnet de classe », Google Drive API activée, écran de consentement en mode Test avec son adresse comme
-  utilisateur test, origine JavaScript `https://anlito.github.io`). L'identifiant client n'est pas secret.
+- **Application autonome** (décision du professeur) : aucun identifiant du développeur dans l'app. **Chaque professeur**
+  crée son propre identifiant client OAuth « Application Web » (guide intégré dans Administration → Sauvegarde) et le
+  saisit sur **chacun de ses appareils** (réglage local `meta.sync.clientId`). Ses données vont dans **son** Drive.
   Jeton d'accès valable 1 h (Google Identity Services) : reconnexion d'un toucher si besoin.
 - À traiter à l'étape C : après un remplacement complet des données sur un appareil (restauration d'une
   sauvegarde, données de démonstration, « tout effacer »), ne pas fusionner aveuglément avec Drive — demander
@@ -107,6 +123,27 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 
 ## Historique des versions
 
+### 1.13.0 — 1er octobre 2026 · Synchronisation Drive, étape B : connexion et synchronisation manuelle
+
+- **Application autonome** : chaque professeur saisit son propre identifiant client Google (aucun accès du
+  développeur). Guide pas à pas intégré, avec l'adresse exacte à autoriser (``location.origin``) et un bouton Copier.
+- Administration → Sauvegarde : **Mode de sauvegarde** « Sauvegarde manuelle » / « Google Drive » (réglage de
+  l'appareil). En mode Drive : avertissement « sans chiffrement, ne partagez jamais ce dossier », identifiant client,
+  « Se connecter à Google », état (compte, dernière synchronisation et bilan), **« Synchroniser maintenant »**,
+  « Ouvrir le dossier dans Google Drive », « Se déconnecter ». La sauvegarde par fichier reste disponible (« Copie de
+  secours »).
+- Nouveau ``js/drive.js`` : Google Identity Services (jeton 1 h), API Drive v3 par ``fetch`` ; dossier visible
+  « Carnet de classe » ; ``carnet-donnees.json`` (données fusionnées + traces de suppression + index des photos) ;
+  ``photo-<id>.jpg`` (une image par photo, envoyée ou reçue seulement si elle a changé ; photos supprimées mises à la
+  corbeille de Drive). Synchronisation = lire Drive → fusionner (``sync.mergeData``) → appliquer ici → envoyer.
+- 1re synchronisation d'un appareil qui a déjà des classes : « Fusionner les deux » ou « Remplacer cet appareil par
+  Drive » (refusé si Drive ne contient encore aucune classe, pour ne rien perdre).
+- Sûreté : une modification faite pendant la synchronisation n'est pas écrasée (``applyRemote`` garde la version locale
+  plus récente) ; valeurs par défaut créées au démarrage datées « 0 » (``commit({ oldest: true })``) pour que les vrais
+  réglages d'un autre appareil (ex. trimestre en cours) l'emportent.
+- Vérifié avec un Google Drive simulé : envoi complet (3 285 enregistrements + 283 photos), 2e synchronisation sans
+  échange, modifications et suppression venues d'un autre appareil reçues, suppression envoyée, appareil neuf
+  entièrement reconstitué (photos comprises). Reste à essayer avec un vrai compte Google.
 ### 1.12.0 — 1er octobre 2026 · Synchronisation Drive, étape A : fondations de la fusion
 
 - Nouvelle table `effacements` (`DB_VERSION` 6) : chaque suppression (`commit` → `w.del`) laisse une trace

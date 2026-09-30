@@ -56,7 +56,7 @@ export function mergeData(local, remote, now = Date.now()) {
           (toLocal.puts[store] = toLocal.puts[store] || []).push(win);
           stats.recus++;
           if (store === 'photos') photosToDownload.push(id);
-        } else if (l) { toLocal.dels.push({ store, id }); stats.supprimes++; }
+        } else if (l) { toLocal.dels.push({ store, id, at: t ? t.at : null }); stats.supprimes++; }
       }
       // Ce qui change sur Drive
       if (!same(win, r)) { remoteChanged = true; if (win && same(win, l)) stats.envoyes++; }

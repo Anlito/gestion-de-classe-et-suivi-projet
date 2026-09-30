@@ -35,7 +35,7 @@ test('Ajouts des deux côtés : les deux sont gardés', () => {
 });
 test('Supprimé sur l’autre appareil après la dernière modification : supprimé ici', () => {
   const m = mergeData(data({ students: [rec('a', 5)] }), data({ students: [] }, [tomb('students', 'a', 6)]), NOW);
-  eq([m.toLocal.dels, m.merged.stores.students.length, m.toLocal.tombs.length], [[{ store: 'students', id: 'a' }], 0, 1]);
+  eq([m.toLocal.dels.map(d => d.store + ':' + d.id), m.toLocal.dels[0].at, m.merged.stores.students.length, m.toLocal.tombs.length], [['students:a'], T(6), 0, 1]);
 });
 test('Supprimé ici : retiré de Drive, pas remis ici', () => {
   const m = mergeData(data({ students: [] }, [tomb('students', 'a', 6)]), data({ students: [rec('a', 5)] }), NOW);

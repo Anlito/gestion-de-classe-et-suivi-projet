@@ -67,7 +67,7 @@ export function ensureMeta() {
     w.meta('schoolYear', schoolYearFor());
     w.meta('trimester', 1);
     w.meta('trimesterStarts', { 1: todayISO() });
-  }, { track: false });
+  }, { track: false, oldest: true }); // valeurs par défaut : celles d'un autre appareil synchronisé l'emportent
 }
 
 // Clôt le trimestre en cours : les compteurs repartent à zéro, l'historique est conservé.
