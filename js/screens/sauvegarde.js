@@ -3,6 +3,7 @@ import * as db from '../db.js';
 import * as model from '../model.js';
 import { html, toast, openMenu, confirmDialog, choiceDialog, fmtDayYear, fmtTime } from '../ui.js';
 import * as drive from '../drive.js';
+import * as autosync from '../autosync.js';
 import { icon, backLink } from '../components.js';
 import { go, refresh } from '../nav.js';
 import * as backup from '../backup.js';
@@ -29,20 +30,51 @@ function driveView() {
       <span class="muted small">${ok ? '✓ Identifiant enregistré sur cet appareil' : 'Aucun identifiant valide pour l’instant'}</span>
     </div>
     <details class="guide"${ok ? '' : ' open'}>
-      <summary>Comment obtenir mon identifiant ? (une seule fois, environ 10 minutes, de préférence sur un ordinateur)</summary>
-      <ol>
-        <li>Ouvrez <strong>console.cloud.google.com</strong> et connectez-vous avec <strong>votre</strong> compte Google.</li>
-        <li>Menu en haut à gauche → <strong>Nouveau projet</strong> → nom « Carnet de classe » → Créer.</li>
-        <li><strong>API et services → Bibliothèque</strong> : cherchez « Google Drive API » → <strong>Activer</strong>.</li>
-        <li><strong>Google Auth Platform</strong> (ou « Écran de consentement OAuth ») : type <strong>Externe</strong>, nom « Carnet de classe »,
-          votre e-mail comme contact. Dans <strong>Audience</strong> : laissez « Test » et <strong>ajoutez votre adresse Gmail comme utilisateur test</strong>.
-          Dans <strong>Accès aux données</strong> : ajoutez le champ d’application <code>…/auth/drive.file</code>.</li>
-        <li><strong>Clients</strong> (ou « Identifiants ») → <strong>Créer un client</strong> → type <strong>Application Web</strong> →
-          <strong>Origines JavaScript autorisées</strong> : ajoutez exactement
-          <span class="origin"><code>${origin}</code><button type="button" class="btn soft small" data-click="copyOrigin">Copier</button></span></li>
-        <li>Copiez l’<strong>ID client</strong> (il se termine par <code>.apps.googleusercontent.com</code>), collez-le ci-dessus, puis « Enregistrer l’identifiant ».</li>
-      </ol>
-      <div class="muted small">Cet identifiant est à vous : personne d’autre n’a accès à vos données. Il n’est pas secret, mais il ne sert qu’à vos propres appareils.</div>
+      <summary>Comment obtenir mon identifiant ? — une seule fois, 10 à 15 minutes, <strong>sur un ordinateur</strong> de préférence</summary>
+      <p class="muted small">Faites-le avec le compte Google qui recevra vos données. Les intitulés de Google peuvent varier légèrement.</p>
+
+      <div class="g-part"><span class="g-n">1</span><div class="grow"><strong>Créer le projet</strong><ol>
+        <li>Allez sur <strong>console.cloud.google.com</strong> et connectez-vous (acceptez les conditions à la première visite).</li>
+        <li>En haut à gauche, à côté de « Google Cloud » : le <strong>sélecteur de projet</strong> → <strong>Nouveau projet</strong>.</li>
+        <li>Nom : <strong>Carnet de classe</strong> · « Aucune organisation » → <strong>Créer</strong>. Vérifiez qu’il est bien sélectionné en haut.</li>
+      </ol></div></div>
+
+      <div class="g-part"><span class="g-n">2</span><div class="grow"><strong>Activer Google Drive</strong><ol>
+        <li>Dans la barre de recherche en haut : <strong>Google Drive API</strong> → ouvrez le résultat → <strong>Activer</strong>.</li>
+      </ol></div></div>
+
+      <div class="g-part"><span class="g-n">3</span><div class="grow"><strong>Écran d’autorisation</strong><ol>
+        <li>Barre de recherche : <strong>Google Auth Platform</strong> (ou « Écran de consentement OAuth ») → <strong>Commencer</strong>.</li>
+        <li>Nom de l’application : <strong>Carnet de classe</strong> · e-mail d’assistance : votre adresse → Suivant.</li>
+        <li>Audience : <strong>Externe</strong> → Suivant · Coordonnées : votre adresse → Suivant · acceptez le règlement → <strong>Créer</strong>.</li>
+        <li>Menu de gauche <strong>Audience</strong> → <strong>Utilisateurs test</strong> → <strong>+ Add users</strong> → <strong>votre adresse Gmail</strong> → Enregistrer.
+          Laissez le statut « Test ». <span class="g-warn">Oubli fréquent : sans cela, Google refuse la connexion.</span></li>
+        <li>Menu de gauche <strong>Accès aux données</strong> → <strong>Ajouter ou supprimer des champs d’application</strong> → dans le filtre, tapez
+          <strong>drive.file</strong> → cochez <code>…/auth/drive.file</code> → Mettre à jour → <strong>Enregistrer</strong>.</li>
+      </ol></div></div>
+
+      <div class="g-part"><span class="g-n">4</span><div class="grow"><strong>Créer l’identifiant</strong><ol>
+        <li>Menu de gauche <strong>Clients</strong> → <strong>+ Créer un client</strong> → type <strong>Application Web</strong> · nom au choix.</li>
+        <li><strong>Origines JavaScript autorisées</strong> → <strong>+ Ajouter un URI</strong> → collez exactement cette adresse (sans « / » à la fin) :
+          <span class="origin"><code>${origin}</code><button type="button" class="btn soft small" data-click="copyOrigin">Copier</button></span>
+          Laissez vide « URI de redirection autorisés ».</li>
+        <li><strong>Créer</strong> → copiez l’<strong>ID client</strong> : il commence par des chiffres et se termine par <code>.apps.googleusercontent.com</code>
+          (vous le retrouvez à tout moment dans « Clients »). <span class="g-warn">Pas le « code secret » (GOCSPX-…) : il ne sert pas ici.</span></li>
+      </ol></div></div>
+
+      <div class="g-part"><span class="g-n">5</span><div class="grow"><strong>Dans l’application</strong><ol>
+        <li>Collez l’ID client dans le champ ci-dessus → <strong>Enregistrer l’identifiant</strong> → <strong>Se connecter à Google</strong>.</li>
+        <li>Choisissez votre compte. Si Google affiche « Google n’a pas validé cette application » : c’est normal (mode Test) → <strong>Continuer</strong> → autorisez.</li>
+        <li>Faites de même sur chacun de vos appareils (même identifiant, même compte Google).</li>
+      </ol></div></div>
+
+      <div class="g-errors"><strong>En cas d’erreur</strong><ul>
+        <li><code>origin_mismatch</code> ou <code>redirect_uri_mismatch</code> : l’adresse de la partie 4 n’est pas exacte (pas de « / » final), ou Google
+          n’a pas encore pris la modification en compte (quelques minutes, parfois plus) : réessayez plus tard.</li>
+        <li><code>access_denied</code> : votre adresse n’est pas dans les <strong>utilisateurs test</strong> (partie 3).</li>
+        <li>« Fenêtre bloquée » : autorisez les fenêtres pop-up pour ce site dans le navigateur.</li>
+      </ul></div>
+      <div class="muted small">Cet identifiant est à vous : personne d’autre n’a accès à vos données.</div>
     </details>
     ${ok ? html`<div class="drive-state${drive.connected() ? ' on' : ''}">
         <span class="status-dot"></span>
@@ -56,25 +88,11 @@ function driveView() {
         ${drive.folderUrl() ? html`<a class="btn soft" href="${drive.folderUrl()}" target="_blank" rel="noopener">Ouvrir le dossier dans Google Drive</a>` : ''}
         ${drive.connected() ? html`<button type="button" class="btn soft" data-click="disconnect">Se déconnecter de Google</button>` : ''}
       </div>
-      <div class="muted small">Sur un nouvel appareil : saisissez le même identifiant, connectez-vous avec le même compte Google, puis « Synchroniser maintenant » :
-        vos données arrivent. Ensuite, chaque appareil envoie et reçoit les modifications (le plus récent gagne).</div>` : ''}
+      <div class="muted small"><strong>Synchronisation automatique</strong> : à l’ouverture de l’app, quelques secondes après vos modifications,
+        au retour dans l’app et toutes les 5 minutes. L’indicateur en haut des écrans (« Synchronisé 10:42 ») le montre ; touchez-le pour
+        synchroniser tout de suite ou vous reconnecter à Google (la connexion Google dure 1 heure).
+        Sur un nouvel appareil : même identifiant, même compte Google, puis « Synchroniser maintenant » : vos données arrivent.</div>` : ''}
   </div>`;
-}
-
-// Premier échange sur cet appareil alors qu'il contient déjà des données : fusionner, ou tout reprendre d'un côté.
-async function premierEchange() {
-  if (drive.config().lastSync) return 'fusion';
-  const hasLocal = db.all('classes').length > 0;
-  if (!hasLocal) return 'fusion';
-  return choiceDialog({
-    title: 'Première synchronisation de cet appareil',
-    text: 'Cet appareil contient déjà des classes. Si Drive contient aussi des données (d’un autre appareil), que faire ?',
-    choices: [
-      { label: 'Fusionner les deux', sub: 'Recommandé : rien n’est perdu, le plus récent gagne', value: 'fusion', style: 'accent' },
-      { label: 'Remplacer cet appareil par Drive', sub: 'Les données de cet appareil sont effacées (ex. données de démonstration)', value: 'drive', style: 'soft' },
-      { label: 'Annuler', value: null, style: 'soft' },
-    ],
-  });
 }
 
 function pickJson() {
@@ -183,36 +201,17 @@ export default {
     },
     async connect() {
       busy = 'Connexion à Google…'; refresh();
-      try { await drive.connect(true); busy = ''; refresh(); toast({ text: 'Connecté à Google' }); }
+      try { await drive.connect(true); busy = ''; refresh(); toast({ text: 'Connecté à Google' }); autosync.schedule(500); }
       catch (e) { busy = ''; refresh(); toast({ text: e.message, ms: 7000 }); }
     },
     disconnect() { drive.disconnect(); refresh(); toast({ text: 'Déconnecté de Google (vos données restent sur cet appareil et sur Drive)' }); },
-    async syncNow() {
-      const choix = await premierEchange();
-      if (!choix) return;
-      busy = 'Synchronisation…'; refresh();
-      try {
-        if (choix === 'drive') {
-          // Tout reprendre de Drive : on vide cet appareil en gardant son réglage de synchronisation —
-          // seulement si Drive a bien des données (sinon on perdrait tout).
-          busy = 'Vérification des données sur Drive…'; refresh();
-          if (!(await drive.driveADesDonnees())) {
-            busy = ''; refresh();
-            toast({ text: 'Drive ne contient encore aucune classe : rien n’a été effacé. Choisissez « Fusionner » pour envoyer les données de cet appareil.', ms: 8000 });
-            return;
-          }
-          const cfg = drive.config();
-          await db.clearAll();
-          model.ensureMeta();
-          drive.setConfig(cfg);
-        }
-        const s = await drive.synchroniser(t => { busy = t; refresh(); });
-        busy = ''; refresh();
-        toast({ text: `Synchronisé : ${s.recus} reçu${s.recus > 1 ? 's' : ''}, ${s.envoyes} envoyé${s.envoyes > 1 ? 's' : ''}, ${s.supprimes} supprimé${s.supprimes > 1 ? 's' : ''}${s.photos ? `, ${s.photos} photo${s.photos > 1 ? 's' : ''}` : ''}`, ms: 5000 });
-      } catch (e) {
-        busy = ''; refresh();
-        toast({ text: e instanceof drive.NeedAuth ? 'Connexion Google expirée : touchez « Se connecter à Google ».' : 'Synchronisation impossible : ' + e.message, ms: 7000 });
-      }
+    // Même logique que l'indicateur de l'en-tête (questions de 1re synchronisation ou après restauration comprises).
+    // (Pas de voile « occupé » ici : il cacherait les questions ; l'indicateur de l'en-tête montre l'avancement.)
+    async syncNow(el) {
+      el.disabled = true;
+      const s = await autosync.run(true);
+      if (s) model.ensureMeta();
+      refresh();
     },
 
     async save() { await doBackup(false); },

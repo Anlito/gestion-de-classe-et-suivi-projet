@@ -36,6 +36,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/stats.js` | statistiques de présence (élève, classe, projet ; retard = présent) |
 | `js/sync.js` | fusion des données entre appareils (synchronisation Google Drive) |
 | `js/drive.js` | connexion Google (identifiant client propre à chaque professeur) et échanges avec son Drive |
+| `js/autosync.js` | synchronisation automatique et indicateur « Synchronisé à … » dans l'en-tête |
 | `js/alertes.js` | alertes dans l'app (appel non fait, séances à remplir), coin de l'écran, tous les écrans |
 | `js/screens/semaine.js` | accueil `#/` : planning de la semaine (sans emploi du temps : affiche la liste des classes) |
 | `js/screens/accueil.js` | liste des classes en tuiles (`#/classes`) |
@@ -74,8 +75,8 @@ et, s'il le souhaite, dans **son** Google Drive — personne d'autre n'y a accè
 3. Pour utiliser plusieurs appareils : Administration → Sauvegarde et exports → **Google Drive**, puis suivre le guide
    « Comment obtenir mon identifiant ? » (projet Google Cloud à son nom, API Google Drive, écran de consentement en mode
    Test avec sa propre adresse comme utilisateur test, portée ``drive.file``, client « Application Web » avec l'origine
-   ``https://anlito.github.io``). Coller l'identifiant, « Se connecter à Google », « Synchroniser maintenant ».
-   Sur chaque autre appareil : même identifiant, même compte Google, « Synchroniser maintenant ».
+   ``https://anlito.github.io``). Coller l'identifiant, « Se connecter à Google » : ensuite tout est automatique.
+   Sur chaque autre appareil : même identifiant, même compte Google, « Se connecter à Google ».
 4. Si un professeur héberge sa propre copie du projet (autre adresse), l'origine à autoriser est la sienne : le guide
    affiche automatiquement l'adresse exacte à copier.
 ## Chantier en cours : synchronisation Google Drive (décisions prises)
@@ -98,16 +99,12 @@ Même méthode que le chantier Planning : une étape = une version, tests sur la
   crée son propre identifiant client OAuth « Application Web » (guide intégré dans Administration → Sauvegarde) et le
   saisit sur **chacun de ses appareils** (réglage local `meta.sync.clientId`). Ses données vont dans **son** Drive.
   Jeton d'accès valable 1 h (Google Identity Services) : reconnexion d'un toucher si besoin.
-- À faire à l'étape C : **réécrire le guide intégré « Comment obtenir mon identifiant ? »** (retour du professeur :
-  peu clair sur tablette). Reprendre la démarche détaillée : 5 parties (créer le projet ; activer Google Drive API ;
-  Google Auth Platform → « Commencer » : infos, Audience Externe, contact, puis Audience → **Utilisateurs test : son
-  adresse**, puis Accès aux données → filtre **drive.file** ; Clients → Application Web → origine **sans « / » final** ;
-  coller l'ID client dans l'app), noms exacts des menus, copier l'**ID client** et non le code secret (GOCSPX-…),
-  erreurs fréquentes (`origin_mismatch` / `redirect_uri_mismatch` : adresse, délai de prise en compte ;
-  `access_denied` : utilisateur test ; « application non validée » : Continuer). Mise en page aérée pour tablette.
-- À traiter à l'étape C : après un remplacement complet des données sur un appareil (restauration d'une
-  sauvegarde, données de démonstration, « tout effacer »), ne pas fusionner aveuglément avec Drive — demander
-  s'il faut remplacer Drive par cet appareil ou recharger depuis Drive.
+- Synchronisation **automatique** (1.14.0) : à l'ouverture, 5 s après des modifications, au retour dans l'app
+  (après 1 min), toutes les 5 min ; indicateur dans l'en-tête (toucher = synchroniser / reconnecter / choisir).
+  **Jamais de fusion automatique** pour la 1re synchronisation d'un appareil qui a des classes, ni après un
+  remplacement complet des données (restauration, démonstration, tout effacer) : l'app demande quoi faire.
+- Guide « Comment obtenir mon identifiant ? » réécrit en 5 parties (1.14.0), d'après les retours sur tablette.
+- État des étapes : A, B et C faites. Reste à valider avec un vrai compte Google sur tablette et ordinateur.
 ## Chantier Planning (terminé en 1.11.0) : décisions prises
 
 Méthode suivie : après chaque étape, nouvelle version, liste de tests à faire sur la tablette, attente du retour du professeur. Les 7 étapes sont faites (1.5.0 → 1.11.0).
@@ -129,6 +126,29 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 - Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
+
+### 1.14.0 — 1er octobre 2026 · Synchronisation Drive, étape C : synchronisation automatique
+- Nouveau `js/autosync.js` : synchronisation **automatique** en mode Drive — à l'ouverture, 5 s après la dernière
+  modification, au retour dans l'app (après 1 min d'absence), toutes les 5 min, au retour du réseau. Jamais deux à la fois.
+- **Indicateur dans l'en-tête** (à la place de « Sauvegardé le … ») : « Synchronisé 10:42 », « Synchronisation… »,
+  « Reconnecter Google » (jeton expiré après 1 h : reconnexion discrète tentée, sinon un toucher), « Hors ligne »,
+  « Erreur de synchro », « Synchro à vérifier », « Drive à configurer ». Un toucher = synchroniser maintenant.
+- **Seulement les différences** : si ni cet appareil ni Drive n'ont changé → aucun échange (2 petites requêtes) ;
+  si seul cet appareil a changé → Drive n'est pas retéléchargé. Photos envoyées seulement si elles changent.
+- **Deux appareils en même temps** : avant d'envoyer, l'app vérifie que Drive n'a pas été modifié depuis sa lecture
+  (version du fichier) ; sinon elle relit et refusionne (jusqu'à 3 fois) — rien n'est écrasé.
+- **Après restauration d'une sauvegarde, données de démonstration ou « tout effacer »** : synchronisation automatique
+  suspendue (« Synchro à vérifier ») ; au toucher : « Remplacer Drive par cet appareil » (ce qui n'existe plus ici est
+  supprimé de Drive puis des autres appareils), « Recharger depuis Drive » ou « Fusionner les deux ». L'identifiant
+  et le réglage Drive sont conservés. 1re synchronisation d'un appareil qui a déjà des classes : toujours demandée.
+- L'écran se met à jour quand des données arrivent, sauf pendant une saisie ou avec une liste / un panneau ouvert.
+- **Guide de l'identifiant réécrit** (retour du professeur : peu clair sur tablette) : 5 parties numérotées, noms
+  exacts des menus Google, oubli fréquent (utilisateur test) mis en avant, bouton Copier l'adresse, ID client et non
+  code secret GOCSPX, erreurs fréquentes (`origin_mismatch`, `access_denied`, fenêtre bloquée…).
+- Vérifié avec un Google Drive simulé : 1re synchro demandée puis 3 281 envois + 283 photos ; 1 note → « 1 envoyé »,
+  sans retéléchargement ; rien de neuf → aucun échange ; modification d'un autre appareil reçue ; envoi simultané
+  d'un autre appareil → refusion, les deux notes gardées ; démonstration chargée → synchro suspendue, « Remplacer
+  Drive » laisse une trace de suppression pour les anciens enregistrements. Tests : 51 / 51.
 
 ### 1.13.1 — 1er octobre 2026 · Correctif : identifiant client refusé
 

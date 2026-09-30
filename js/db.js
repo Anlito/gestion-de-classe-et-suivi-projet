@@ -146,7 +146,7 @@ export function commit(fn, { track = true, oldest = false } = {}) {
     ops.push({ store: 'meta', id: lm.id, after: lm, noUndo: true });
   }
   write(ops);
-  emit({ stores: [...new Set(ops.map(o => o.store))] });
+  emit({ stores: [...new Set(ops.map(o => o.store))], keys: ops.map(o => o.store + ':' + o.id) });
   return async function undo() {
     return commit(u => {
       for (const op of [...ops].reverse()) {
@@ -263,8 +263,12 @@ export async function applyRemote(changes) {
   return ops.length;
 }
 
+// Remplace toutes les données (restauration, démonstration, tout effacer). Les réglages propres à cet appareil
+// (synchronisation Drive, dernière sauvegarde) sont conservés : ils ne viennent jamais d'un fichier.
 export async function replaceAll(prepared) {
   await flush();
+  const keep = all('meta').filter(r => LOCAL_META.has(r.id));
+  prepared = { ...prepared, meta: [...(prepared.meta || []).filter(r => !LOCAL_META.has(r.id)), ...keep] };
   await new Promise((resolve, reject) => {
     const tx = idb.transaction(STORES, 'readwrite');
     for (const s of STORES) {

@@ -110,16 +110,21 @@ async function ensureFolder() {
   setConfig({ folderId: id, dataFileId: null });
   return id;
 }
-// Crée un fichier (multipart : métadonnées + contenu) ou remplace son contenu.
+// Crée un fichier (multipart : métadonnées + contenu) ou remplace son contenu. Renvoie { id, version }.
 async function putFile(fileId, name, parentId, blob) {
   if (fileId) {
-    try { return (await api(`${UPLOAD}/files/${fileId}?uploadType=media&fields=id`, { method: 'PATCH', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob })).id; }
+    try { return await api(`${UPLOAD}/files/${fileId}?uploadType=media&fields=id,version`, { method: 'PATCH', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob }); }
     catch (e) { if (!e.notFound) throw e; } // supprimé dans Drive : on le recrée
   }
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify({ name, parents: [parentId] })], { type: 'application/json' }));
   form.append('file', blob);
-  return (await api(`${UPLOAD}/files?uploadType=multipart&fields=id`, { method: 'POST', body: form })).id;
+  return api(`${UPLOAD}/files?uploadType=multipart&fields=id,version`, { method: 'POST', body: form });
+}
+// Version du fichier de données sur Drive (change à chaque envoi, de n'importe quel appareil) ; null si absent.
+async function versionOf(id) {
+  try { const f = await api(`${API}/files/${id}?fields=id,version,trashed`); return f.trashed ? null : String(f.version); }
+  catch (e) { if (e.notFound) return null; throw e; }
 }
 const getBlob = async id => (await api(`${API}/files/${id}?alt=media`, { raw: true })).blob();
 async function trash(id) { try { await api(`${API}/files/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) }); } catch (e) { if (e instanceof NeedAuth) throw e; } }
@@ -127,29 +132,78 @@ async function trash(id) { try { await api(`${API}/files/${id}`, { method: 'PATC
 // ---------- Synchronisation ----------
 let running = null;
 export const syncing = () => !!running;
-// Fusionne cet appareil et Drive, dans les deux sens. Renvoie { recus, envoyes, supprimes, photos }.
+// Fusionne cet appareil et Drive, dans les deux sens. Renvoie { recus, envoyes, supprimes, photos, rien }.
 // onStep(texte) : progression affichée.
-export function synchroniser(onStep = () => {}) {
-  running = running || doSync(onStep).finally(() => { running = null; });
+// opts.remplacerDrive : cet appareil fait foi (après une restauration…) : ce qui n'existe plus ici est supprimé
+// de Drive et, à leur prochaine synchronisation, des autres appareils.
+export function synchroniser(onStep = () => {}, opts = {}) {
+  running = running || doSyncRetry(onStep, opts).finally(() => { running = null; });
   return running;
 }
-async function doSync(onStep) {
+// Si un autre appareil a envoyé entre notre lecture et notre envoi, on recommence (jusqu'à 3 fois).
+async function doSyncRetry(onStep, opts) {
+  for (let i = 0; i < 3; i++) {
+    const r = await doSync(onStep, opts);
+    if (!r.retry) return r;
+    onStep('Un autre appareil vient d’envoyer ses données : nouvelle fusion…');
+  }
+  throw new Error('Drive change sans cesse (un autre appareil synchronise en même temps) : réessayez dans un instant.');
+}
+const ZERO = { recus: 0, envoyes: 0, supprimes: 0, photos: 0 };
+async function doSync(onStep, opts) {
   onStep('Connexion au dossier « Carnet de classe »…');
   const folderId = await ensureFolder();
-  let dataId = config().dataFileId;
+  const cfg = config();
+  let dataId = cfg.dataFileId;
   if (!dataId) { const f = await findOne(`name='${DATA}' and '${folderId}' in parents`); dataId = f ? f.id : null; }
-  onStep('Lecture des données sur Drive…');
-  let remote = null;
-  if (dataId) {
-    try { remote = JSON.parse(await (await getBlob(dataId)).text()); }
-    catch (e) { if (e instanceof NeedAuth) throw e; if (!e.notFound) throw new Error('Fichier de données Drive illisible : ' + e.message); dataId = null; }
-  }
-  if (remote && remote.app !== 'carnet-de-classe') throw new Error('Le fichier « ' + DATA + ' » du dossier Drive n’est pas une sauvegarde du Carnet de classe.');
+  const version = dataId ? await versionOf(dataId) : null;
+  if (!version) dataId = null;
   await db.flush();
-  const m = mergeData(db.exportForSync(), remote ? { stores: remote.stores || {}, tombs: remote.tombs || [] } : null);
+  // La synchronisation est datée de son DÉBUT : une modification faite pendant qu'elle tourne sera envoyée la fois suivante.
+  const startedAt = new Date().toISOString();
+  const lastSyncMs = cfg.lastSync ? Date.parse(cfg.lastSync) : 0;
+  const localChanged = (db.getMeta('lastModified', 0) || 0) > lastSyncMs;
+  const driveUnchanged = !!dataId && version === cfg.remoteVersion && !!cfg.photoIdx;
+  // Rien de nouveau ni ici ni sur Drive : aucun échange.
+  if (driveUnchanged && !localChanged && !opts.remplacerDrive) {
+    setConfig({ lastSync: startedAt });
+    return { ...ZERO, rien: true };
+  }
+  let remote = null, idx = {};
+  if (driveUnchanged && !opts.remplacerDrive) {
+    // Drive n'a pas bougé depuis notre dernier envoi : il est déjà inclus ici, inutile de le retélécharger.
+    // (Sauf pour « Remplacer Drive » : il faut la liste de ce que Drive contient pour le supprimer ailleurs.)
+    remote = { stores: {}, tombs: [] };
+    idx = { ...cfg.photoIdx };
+  } else if (dataId) {
+    onStep('Lecture des données sur Drive…');
+    let d;
+    try { d = JSON.parse(await (await getBlob(dataId)).text()); }
+    catch (e) { if (e instanceof NeedAuth) throw e; throw new Error('Fichier de données Drive illisible : ' + e.message); }
+    if (d.app !== 'carnet-de-classe') throw new Error('Le fichier « ' + DATA + ' » du dossier Drive n’est pas une sauvegarde du Carnet de classe.');
+    remote = { stores: d.stores || {}, tombs: d.tombs || [] };
+    idx = { ...(d.photos || {}) };
+  }
+  let local = db.exportForSync();
+  if (opts.remplacerDrive && remote) {
+    // Cet appareil fait foi : tout ce que Drive a en plus reçoit une trace de suppression datée de maintenant.
+    const now = Date.now();
+    const tombs = [];
+    for (const [store, list] of Object.entries(remote.stores)) {
+      const here = new Set((local.stores[store] || []).map(r => r.id));
+      for (const r of list) if (!here.has(r.id) && !(store === 'meta' && db.LOCAL_META.has(r.id))) tombs.push({ id: store + ':' + r.id, store, recId: r.id, at: now, updatedAt: now });
+    }
+    if (tombs.length) { await db.applyRemote({ tombs }); local = db.exportForSync(); }
+    remote = { stores: {}, tombs: remote.tombs };
+  }
+  const m = mergeData(local, remote);
+  if (driveUnchanged && !opts.remplacerDrive) {
+    // Sans la version Drive, la fusion compterait tout comme « envoyé » : on ne compte que ce qui a changé ici.
+    m.stats.envoyes = Object.values(local.stores).reduce((n, list) => n + list.filter(r => (r.updatedAt || 0) > lastSyncMs).length, 0)
+      + local.tombs.filter(t => (t.at || 0) > lastSyncMs).length;
+  }
 
   // Photos : télécharger celles qui sont plus récentes sur Drive.
-  const idx = { ...((remote && remote.photos) || {}) };
   let nPhotos = 0;
   if (m.photosToDownload.length) {
     const wanted = new Set(m.photosToDownload);
@@ -173,20 +227,23 @@ async function doSync(onStep) {
   for (const p of toSend) {
     onStep(`Envoi des photos… ${++j} / ${toSend.length}`);
     const loc = db.get('photos', p.id);
-    const fileId = await putFile(idx[p.id] && idx[p.id].fileId, `photo-${p.id}.jpg`, folderId, loc.blob);
-    idx[p.id] = { fileId, updatedAt: loc.updatedAt };
+    const f = await putFile(idx[p.id] && idx[p.id].fileId, `photo-${p.id}.jpg`, folderId, loc.blob);
+    idx[p.id] = { fileId: f.id, updatedAt: loc.updatedAt };
     idxChanged = true; nPhotos++;
   }
   for (const id of Object.keys(idx)) if (!keep.has(id)) { await trash(idx[id].fileId); delete idx[id]; idxChanged = true; }
 
-  // Données : envoyées si Drive n'est pas à jour.
+  // Données : envoyées si Drive n'est pas à jour — seulement si personne n'a envoyé entre-temps.
+  let newVersion = version;
   if (m.remoteChanged || idxChanged || !dataId) {
+    if (dataId && (await versionOf(dataId)) !== version) return { retry: true };
     onStep('Envoi des données sur Drive…');
     const payload = { app: 'carnet-de-classe', format: 1, savedAt: new Date().toISOString(), stores: m.merged.stores, tombs: m.merged.tombs, photos: idx };
-    dataId = await putFile(dataId, DATA, folderId, new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+    const f = await putFile(dataId, DATA, folderId, new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+    dataId = f.id; newVersion = String(f.version);
   }
   const stats = { ...m.stats, photos: nPhotos };
-  setConfig({ dataFileId: dataId, lastSync: new Date().toISOString(), lastStats: stats });
+  setConfig({ dataFileId: dataId, remoteVersion: newVersion, photoIdx: idx, lastSync: startedAt, lastStats: stats, reinit: false });
   return stats;
 }
 // Drive contient-il déjà des données du Carnet (avec au moins une classe) ?

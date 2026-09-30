@@ -1,6 +1,8 @@
 // components.js — Morceaux d'interface réutilisés par plusieurs écrans.
 import * as db from './db.js';
 import { html, raw, fmtDay } from './ui.js';
+import { isDrive } from './drive.js';
+import { statusHtml } from './autosync.js';
 
 export const icon = {
   back: raw('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>'),
@@ -33,8 +35,10 @@ export function backLink(href, label) {
   return html`<a class="back" href="${href}" aria-label="Retour : ${label}">${icon.back}<span class="back-label">${label}</span></a>`;
 }
 
-// État de sauvegarde, affiché dans les en-têtes (remplacera « Synchronisé 10:42 » quand la synchro Drive existera).
+// État de sauvegarde, affiché dans les en-têtes : « Synchronisé 10:42 » en mode Google Drive,
+// sinon la date de la dernière sauvegarde manuelle.
 export function saveStatus() {
+  if (isDrive()) return statusHtml();
   const last = db.getMeta('lastBackupAt');
   const old = !last || Date.now() - new Date(last).getTime() > 7 * 24 * 3600 * 1000;
   const text = last ? 'Sauvegardé le ' + fmtDay(last) : 'Aucune sauvegarde';

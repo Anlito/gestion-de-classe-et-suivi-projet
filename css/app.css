@@ -757,6 +757,15 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .guide code { background: var(--surface); padding: 1px 5px; border-radius: 5px; font-size: 13px; word-break: break-all; }
 .origin { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .origin .btn.small { height: 32px; }
+.guide p { margin: 6px 0; }
+.g-part { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.g-part ol { margin: 6px 0 0; }
+.g-n { width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--accent); color: var(--accentInk); font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.g-warn { display: block; margin-top: 4px; padding: 4px 8px; border-radius: 8px; background: var(--warnTint); font-weight: 700; }
+.g-errors { margin-top: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface); }
+.g-errors ul { margin: 6px 0 0; padding-left: 18px; }
+.sync-status { cursor: pointer; }
+.sync-status.busy .status-dot { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
 .drive-state { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--warnTint); font-size: 15px; }
 .drive-state .status-dot { background: var(--warn); }
 .drive-state.on { background: var(--posTint); }

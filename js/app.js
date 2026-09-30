@@ -20,6 +20,7 @@ import emploiDuTemps from './screens/emploi-du-temps.js';
 import { initLock } from './lock.js';
 import { initAlertes, render as renderAlertes } from './alertes.js';
 import { lierAppels } from './planning.js';
+import { initAutoSync } from './autosync.js';
 import { initUpdates } from './update.js';
 
 
@@ -115,6 +116,7 @@ async function boot() {
   addEventListener('hashchange', render);
   render();
   initAlertes();
+  initAutoSync();
   requestPersistentStorage();
   initUpdates();
 }
