@@ -649,6 +649,21 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .wk-c.todo { border-color: var(--warn); }
 .wk-c.live { border-color: var(--ink); box-shadow: inset 4px 0 0 var(--etab), 0 4px 14px rgba(0, 0, 0, 0.18); z-index: 2; }
 .wk-live { align-self: flex-start; font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 6px; background: var(--ink); color: var(--bg); }
+.wk-c { cursor: pointer; }
+.wk-more { position: absolute; top: 2px; right: 2px; width: 34px; height: 30px; border-radius: 8px; font-size: 18px; font-weight: 800; line-height: 1;
+  color: var(--ink2); background: color-mix(in srgb, var(--surface) 85%, transparent); z-index: 1; }
+.wk-more:active { background: var(--avatar); }
+.wk-c.tiny .wk-more { top: 50%; transform: translateY(-50%); height: 22px; }
+.wk-row1 { padding-right: 30px; }
+.wk-note { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; font-weight: 700; color: var(--ink); }
+.wk-note svg { flex: none; width: 12px; height: 12px; color: var(--warn); }
+.wk-note-ic { flex: none; width: 20px; height: 18px; border-radius: 5px; background: var(--warnTint); color: var(--warn); display: flex; align-items: center; justify-content: center; }
+.wk-note-ic svg { width: 12px; height: 12px; }
+.wk-note span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cours-note { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; padding: 10px 14px; border-radius: 12px; background: var(--warnTint); font-size: 15px; line-height: 1.35; }
+.cours-note svg { flex: none; color: var(--warn); }
+.check-row { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; min-height: 48px; }
+.check-row input { width: 22px; height: 22px; }
 .wk-now { position: absolute; left: -4px; right: 0; height: 2px; background: var(--neg); z-index: 4; pointer-events: none; }
 .wk-now::before { content: ''; position: absolute; left: -4px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--neg); }
 .wk-legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 12px 0 0 50px; font-size: 13px; color: var(--ink2); }

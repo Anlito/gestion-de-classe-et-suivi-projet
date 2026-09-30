@@ -2,6 +2,7 @@
 // Mode « Appel » : toucher les élèves absents. « Tirage » : tirage au sort parmi les présents pas encore interrogés.
 import * as db from '../db.js';
 import * as model from '../model.js';
+import * as planning from '../planning.js';
 import { html, toast, openMenu, buzz, todayISO, fmtDayLong, choiceDialog } from '../ui.js';
 import { icon, backLink, saveStatus, tabBar, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
@@ -259,6 +260,8 @@ export default {
           ${saveStatus()}`}
       </header>
       <main class="content trombi${inAppel ? ' appel-mode' : ''}" data-scroll="trombi">
+        ${(() => { const k = planning.coursContexte(classId); return k && k.note ? html`<div class="cours-note">${icon.list}
+          <span><strong>Note du cours · ${new Date(k.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} ${k.debut}</strong> — ${k.note}</span></div>` : ''; })()}
         ${students.length
           ? html`<div class="trombi-grid">${students.map(s => card(s, counts.get(s.id) || { neg: 0, pos: 0 }, stateOf(s), inAppel))}</div>`
           : html`<div class="empty-block">Aucun élève dans cette classe. Ajoutez-les depuis Administration.</div>`}

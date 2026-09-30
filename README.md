@@ -80,6 +80,27 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 
 ## Historique des versions
 
+### 1.8.0 — 30 septembre 2026 · Planning, étape 4/7 : saisie manuelle et notes sur un cours
+
+- Principe : les champs Pronote d'un cours ne sont **jamais** modifiés par le professeur. Ses changements vont
+  dans `cours.perso` (`date`, `debut`, `fin`, `salle`, `annule`) et la note dans `cours.note` ; l'affichage
+  utilise `planning.eff(cours)`. Ainsi la réimportation compare Pronote à Pronote et garde les modifications.
+  Un cours ajouté à la main a `source: 'manuel'`, `classId` (classe de l'app), `role`, `etabId` facultatif.
+- Planning : bouton **⋯** sur chaque cours → fiche du cours (tiroir) : détails, **note** (affichée sur le cours et
+  en bandeau en haut du trombinoscope quand on ouvre la classe depuis ce cours, ou pour le cours du moment),
+  **Modifier ou déplacer** (date, début, fin — la fin suit le début —, salle), **Annuler ce cours** / Rétablir,
+  **Revenir à la version Pronote**, Supprimer (cours ajoutés). Toucher le cours lui-même ouvre toujours la classe.
+- Modifier / déplacer : si la classe a d'autres cours le même jour au même horaire plus tard dans l'année, choix
+  « Cette fois seulement » ou « Ce cours et toutes les semaines suivantes » (même décalage de jours, mêmes heures et
+  salle ; les cours passés ne changent pas).
+- Bouton **+ Cours** : classe, date, début, fin, salle, établissement (facultatif), type (cours suivi / appel
+  seulement / en grisé), « chaque semaine jusqu'à la fin de l'année » (vacances et fériés sautés). Mention
+  « modifié » / « ajouté » sur le cours ; icône de note (texte complet si le cours est assez haut).
+- Réimportation : un cours disparu de Pronote mais modifié ou annoté est **gardé** (compté à part dans l'aperçu).
+  La liste des conflits (Pronote a changé un cours modifié) viendra à l'étape 6.
+- `planning.coursContexte(classId)` : cours « en contexte » d'une classe (dernier cours touché dans le planning,
+  sinon celui du moment, sinon le prochain de la journée) — servira à rattacher l'appel à l'étape 5.
+
 ### 1.7.0 — 30 septembre 2026 · Planning, étape 3/7 : l'accueil devient le planning
 
 - Nouvel accueil (`js/screens/semaine.js`) : semaine du lundi au vendredi (samedi s'il y a cours), plage horaire

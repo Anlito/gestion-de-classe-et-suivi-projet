@@ -118,7 +118,8 @@ function previewView() {
         <span class="chip pos">+ ${plural(d.ajouts.length, 'cours ajouté', 'cours ajoutés')}</span>
         ${first ? '' : html`<span class="chip warn">${plural(d.modifs.length, 'modifié', 'modifiés')}</span>
           <span class="chip">${plural(d.suppressions.length, 'supprimé', 'supprimés')}</span>
-          <span class="chip">${plural(d.inchanges, 'inchangé', 'inchangés')}</span>`}
+          <span class="chip">${plural(d.inchanges, 'inchangé', 'inchangés')}</span>
+          ${d.gardes.length ? html`<span class="chip accent">${plural(d.gardes.length, 'cours retiré de Pronote mais gardé (modifié ou annoté par vous)', 'cours retirés de Pronote mais gardés (modifiés ou annotés par vous)')}</span>` : ''}`}
         <span class="chip">${plural(d.jours, 'période de vacances ou férié', 'périodes de vacances ou fériés')}</span>
       </div>
       <div class="muted small">${range(p.cours)} · ${Object.entries(byRole).map(([r, n]) => `${n} ${planning.ROLES[r].label.toLowerCase()}`).join(' · ')}
