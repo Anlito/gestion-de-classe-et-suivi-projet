@@ -94,6 +94,7 @@ export default {
                 <span class="spacer"></span>
                 <label class="date-field">Date
                   <input type="date" value="${sel.date}" data-change="date" data-id="${sel.id}" ${archived ? 'disabled' : ''}></label>
+                ${archived ? '' : html`<button type="button" class="icon-btn" data-click="delSeance" data-id="${sel.id}" aria-label="Supprimer la séance ${sel.n}" title="Supprimer cette séance">${icon.trash}</button>`}
               </div>
               <textarea class="journal-text" data-input="journal" data-id="${sel.id}" placeholder="Ce qui a été fait pendant la séance…" ${archived ? 'readonly' : ''}>${sel.text}</textarea>
               <div class="muted small">${archived ? 'Projet archivé · lecture seule' : 'Enregistré automatiquement'}</div>`
@@ -180,6 +181,30 @@ export default {
       const undo = model.reopenAssignment(a);
       refresh();
       toast({ text: `« ${p.title} » rouvert`, undo: async () => { await undo(); refresh(); } });
+    },
+
+    async delSeance(el, e, { classId }) {
+      flushJournal();
+      const s = db.get('seances', el.dataset.id);
+      if (!s) return;
+      const a = currentAssignment(classId);
+      const later = model.seancesOf(a.id).filter(x => x.n > s.n).length;
+      const nObs = db.where('observations', o => o.assignmentId === a.id && o.seanceN === s.n).length;
+      const nApp = db.where('appels', o => o.assignmentId === a.id && o.seanceN === s.n).length;
+      const details = [
+        s.text && s.text.trim() ? 'Son journal sera effacé.' : '',
+        nObs || nApp ? `${[nObs && nObs + ' observation' + (nObs > 1 ? 's' : ''), nApp && 'l’appel'].filter(Boolean).join(' et ')} de ce jour ${nObs + nApp > 1 ? 'sont gardés' : 'est gardé'}, simplement détaché${nObs + nApp > 1 ? 's' : ''} de la séance.` : '',
+        later ? `Les séances suivantes sont renumérotées (${s.n + 1} → ${s.n}${later > 1 ? ', …' : ''}).` : '',
+      ].filter(Boolean).map(t => t[0].toUpperCase() + t.slice(1)).join(' ');
+      if (!(await confirmDialog({
+        title: `Supprimer la séance ${s.n} du ${fmtDayLong(s.date)} ?`,
+        text: details || 'La séance est vide.',
+        ok: 'Supprimer la séance', danger: true,
+      }))) return;
+      const r = model.deleteSeance(s.id);
+      selSeance[a.id] = null;
+      refresh();
+      toast({ text: `Séance ${r.n} supprimée`, undo: async () => { await r.undo(); refresh(); }, undone: 'Suppression annulée' });
     },
 
     pickSeance(el, e, { classId }) {

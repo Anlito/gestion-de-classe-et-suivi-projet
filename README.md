@@ -81,6 +81,16 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 
 ## Historique des versions
 
+### 1.9.1 — 30 septembre 2026 · Supprimer une séance
+
+- Onglet **Projet** : icône corbeille à côté de la date de la séance affichée → « Supprimer la séance n du … ? »
+  (confirmation détaillée, puis Annuler possible). `model.deleteSeance` : le journal de la séance est effacé ;
+  observations, appels, absences et retards de cette séance sont **gardés**, détachés (plus de numéro) ; les séances
+  suivantes sont **renumérotées** (n − 1) avec les numéros et libellés « Séance n · … » qui les citent (observations,
+  absences, retards, appels, changements de groupe). Si la séance était reliée à un cours, l'alerte « séance à
+  remplir » peut revenir pour ce cours (« Pas une séance projet » pour l'écarter).
+- Alertes : la boîte repliée reste repliée (choix mémorisé sur l'appareil, clé `carnet-alertes`).
+
 ### 1.9.0 — 30 septembre 2026 · Planning, étape 5/7 : appel rattaché au cours, alertes
 
 - **Appel rattaché à un cours** : `appels.coursId` (et `seances.coursId`). Dans le trombinoscope, « Appel » utilise

@@ -346,6 +346,33 @@ export function newSeance(a, { date = todayISO(), coursId = null } = {}) {
   return { seance: rec, undo };
 }
 export function updateSeance(id, patch) { return db.commit(w => w.update('seances', id, patch)); }
+
+// Suppression d'une séance (créée par erreur). Rien d'autre n'est effacé :
+// - observations, appels, absences, retards de cette séance : gardés, détachés (plus de numéro de séance) ;
+// - séances suivantes renumérotées (n − 1), ainsi que les numéros et libellés « Séance n · … » qui les citent.
+// Renvoie { undo, n }.
+export function deleteSeance(seanceId) {
+  const s = db.get('seances', seanceId);
+  if (!s) return null;
+  const aid = s.assignmentId, n = s.n;
+  const relabel = (label, k) => (label || '').replace(/^Séance \d+/, 'Séance ' + k);
+  const undo = db.commit(w => {
+    for (const x of seancesOf(aid)) if (x.n > n) w.update('seances', x.id, { n: x.n - 1 });
+    for (const st of ['observations', 'absences', 'retards']) {
+      for (const r of db.where(st, x => x.assignmentId === aid && x.seanceN != null && x.seanceN >= n)) {
+        if (r.seanceN === n) w.update(st, r.id, { seanceN: null, seanceId: null, seanceLabel: '' });
+        else w.update(st, r.id, { seanceN: r.seanceN - 1, seanceLabel: relabel(r.seanceLabel, r.seanceN - 1) });
+      }
+    }
+    for (const r of db.where('appels', x => x.assignmentId === aid && x.seanceN != null && x.seanceN >= n)) {
+      if (r.seanceN === n) w.update('appels', r.id, { seanceN: null, seanceId: null, label: r.coursId ? 'cours du ' + fmtDay(r.date) : '' });
+      else w.update('appels', r.id, { seanceN: r.seanceN - 1, label: relabel(r.label, r.seanceN - 1) });
+    }
+    for (const r of db.where('groupChanges', x => x.assignmentId === aid && x.seanceN > n)) w.update('groupChanges', r.id, { seanceN: r.seanceN - 1 });
+    w.del('seances', s.id);
+  });
+  return { undo, n };
+}
 export function finishAssignment(a) { return db.commit(w => w.update('assignments', a.id, { status: 'fini', endedAt: todayISO() })); }
 export function reopenAssignment(a) { return db.commit(w => w.update('assignments', a.id, { status: 'cours', endedAt: null })); }
 

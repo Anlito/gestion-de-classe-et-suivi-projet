@@ -34,7 +34,8 @@ export function alertes(now = new Date()) {
 }
 
 // ---------- Affichage ----------
-let open = true; // liste dépliée
+// Liste dépliée ou repliée : choix mémorisé sur l'appareil (repliée, elle ne cache plus l'écran).
+let open = (() => { try { return localStorage.getItem('carnet-alertes') !== 'repliees'; } catch (e) { return true; } })();
 let startAppelHook = null; // fourni par le trombinoscope : ouvre l'appel d'une classe
 export function onFaireAppel(fn) { startAppelHook = fn; }
 
@@ -72,7 +73,12 @@ function clickHandler(e) {
   const b = e.target.closest('[data-a]');
   if (!b) return;
   const kind = b.dataset.a;
-  if (kind === 'toggle') { open = !open; render(); return; }
+  if (kind === 'toggle') {
+    open = !open;
+    try { localStorage.setItem('carnet-alertes', open ? 'ouvertes' : 'repliees'); } catch (err) { /* stockage indisponible */ }
+    render();
+    return;
+  }
   const c = db.get('cours', b.dataset.id);
   if (!c) return;
   const classId = planning.classIdOf(c);
