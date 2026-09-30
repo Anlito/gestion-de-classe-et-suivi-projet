@@ -78,9 +78,18 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
   absence personnelle, vacances, fériés.
 - Alertes dans l'app : appel non fait 15 min après le début ; séances non remplies à partir de 18h.
 - Statistiques : un élève en retard compte comme présent ; taux = appels sans absence / appels.
+- Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; un appel par cours ; une séance de projet par jour et par classe.
 
 ## Historique des versions
 
+### 1.9.3 — 30 septembre 2026 · Durées de cours variables (1 h, 1 h 30…)
+
+- Règle : **chaque cours garde sa propre durée** ; rien ne suppose des créneaux d'une heure. Appel (un par cours),
+  alertes (15 min après le début), séance du jour, chevauchements, cours « en cours », rattachement des anciens
+  appels : tous calculés sur les vraies heures de début et de fin de chaque cours.
+- Correctif « Déplacer le cours » : les créneaux proposés sont les **heures de début** habituelles de
+  l'établissement, et le cours y garde **sa durée** (un cours d'1 h 30 reste d'1 h 30) ; un créneau n'est proposé
+  que si toute cette durée est libre. Des créneaux qui se chevauchent entre eux s'affichent côte à côte.
 ### 1.9.2 — 30 septembre 2026 · Correctif : cours de 2 heures (séance en double, alerte à tort)
 
 - Pronote découpe un cours de 2 h en deux cours d'1 h. À l'appel de la 2e heure, l'app ne retrouvait pas la séance

@@ -286,12 +286,19 @@ export default {
     const t = nowMin();
     const mc = moving ? db.get('cours', moving) : null;
     if (moving && !mc) moving = null;
-    // Créneaux libres pendant un déplacement.
+    // Créneaux libres pendant un déplacement : heures de début habituelles de l'établissement ; le cours garde
+    // SA durée (1 h, 1 h 30…) et le créneau n'est libre que si toute cette durée tient sans chevaucher un cours.
     const targets = d => {
       if (!mc || d < today || dayOff(d).length) return [];
       const me = planning.eff(mc);
+      const dur = Math.max(5, toMin(me.fin) - toMin(me.debut));
       const busy = items.filter(it => it.c.date === d && !it.off && it.c.id !== mc.id);
-      return planning.creneaux(mc).filter(s => !(d === today && toMin(s.debut) <= t) && !(d === me.date && s.debut === me.debut) && !busy.some(b => toMin(s.debut) < b.end && b.start < toMin(s.fin)));
+      const starts = [...new Set(planning.creneaux(mc).map(s => s.debut))];
+      const free = starts.map(debut => ({ debut, start: toMin(debut), end: toMin(debut) + dur }))
+        .filter(s => s.end <= 24 * 60 && !(d === today && s.start <= t) && !(d === me.date && s.debut === me.debut)
+          && !busy.some(b => s.start < b.end && b.start < s.end))
+        .map(s => ({ ...s, fin: pad(Math.floor(s.end / 60)) + ':' + pad(s.end % 60) }));
+      return lanes(free); // créneaux qui se chevauchent entre eux (ex. 8 h 00 et 8 h 30 pour 1 h 30) : côte à côte
     };
 
     return html`<div class="screen">
@@ -326,8 +333,8 @@ export default {
             return html`<div class="wk-col${d === today ? ' today' : ''}${off ? ' holiday' : ''}" style="height:${H}px;--hour:${Math.round(60 * ppm)}px;--first:${y(from)}px">
               ${showLunch ? html`<div class="wk-lunch" style="top:${y(lunch.a) + 4}px;height:${y(lunch.b) - y(lunch.a) - 8}px">Pause méridienne</div>` : ''}
               ${dayItems.map(it => block(it, y(it.start) + 1, Math.max(22, y(it.end) - y(it.start) - 3), it.lane * 100 / it.lanes, 100 / it.lanes, it.lanes))}
-              ${targets(d).map(s => html`<button type="button" class="wk-target" style="top:${y(toMin(s.debut)) + 1}px;height:${Math.max(26, y(toMin(s.fin)) - y(toMin(s.debut)) - 3)}px"
-                data-click="moveTo" data-date="${d}" data-debut="${s.debut}" data-fin="${s.fin}">${icon.plus}${s.debut}</button>`)}
+              ${targets(d).map(s => html`<button type="button" class="wk-target" style="top:${y(s.start) + 1}px;height:${Math.max(26, y(s.end) - y(s.start) - 3)}px;left:calc(${s.lane * 100 / s.lanes}% + ${s.lane ? 3 : 0}px);width:calc(${100 / s.lanes}% - ${s.lanes > 1 ? 3 : 0}px);right:auto"
+                data-click="moveTo" data-date="${d}" data-debut="${s.debut}" data-fin="${s.fin}" aria-label="Déplacer à ${s.debut}–${s.fin}">${icon.plus}${s.debut}</button>`)}
               ${d === today && t >= from && t <= to ? html`<div class="wk-now" style="top:${y(t)}px"></div>` : ''}
               ${!dayItems.length && !off && !mc ? html`<div class="wk-empty">Pas de cours</div>` : ''}
             </div>`;
