@@ -12,6 +12,7 @@ import accueil from './accueil.js';
 let weekStart = null;   // lundi affiché (AAAA-MM-JJ)
 let dayIdx = null;      // jour affiché sur téléphone (0 = lundi)
 let timer = null, onResize = null;
+let screenW = 0, screenH = 0;
 
 // ---------- Dates ----------
 const pad = n => String(n).padStart(2, '0');
@@ -168,7 +169,10 @@ export default {
     const from = Math.floor(Math.min(8 * 60, ...items.map(i => i.start)) / 60) * 60;
     const to = Math.ceil(Math.max(17 * 60, ...items.map(i => i.end)) / 60) * 60;
     // Hauteur : la journée tient dans l'écran de la tablette, sans descendre sous 0,9 px par minute.
-    const avail = window.innerHeight - 64 - 56 - 40;
+    // Hauteur de référence : la plus grande vue pour cette largeur (le clavier ou une liste ouverte la réduisent un instant).
+    if (screenW !== window.innerWidth) { screenW = window.innerWidth; screenH = 0; }
+    screenH = Math.max(screenH, window.innerHeight);
+    const avail = screenH - 64 - 56 - 40;
     const ppm = Math.max(phone ? 1.1 : 0.9, avail / (to - from));
     const H = Math.round((to - from) * ppm);
     const y = m => Math.round((m - from) * ppm);
@@ -224,9 +228,19 @@ export default {
     const main = root.querySelector('.wk');
     if (now && main && main.scrollTop === 0 && main.scrollHeight > main.clientHeight) main.scrollTop = Math.max(0, now.offsetTop - 120);
     if (!timer) timer = setInterval(() => { if ((location.hash || '#/') === '#/' && !document.hidden && !sheet) refresh(); }, 60 * 1000);
+    // Redessiner seulement quand la LARGEUR change (tablette tournée). Sur Android, ouvrir une liste, un champ
+    // date/heure ou le clavier réduit la HAUTEUR : redessiner à ce moment fermait la liste avant le choix.
     if (!onResize) {
-      let wasNarrow = narrow(), h = window.innerHeight, t = null;
-      onResize = () => { clearTimeout(t); t = setTimeout(() => { if (narrow() !== wasNarrow || Math.abs(window.innerHeight - h) > 40) { wasNarrow = narrow(); h = window.innerHeight; refresh(); } }, 200); };
+      let w = window.innerWidth, t = null;
+      const busy = () => sheet || document.querySelector('#layer > *') || (document.activeElement && document.activeElement.matches('input, select, textarea'));
+      onResize = () => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          if (Math.abs(window.innerWidth - w) < 50 || busy()) return;
+          w = window.innerWidth;
+          refresh();
+        }, 250);
+      };
       addEventListener('resize', onResize);
     }
   },

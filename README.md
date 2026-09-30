@@ -80,6 +80,16 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 
 ## Historique des versions
 
+### 1.8.1 — 30 septembre 2026 · Correctif : les listes se refermaient toutes seules
+
+- Sur la tablette, ouvrir une liste (ex. choix de la classe dans « + Cours ») ou un champ date / heure / texte
+  fait apparaître le clavier ou une fenêtre de choix, ce qui réduit la hauteur de l'écran. Le planning se
+  redessinait alors (réglage de la hauteur de la grille, depuis 1.7.0) et la liste disparaissait avant le choix.
+- Désormais le planning ne se redessine qu'au changement de **largeur** (tablette tournée), jamais pendant
+  qu'un champ est utilisé ou qu'une fiche est ouverte ; la hauteur de la grille se base sur la plus grande
+  hauteur connue pour cette largeur.
+- À retenir pour la suite : ne jamais redessiner l'écran sur un simple changement de hauteur (Android).
+
 ### 1.8.0 — 30 septembre 2026 · Planning, étape 4/7 : saisie manuelle et notes sur un cours
 
 - Principe : les champs Pronote d'un cours ne sont **jamais** modifiés par le professeur. Ses changements vont
