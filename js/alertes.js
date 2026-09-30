@@ -14,6 +14,13 @@ import { go, refresh } from './nav.js';
 export const DELAI_APPEL = 15;       // minutes après le début du cours
 export const HEURE_SEANCES = 18 * 60; // 18 h
 const toMin = s => +s.slice(0, 2) * 60 + +s.slice(3, 5);
+// Une séance de projet existe déjà ce jour-là pour la classe (reliée ou non à un cours) : la journée est couverte.
+// Cas des cours de 2 h (deux cours Pronote de suite) : une seule séance pour les deux heures.
+const seanceDuJour = (classId, date) => db.all('seances').some(s => {
+  if (s.date !== date) return false;
+  const a = db.get('assignments', s.assignmentId);
+  return a && a.classId === classId;
+});
 
 // Liste des alertes à l'instant « now » : [{ type: 'appel'|'seance', cours (affiché), classId, cls }].
 export function alertes(now = new Date()) {
@@ -28,7 +35,7 @@ export function alertes(now = new Date()) {
     const cls = db.get('classes', classId);
     if (m >= toMin(e.debut) + DELAI_APPEL && !model.appelOfCours(e.id)) out.push({ type: 'appel', cours: e, classId, cls });
     if (m >= HEURE_SEANCES && role === 'suivi' && m >= toMin(e.debut) && !e.pasSeance && !model.seanceOfCours(e.id)
-      && model.activeAssignments(classId).length) out.push({ type: 'seance', cours: e, classId, cls });
+      && !seanceDuJour(classId, e.date) && model.activeAssignments(classId).length) out.push({ type: 'seance', cours: e, classId, cls });
   }
   return out;
 }
@@ -59,7 +66,7 @@ export function render() {
         <span class="grow"><strong>Appel non fait – ${a.cls.name}</strong><span class="muted small"> · ${a.cours.debut}</span></span>
         <button type="button" class="btn accent small" data-a="appel" data-id="${a.cours.id}">Faire l’appel</button>
       </div>`)}
-      ${seances.length ? html`<div class="alert-sec">Séances du jour sans journal de projet</div>` : ''}
+      ${seances.length ? html`<div class="alert-sec">Cours du jour sans séance de projet</div>` : ''}
       ${seances.map(a => html`<div class="alert-row wrap">
         <span class="grow"><strong>${a.cls.name}</strong><span class="muted small"> · ${a.cours.debut}–${a.cours.fin}</span></span>
         <button type="button" class="btn accent small" data-a="remplir" data-id="${a.cours.id}">Remplir la séance</button>

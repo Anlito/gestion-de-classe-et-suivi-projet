@@ -81,6 +81,16 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 
 ## Historique des versions
 
+### 1.9.2 — 30 septembre 2026 · Correctif : cours de 2 heures (séance en double, alerte à tort)
+
+- Pronote découpe un cours de 2 h en deux cours d'1 h. À l'appel de la 2e heure, l'app ne retrouvait pas la séance
+  du jour (déjà reliée à la 1re heure) et proposait « Commencer la séance suivante » → séance en trop ; et après sa
+  suppression, l'alerte « séance à remplir » apparaissait pour la 2e heure.
+- Appel : la séance reliée au cours, sinon **la séance du même jour** du projet (reliée ou non) est reprise — une
+  seule séance par jour, jamais une nouvelle à chaque heure.
+- Alerte « séance à remplir » : pas d'alerte si une séance de projet existe déjà ce jour-là pour la classe (reliée
+  ou non à un cours). Libellé : « Cours du jour sans séance de projet ».
+- Rappel des décisions : un appel par cours (donc un par heure) ; une séance de projet par jour et par classe.
 ### 1.9.1 — 30 septembre 2026 · Supprimer une séance
 
 - Onglet **Projet** : icône corbeille à côté de la date de la séance affichée → « Supprimer la séance n du … ? »

@@ -68,8 +68,9 @@ async function startAppel(classId) {
   let ctx = null;
   const act = model.activeAssignments(classId)[0];
   if (planning.roleOfCours(k) === 'suivi' && act && !k.pasSeance) {
-    // Séance reliée à ce cours ; une séance du même jour créée dans l'onglet Projet est reprise.
-    let s = model.seanceOfCours(k.id) || model.seancesOf(act.id).find(x => x.date === k.date && !x.coursId);
+    // Séance reliée à ce cours ; sinon la séance du même jour est reprise (onglet Projet, ou heure précédente
+    // d'un cours de 2 h : une seule séance pour la journée, jamais une nouvelle séance à chaque heure).
+    let s = model.seanceOfCours(k.id) || model.seancesOf(act.id).filter(x => x.date === k.date).pop();
     if (s && !s.coursId) model.updateSeance(s.id, { coursId: k.id });
     if (!s) {
       const p = db.get('projects', act.projectId);
