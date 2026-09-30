@@ -1,6 +1,8 @@
 // Onglet Projet : séance en cours, journal de séance, historique, fin de projet et archives.
 import * as db from '../db.js';
 import * as model from '../model.js';
+import * as planning from '../planning.js';
+import { todayISO } from '../ui.js';
 import { html, toast, openMenu, confirmDialog, fmtDayLong, fmtDate } from '../ui.js';
 import { icon, backLink, saveStatus, tabBar } from '../components.js';
 import { go, refresh } from '../nav.js';
@@ -150,7 +152,10 @@ export default {
         toast({ text: `Les ${p.nSeances} séances prévues sont faites. Augmentez le nombre de séances dans le projet si besoin.`, ms: 4000 });
         return;
       }
-      const { seance, undo } = model.newSeance(a);
+      // Séance créée pendant (ou juste avant) un cours du jour : reliée à ce cours.
+      const k = planning.coursContexte(classId);
+      const link = k && k.date === todayISO() && planning.roleOfCours(k) === 'suivi' && !model.seanceOfCours(k.id);
+      const { seance, undo } = model.newSeance(a, link ? { coursId: k.id } : {});
       selSeance[a.id] = seance.id;
       refresh();
       toast({ text: `Séance ${seance.n} créée · ${fmtDayLong(seance.date)}`, undo: async () => { await undo(); refresh(); } });

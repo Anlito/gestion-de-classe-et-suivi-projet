@@ -6,6 +6,7 @@ import * as planning from '../planning.js';
 import { html, toast, openMenu, buzz, todayISO, fmtDayLong, choiceDialog } from '../ui.js';
 import { icon, backLink, saveStatus, tabBar, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
+import { onFaireAppel } from '../alertes.js';
 
 const LONG_PRESS_MS = 450;
 const COLOR = { neg: 'var(--neg)', pos: 'var(--pos)' };
@@ -43,7 +44,60 @@ async function newSeanceFor(classId) {
   return { ctx: model.todaySeance(classId), seance };
 }
 
+// Appel demandé depuis une alerte ou le panneau d'un cours : ouvert dès l'affichage du trombinoscope.
+let autoAppel = null;
+export function demanderAppel(classId) { autoAppel = classId; }
+onFaireAppel(demanderAppel);
+
+// Appel rattaché au cours en contexte (touché dans le planning, en cours, ou prochain de la journée).
+// Le même cours ne reçoit qu'un appel : s'il existe, on le rouvre pour le corriger.
 async function startAppel(classId) {
+  const k = planning.coursContexte(classId);
+  if (!k) return startAppelHorsPlanning(classId);
+  const open = () => { appel = classId; refresh(); };
+  const done = model.appelOfCours(k.id);
+  if (done) { open(); toast({ text: `Appel du cours de ${k.debut} déjà fait : touchez un élève pour corriger` }); return; }
+  if (planning.OFF.has(k.statut)) {
+    const ok = await choiceDialog({
+      title: `Ce cours est marqué « ${planning.statutLabel(k)} »`,
+      text: 'Faire l’appel quand même ?',
+      choices: [{ label: 'Faire l’appel', value: true, style: 'accent' }, { label: 'Annuler', value: false }],
+    });
+    if (!ok) return;
+  }
+  let ctx = null;
+  const act = model.activeAssignments(classId)[0];
+  if (planning.roleOfCours(k) === 'suivi' && act && !k.pasSeance) {
+    // Séance reliée à ce cours ; une séance du même jour créée dans l'onglet Projet est reprise.
+    let s = model.seanceOfCours(k.id) || model.seancesOf(act.id).find(x => x.date === k.date && !x.coursId);
+    if (s && !s.coursId) model.updateSeance(s.id, { coursId: k.id });
+    if (!s) {
+      const p = db.get('projects', act.projectId);
+      const n = model.seancesOf(act.id).length + 1;
+      const full = n > p.nSeances;
+      const choice = await choiceDialog({
+        title: full ? `Les ${p.nSeances} séances de « ${p.title} » sont faites` : `Commencer la séance ${n} ?`,
+        text: `Cours de ${k.debut} · ${p.title}.` + (full ? ' Vous pouvez augmenter le nombre de séances dans le projet (Administration).' : ''),
+        choices: [
+          ...(full ? [] : [{ label: `Commencer la séance ${n} et faire l’appel`, value: 'seance', style: 'accent' }]),
+          { label: 'Faire l’appel sans séance de projet', value: 'appel', style: 'soft' },
+          { label: 'Annuler', value: null, style: 'soft' },
+        ],
+      });
+      if (!choice) return;
+      if (choice === 'seance') {
+        s = model.newSeance(act, { date: k.date, coursId: k.id }).seance;
+        toast({ text: `Séance ${s.n} créée · ${fmtDayLong(s.date)}` });
+      }
+    }
+    if (s) ctx = model.ctxOfSeance(s);
+  }
+  model.createAppel(classId, ctx, k);
+  open();
+}
+
+// Appel sans emploi du temps (ou classe sans cours ce jour-là) : fonctionnement d'avant le planning.
+async function startAppelHorsPlanning(classId) {
   const ap = model.currentAppel(classId);
   const act = model.activeAssignments(classId)[0];
   const today = model.todaySeance(classId);
@@ -278,7 +332,8 @@ export default {
 
   leave() { appel = null; draw = null; },
 
-  mount(root) {
+  mount(root, params) {
+    if (autoAppel && params && autoAppel === params.classId) { autoAppel = null; setTimeout(() => startAppel(params.classId)); }
     const grid = root.querySelector('.trombi-grid');
     if (!grid || appel) return;
     let press = null;

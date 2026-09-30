@@ -143,11 +143,15 @@ export async function readFiles(files) {
 export function previewOf(plan) {
   const existing = plan.etab ? coursOfEtab(plan.etab.id).filter(c => c.source === 'pronote') : [];
   const d = diffCours(existing, plan.cours);
-  // Un cours disparu de Pronote mais modifié ou annoté par le professeur est conservé (conflits : étape 6).
-  const gardes = d.suppressions.filter(isPerso);
-  return { ...d, suppressions: d.suppressions.filter(c => !isPerso(c)), gardes, jours: plan.jours.length, joursAvant: plan.etab ? joursOfEtab(plan.etab.id).length : 0 };
+  // Un cours disparu de Pronote mais modifié, annoté, ou avec un appel / une séance, est conservé (conflits : étape 6).
+  const linked = liens();
+  const keep = c => isPerso(c) || linked.has(c.id);
+  const gardes = d.suppressions.filter(keep);
+  return { ...d, suppressions: d.suppressions.filter(c => !keep(c)), gardes, jours: plan.jours.length, joursAvant: plan.etab ? joursOfEtab(plan.etab.id).length : 0 };
 }
-const isPerso = c => !!((c.perso && Object.keys(c.perso).length) || c.note);
+const isPerso = c => !!((c.perso && Object.keys(c.perso).length) || c.note || c.pasSeance);
+// Cours reliés à un appel ou à une séance.
+const liens = () => new Set([...db.all('appels'), ...db.all('seances')].map(x => x.coursId).filter(Boolean));
 
 // Enregistre l'import (une seule action, annulable). Les cours inchangés gardent leur identifiant.
 export function applyImport(plans) {
@@ -168,13 +172,60 @@ export function applyImport(plans) {
   });
 }
 
-// Suppression d'un établissement et de son emploi du temps (les classes de l'app ne sont pas touchées).
+// Suppression d'un établissement et de son emploi du temps (les classes de l'app ne sont pas touchées ;
+// les appels et séances restent, simplement détachés de leur cours).
 export function deleteEtab(etabId) {
   return db.commit(w => {
+    const ids = new Set(db.where('cours', x => x.etabId === etabId).map(x => x.id));
+    delierIn(w, ids);
     for (const s of ['cours', 'jours']) for (const r of db.where(s, x => x.etabId === etabId)) w.del(s, r.id);
     w.del('etablissements', etabId);
   });
 }
+function delierIn(w, ids) {
+  for (const s of ['appels', 'seances']) for (const r of db.where(s, x => x.coursId && ids.has(x.coursId))) w.update(s, r.id, { coursId: null });
+}
+
+// Rattache les appels faits sans cours (avant l'import, ou hors planning) au cours correspondant :
+// même classe, même date, heure de l'appel entre 30 min avant le début et 15 min après la fin du cours.
+// La séance de l'appel est reliée au même cours. Sans cours correspondant, l'appel reste tel quel.
+export function lierAppels() {
+  // Libres : sans cours, ou dont le cours n'existe plus (import annulé, établissement supprimé…).
+  const libres = db.where('appels', a => !a.coursId || !db.get('cours', a.coursId));
+  if (!libres.length || !db.all('cours').length) return 0;
+  const pris = new Set(db.all('appels').map(a => a.coursId).filter(id => id && db.get('cours', id)));
+  const parJour = new Map();
+  for (const e of db.all('cours').map(eff)) {
+    const cid = classIdOf(e.src);
+    if (!cid) continue;
+    const k = cid + '|' + e.date;
+    if (!parJour.has(k)) parJour.set(k, []);
+    parJour.get(k).push(e);
+  }
+  const hhmm = iso => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
+  const liaisons = [];
+  for (const a of libres.sort((x, y) => x.at.localeCompare(y.at))) {
+    const t = hhmm(a.at);
+    const cands = (parJour.get(a.classId + '|' + a.date) || [])
+      .filter(e => !pris.has(e.id) && t >= mins(e.debut) - 30 && t <= mins(e.fin) + 15)
+      .sort((x, y) => Math.abs(t - mins(x.debut)) - Math.abs(t - mins(y.debut)));
+    if (!cands.length) continue;
+    pris.add(cands[0].id);
+    liaisons.push([a, cands[0]]);
+  }
+  if (!liaisons.length) return 0;
+  db.commit(w => {
+    for (const [a, e] of liaisons) {
+      w.update('appels', a.id, { coursId: e.id });
+      const s = a.seanceId && db.get('seances', a.seanceId);
+      if (s && (!s.coursId || !db.get('cours', s.coursId))) w.update('seances', s.id, { coursId: e.id });
+    }
+  }, { track: false });
+  return liaisons.length;
+}
+
+// « Pas une séance projet » : le cours n'aura pas d'alerte « séance à remplir ».
+export const setPasSeance = (c, v = true) => db.commit(w => w.update('cours', c.id, { pasSeance: v || undefined }));
 // Dans une suppression de classe : les correspondances qui la visaient redeviennent « à choisir ».
 export function forgetClassIn(w, classId) {
   for (const e of db.all('etablissements')) {
@@ -346,7 +397,10 @@ export function addCours({ classId, etabId = null, date, debut, fin, salle = '',
 // Suppression d'un cours ajouté à la main (et, si serie, des semaines suivantes).
 export function deleteCours(c, serie = false) {
   const targets = serie ? suivants(c).filter(x => x.source === 'manuel') : [];
-  return db.commit(w => { w.del('cours', c.id); for (const t of targets) w.del('cours', t.id); });
+  return db.commit(w => {
+    delierIn(w, new Set([c.id, ...targets.map(t => t.id)]));
+    w.del('cours', c.id); for (const t of targets) w.del('cours', t.id);
+  });
 }
 
 // ---------- Cours « en contexte » d'une classe (note affichée dans le trombinoscope, appel à l'étape 5) ----------

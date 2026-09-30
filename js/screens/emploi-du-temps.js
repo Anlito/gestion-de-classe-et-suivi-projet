@@ -211,6 +211,7 @@ export default {
       const plans = wiz.plans;
       const n = plans.reduce((t, p) => t + p.cours.length, 0);
       const undo = planning.applyImport(plans);
+      planning.lierAppels();
       wiz = null; refresh();
       toast({ text: `Emploi du temps importé : ${plural(n, 'cours', 'cours')}`, undo: async () => { await undo(); refresh(); }, ms: 8000 });
     },

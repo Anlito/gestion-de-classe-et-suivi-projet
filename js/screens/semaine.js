@@ -11,6 +11,7 @@ import { html, toast, todayISO, choiceDialog } from '../ui.js';
 import { icon, saveStatus } from '../components.js';
 import { go, refresh } from '../nav.js';
 import accueil from './accueil.js';
+import { demanderAppel } from './trombi.js';
 
 let weekStart = null;   // lundi affiché (AAAA-MM-JJ)
 let dayIdx = null;      // jour affiché sur téléphone (0 = lundi)
@@ -65,6 +66,7 @@ function weekCours(mon) {
       past: !live && (c.date < today || (c.date === today && end <= now)),
       chip: planning.statutLabel(c) && c.statut !== 'deplace' ? planning.statutLabel(c) : moved ? 'Déplacé' : live ? 'En cours' : '',
       progress: live ? Math.round((now - start) / (end - start) * 100) : 0,
+      appelFait: !!model.appelOfCours(c.id),
     };
   });
 }
@@ -104,7 +106,7 @@ function block(it, top, height, left, width, lanesN) {
     it.past && !it.off ? 'past' : '', moving && moving !== it.c.id ? 'faded' : '', moving === it.c.id ? 'sel' : '', height < 44 ? 'tiny' : ''].filter(Boolean).join(' ');
   const proj = wide && !it.off && height >= 62 ? (it.c.deplaceDe ? 'Déplacé depuis ' + fmtSlot(it.c.deplaceDe.date, it.c.deplaceDe.debut) : (projetOf(it.classId) || {}).label) : '';
   const time = `${it.c.debut}–${it.c.fin}`;
-  const line2 = wide ? time + (it.c.salle ? ' · ' + it.c.salle : '') : it.chip || (lanesN === 2 ? time : it.c.debut);
+  const line2 = wide ? time + (it.c.salle ? ' · ' + it.c.salle : '') + (it.appelFait ? ' · appel ✓' : '') : it.chip || (lanesN === 2 ? time : it.c.debut);
   return html`<div role="button" tabindex="0" class="${cls}" data-click="sheet" data-id="${it.c.id}"
     style="top:${top}px;height:${height}px;left:calc(${left}% + ${it.lane ? 3 : 0}px);width:calc(${width}% - ${lanesN > 1 ? 3 : 0}px);--tint:${it.off ? 'transparent' : tintOf(it.cls)};--etab:${it.e ? it.e.color : 'transparent'}"
     aria-label="${it.name}, ${time}${it.chip ? ', ' + it.chip : ''}${it.c.note ? ', note : ' + it.c.note : ''}">
@@ -139,7 +141,14 @@ function sheetView() {
       </div>`;
     body = html`
       <div class="stack-tight">
-        ${cls ? html`<button type="button" class="btn accent cs-open" data-click="open" data-id="${c.id}">Ouvrir la classe ${icon.arrow}</button>`
+        ${cls ? html`<button type="button" class="btn accent cs-open" data-click="open" data-id="${c.id}">Ouvrir la classe ${icon.arrow}</button>
+          ${['suivi', 'appel'].includes(planning.roleOfCours(e)) ? (() => {
+            const ap = model.appelOfCours(c.id);
+            const nAbs = ap ? db.where('absences', a => a.appelId === ap.id).length : 0;
+            const nRet = ap ? db.where('retards', a => a.appelId === ap.id).length : 0;
+            return html`<button type="button" class="btn soft cs-appel" data-click="faireAppel" data-id="${c.id}">${icon.roll}
+              ${ap ? `Appel fait · ${nAbs} absent${nAbs > 1 ? 's' : ''}${nRet ? ` · ${nRet} retard${nRet > 1 ? 's' : ''}` : ''} · corriger` : 'Faire l’appel'}</button>`;
+          })() : ''}`
           : html`<div class="abs-info">${c.classe ? html`« ${c.classe} » n’est reliée à aucune classe de l’app.
               <a class="link-btn" href="#/admin/planning">Emploi du temps → Classes</a>` : 'Cours sans classe.'}</div>`}
         ${proj ? html`<a class="cs-proj" href="#/classe/${classId}/projet"><span class="grow"><span class="muted small">Projet</span><strong>${proj.label}</strong></span>${icon.chevron}</a>` : ''}
@@ -380,6 +389,16 @@ export default {
       if (!c) return;
       const classId = planning.classIdOf(c);
       if (classId) { planning.openedFromPlanning(c); sheet = null; moving = null; go(`#/classe/${classId}/trombi`); }
+    },
+
+    faireAppel(el) {
+      const c = db.get('cours', el.dataset.id);
+      const classId = c && planning.classIdOf(c);
+      if (!classId) return;
+      planning.openedFromPlanning(c);
+      demanderAppel(classId);
+      sheet = null; moving = null;
+      go(`#/classe/${classId}/trombi`);
     },
 
     // ----- Panneau d'un cours -----

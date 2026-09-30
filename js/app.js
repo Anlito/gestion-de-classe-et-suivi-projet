@@ -18,6 +18,8 @@ import sauvegarde from './screens/sauvegarde.js';
 import imprimer from './screens/imprimer.js';
 import emploiDuTemps from './screens/emploi-du-temps.js';
 import { initLock } from './lock.js';
+import { initAlertes, render as renderAlertes } from './alertes.js';
+import { lierAppels } from './planning.js';
 import { initUpdates } from './update.js';
 
 
@@ -73,6 +75,7 @@ function render() {
   if (r.screen.mount) r.screen.mount(root, r.params);
   if (same) restoreScroll(root, saved);
   else root.querySelectorAll('[data-scroll]').forEach(el => { el.scrollTop = 0; });
+  renderAlertes();
 }
 
 // Un seul écouteur par type d'événement : data-click="action" appelle screen.actions.action(élément, événement, paramètres).
@@ -105,10 +108,13 @@ async function boot() {
   }
   db.onError(e => toast({ text: 'Erreur d’enregistrement : ' + (e && e.message || e), ms: 8000 }));
   model.ensureMeta();
+  // Appels faits avant l'emploi du temps (ou hors planning) : rattachés au cours correspondant s'il existe.
+  try { lierAppels(); } catch (e) { console.error(e); }
   setRenderer(render);
   ['click', 'input', 'change'].forEach(delegate);
   addEventListener('hashchange', render);
   render();
+  initAlertes();
   requestPersistentStorage();
   initUpdates();
 }

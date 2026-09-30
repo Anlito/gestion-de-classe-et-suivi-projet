@@ -1,7 +1,7 @@
 // model.js — Règles métier : trimestres, observations, notes libres, projets, notation.
 import * as db from './db.js';
 import { todayISO, fmtDay } from './ui.js';
-import { forgetClassIn } from './planning.js';
+import { forgetClassIn, coursContexte } from './planning.js';
 
 export const CLASS_LEVELS = ['6e', '5e', '4e', '3e'];
 export const LABEL = { neg: 'Comportement', pos: 'Aide / soutien / rangement' };
@@ -202,25 +202,46 @@ export function obsSub(o) { return fmtDay(o.at) + (o.seanceLabel ? ' · ' + o.se
 // ---------- Absences (appel) ----------
 export const absencesOf = studentId =>
   db.where('absences', a => a.studentId === studentId).sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
-// Chaque appel est enregistré. L'appel « en cours » est le dernier appel de la journée pour la classe.
-// Avec un projet en cours, un appel est toujours rattaché à une séance du jour (créée au besoin).
+// Chaque appel est enregistré. Avec l'emploi du temps, un appel est rattaché à un cours (appel.coursId) :
+// l'appel « en cours » d'une classe est celui du cours en contexte (touché dans le planning, en cours, ou prochain
+// de la journée). Sans cours, c'est le dernier appel de la journée (appel hors planning).
 export const appelsToday = classId =>
   db.where('appels', x => x.classId === classId && x.date === todayISO()).sort((a, b) => a.at.localeCompare(b.at));
-export function currentAppel(classId) { const l = appelsToday(classId); return l[l.length - 1] || null; }
+export const appelOfCours = coursId => db.all('appels').find(a => a.coursId === coursId) || null;
+export const seanceOfCours = coursId => db.all('seances').find(s => s.coursId === coursId) || null;
+export function currentAppel(classId) {
+  const k = coursContexte(classId);
+  if (k) {
+    const ap = appelOfCours(k.id);
+    if (ap) return ap;
+    if (k.date !== todayISO()) return null;
+  }
+  // Appels du jour sans cours (hors planning, ou faits avant l'import de l'emploi du temps).
+  const l = appelsToday(classId).filter(a => !a.coursId);
+  return l[l.length - 1] || null;
+}
+// Contexte « séance » d'une séance (pour rattacher appel et observations).
+export function ctxOfSeance(s) {
+  const a = db.get('assignments', s.assignmentId);
+  const p = a && db.get('projects', a.projectId);
+  return { assignmentId: s.assignmentId, n: s.n, seanceId: s.id, date: s.date, label: 'Séance ' + s.n + (p ? ' · ' + p.title : '') };
+}
 // Séance du projet en cours créée aujourd'hui (ou null).
 export function todaySeance(classId) {
   const ctx = seanceContext(classId);
   return ctx && ctx.date === todayISO() ? ctx : null;
 }
-export function createAppel(classId, ctx) {
+// cours (facultatif) : cours du planning auquel l'appel est rattaché (sa date devient celle de l'appel).
+export function createAppel(classId, ctx, cours = null) {
   let appel;
-  const n = appelsToday(classId).length + 1;
+  const date = cours ? cours.date : todayISO();
+  const n = db.where('appels', x => x.classId === classId && x.date === date).length + 1;
   const act = activeAssignments(classId)[0];
   const undo = db.commit(w => {
     appel = w.put('appels', {
-      classId, date: todayISO(), at: new Date().toISOString(), n,
+      classId, date, at: new Date().toISOString(), n, coursId: cours ? cours.id : null,
       assignmentId: ctx ? ctx.assignmentId : act ? act.id : null, seanceId: ctx ? ctx.seanceId : null,
-      seanceN: ctx ? ctx.n : null, label: ctx ? ctx.label : '',
+      seanceN: ctx ? ctx.n : null, label: ctx ? ctx.label : cours ? 'cours de ' + cours.debut : '',
     });
   });
   return { appel, undo };
@@ -314,12 +335,13 @@ export function duplicateProject(p) {
 }
 
 // ---------- Séances d'un projet dans une classe ----------
-export function newSeance(a) {
+// { date, coursId } : séance créée depuis un cours du planning (reliée à ce cours).
+export function newSeance(a, { date = todayISO(), coursId = null } = {}) {
   const ss = seancesOf(a.id);
   let rec;
   const undo = db.commit(w => {
     if (a.status !== 'cours') w.update('assignments', a.id, { status: 'cours', endedAt: null });
-    rec = w.put('seances', { assignmentId: a.id, n: ss.length + 1, date: todayISO(), text: '' });
+    rec = w.put('seances', { assignmentId: a.id, n: ss.length + 1, date, text: '', ...(coursId ? { coursId } : {}) });
   });
   return { seance: rec, undo };
 }

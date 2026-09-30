@@ -33,6 +33,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/ical.js` | lecture des emplois du temps exportés de Pronote (.ics) : cours, statuts, vacances, heure de Paris |
 | `js/planning.js` | emploi du temps : établissements, cours, vacances, rôle des matières, correspondance des classes, import |
 | `js/screens/emploi-du-temps.js` | Administration → Emploi du temps : import, correspondance des classes, aperçu, rôles |
+| `js/alertes.js` | alertes dans l'app (appel non fait, séances à remplir), coin de l'écran, tous les écrans |
 | `js/screens/semaine.js` | accueil `#/` : planning de la semaine (sans emploi du temps : affiche la liste des classes) |
 | `js/screens/accueil.js` | liste des classes en tuiles (`#/classes`) |
 | `tests/index.html` | page de tests automatiques (+ vérification locale de ses propres fichiers .ics) |
@@ -79,6 +80,31 @@ Après chaque étape : nouvelle version, liste de tests à faire sur la tablette
 - Statistiques : un élève en retard compte comme présent ; taux = appels sans absence / appels.
 
 ## Historique des versions
+
+### 1.9.0 — 30 septembre 2026 · Planning, étape 5/7 : appel rattaché au cours, alertes
+
+- **Appel rattaché à un cours** : `appels.coursId` (et `seances.coursId`). Dans le trombinoscope, « Appel » utilise
+  le cours en contexte (`planning.coursContexte` : cours touché dans le planning, sinon en cours, sinon prochain
+  ou dernier de la journée) ; un cours n'a qu'un appel : s'il existe il est rouvert pour correction
+  (`model.appelOfCours`). La date de l'appel est celle du cours. Cours suivi avec projet en cours : « Commencer la
+  séance n et faire l'appel » (séance reliée au cours) ou « Faire l'appel sans séance de projet » ; une séance du
+  même jour créée dans l'onglet Projet est reprise et reliée. Cours « appel seulement » : pas de séance.
+  Cours annulé / classe absente : confirmation. Classe sans cours ce jour-là : appel hors planning (comme avant).
+- `model.currentAppel(classId)` : l'appel du cours en contexte, sinon le dernier appel du jour sans cours.
+- **Migration** (`planning.lierAppels`, au démarrage et après chaque import) : un appel sans cours (ou dont le cours
+  a disparu) est relié au cours de même classe et même date dont l'horaire encadre l'heure de l'appel
+  (30 min avant le début → 15 min après la fin) ; sa séance est reliée au même cours. Sinon il reste tel quel.
+- Séance créée dans l'onglet Projet pendant un cours suivi du jour : reliée à ce cours.
+- **Alertes** (`js/alertes.js`, boîte repliable en bas à gauche, sur tous les écrans, sauf impression) :
+  « Appel non fait – 4 G » 15 min après le début d'un cours suivi ou « appel seulement » sans appel (bouton
+  « Faire l'appel » : ouvre la classe en mode appel, rattaché au cours) ; à partir de 18 h, « Séances à remplir » pour
+  les cours suivis du jour avec projet en cours sans séance reliée : « Remplir la séance » (crée la séance reliée et
+  ouvre le journal) ou « Pas une séance projet » (`cours.pasSeance`, mémorisé). Jamais pour annulé, classe absente,
+  sortie, absence personnelle, vacances, fériés. Recalculées à chaque modification et toutes les 30 s.
+- Planning : « appel ✓ » sur les cours dont l'appel est fait ; panneau du cours : bouton « Faire l'appel » ou
+  « Appel fait · n absents · corriger ».
+- Réimport : un cours relié à un appel ou une séance n'est jamais supprimé (compté « gardé »). Supprimer un
+  cours ajouté ou un établissement détache ses appels et séances sans les effacer.
 
 ### 1.8.2 — 30 septembre 2026 · Planning au design de la maquette + alerte de chevauchement
 
