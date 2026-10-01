@@ -952,3 +952,17 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .wk-mat.big { font-size: 14px; padding: 5px 9px; vertical-align: middle; max-width: none; }
 .wk-c.mat { background-image: repeating-linear-gradient(135deg, transparent 0 9px, color-mix(in srgb, var(--ink) 7%, transparent) 9px 11px); }
 .wk-c.tiny .wk-mat { font-size: 10.5px; padding: 3px 5px; }
+/* Matériel à préparer (1.18.0) */
+.prepa-row { display: flex; align-items: center; gap: 6px; }
+.prepa-item { flex: 1; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 15px; text-align: left; cursor: pointer; }
+.prepa-item.on { background: var(--posTint); border-color: transparent; }
+.prepa-item.on .grow { text-decoration: line-through; color: var(--ink2); }
+.prepa-box { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--ink2); display: inline-flex; align-items: center; justify-content: center; }
+.prepa-item.on .prepa-box { background: var(--pos); border-color: var(--pos); color: var(--posOn); }
+.prepa-item.on .prepa-box svg { width: 16px; height: 16px; }
+.wk-prepa { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 800; color: var(--warn); }
+.mat-box { margin-top: 4px; }
+.mat-seance { margin-top: 8px; }
+.alerts-box.calm .alerts-dot { background: var(--accentInk); }
+.cours-sheet .link-btn { white-space: normal; text-align: left; overflow-wrap: anywhere; }
+.cours-sheet .prepa-row .input, .cours-sheet .row-center .input { min-width: 0; }

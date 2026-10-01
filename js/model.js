@@ -327,7 +327,7 @@ export function duplicateProject(p) {
   let copy;
   const undo = db.commit(w => {
     copy = w.put('projects', {
-      title: p.title + ' (copie)', desc: p.desc, nSeances: p.nSeances,
+      title: p.title + ' (copie)', desc: p.desc, nSeances: p.nSeances, materiel: p.materiel ? JSON.parse(JSON.stringify(p.materiel)) : undefined,
       criteria: p.criteria.map(c => ({ ...c, id: db.uid() })),
     });
   });

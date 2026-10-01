@@ -6,8 +6,12 @@ import { html, toast, confirmDialog } from '../ui.js';
 import { icon, backLink } from '../components.js';
 import { go, refresh } from '../nav.js';
 import { THEMES, COMPETENCES, NIVEAUX, SOURCE } from '../programme.js';
+import * as prepa from '../prepa.js';
 
 let draft = null; // copie de travail, enregistrée seulement avec « Enregistrer »
+// Ouvert depuis le panneau d'un cours (« Modifier la liste de la séance ») : partie matériel dépliée, retour au planning.
+let matOpen = false, retour = null;
+export function ouvrirMateriel(projectId, back = '#/') { matOpen = true; retour = back; location.hash = `#/admin/projet/${projectId}`; }
 // Fenêtre « Choisir dans le programme » : target = id du critère à remplacer (null : ajout de plusieurs critères).
 let picker = null; // { target, level: 'all'|'5e'|'4e'|'3e', open: Set(n° de compétence), sel: Map(clé → { label, pronote }) }
 
@@ -72,9 +76,11 @@ function pickerView() {
 }
 
 function load(id) {
-  if (id === 'new') return { id: null, title: '', desc: '', nSeances: 6, criteria: [{ id: db.uid(), code: 'C1', label: '', pronote: '' }] };
+  if (id === 'new') return { id: null, title: '', desc: '', nSeances: 6, criteria: [{ id: db.uid(), code: 'C1', label: '', pronote: '' }], materiel: {} };
   const p = db.get('projects', id);
-  return p ? { id: p.id, title: p.title, desc: p.desc || '', nSeances: p.nSeances, criteria: p.criteria.map(c => ({ ...c })) } : null;
+  // materiel : texte de chaque séance (une ligne par élément), converti en listes à l'enregistrement.
+  const materiel = Object.fromEntries(Object.entries(p ? p.materiel || {} : {}).map(([n, list]) => [n, prepa.versTexte(list)]));
+  return p ? { id: p.id, title: p.title, desc: p.desc || '', nSeances: p.nSeances, criteria: p.criteria.map(c => ({ ...c })), materiel } : null;
 }
 const crit = id => draft.criteria.find(c => c.id === id);
 // Place le curseur dans l'intitulé d'un critère s'il est encore vide (à écrire soi-même).
@@ -103,11 +109,11 @@ export default {
     const n = draft.criteria.length;
     return html`<div class="screen">
       <header class="topbar">
-        ${backLink('#/admin', 'Administration')}
+        ${retour ? backLink(retour, 'Planning') : backLink('#/admin', 'Administration')}
         <div class="title ellipsis">${isNew ? 'Nouveau projet' : `Modifier « ${draft.title || 'projet'} »`}</div>
         <div class="spacer"></div>
         ${isNew ? '' : html`<button type="button" class="btn soft hide-phone" data-click="duplicate">Dupliquer</button>`}
-        <a class="btn soft hide-phone" href="#/admin">Annuler</a>
+        <a class="btn soft hide-phone" href="${retour || '#/admin'}">Annuler</a>
         <button type="button" class="btn accent" data-click="save">Enregistrer</button>
       </header>
       <main class="content edit-grid proj-edit">
@@ -128,6 +134,13 @@ export default {
               <span class="lvl-name">${l.name}</span><span class="muted">${l.pronote}</span></div>`)}
             <div class="muted small">Note /20 = moyenne des niveaux × 5. Mentions : moins de 10 À approfondir · 10 à 12 Satisfaisant · 13 à 16 Bien · 17 et plus Très bien.</div>
           </div>
+          <details class="guide mat-box"${matOpen || Object.values(draft.materiel).some(t => t.trim()) ? ' open' : ''}>
+            <summary>Matériel à préparer par séance (facultatif)</summary>
+            <div class="muted small">Un élément par ligne. Cette liste s’affiche sur chaque cours où la séance est prévue, pour toutes les classes
+              qui font ce projet, avec un rappel la veille. Ajouts ponctuels : directement sur le cours, dans le planning.</div>
+            ${Array.from({ length: draft.nSeances }, (_, i) => i + 1).map(n => html`<label class="lbl mat-seance">Séance ${n}
+              <textarea class="input" rows="${Math.max(2, (draft.materiel[n] || '').split('\n').length)}" data-input="materiel" data-n="${n}" placeholder="ex. Imprimante 3D allumée&#10;Cartes micro:bit + câbles">${draft.materiel[n] || ''}</textarea></label>`)}
+          </details>
           ${isNew ? '' : html`<div class="stack-tight"><strong>Classes associées</strong>
             <span class="muted">${cls.length ? cls.join(' · ') : 'Aucune'} — l’association se fait depuis chaque classe.</span></div>
             <div class="danger-zone"><button type="button" class="btn danger-soft" data-click="deleteProject">${icon.trash}Supprimer le projet</button></div>`}
@@ -157,7 +170,7 @@ export default {
     </div>`;
   },
 
-  leave() { draft = null; picker = null; },
+  leave() { draft = null; picker = null; matOpen = false; retour = null; },
 
   actions: {
     openPicker(el) {
@@ -210,6 +223,7 @@ export default {
 
     title(el) { draft.title = el.value; },
     desc(el) { draft.desc = el.value; },
+    materiel(el) { draft.materiel[el.dataset.n] = el.value; },
     code(el) { const c = crit(el.dataset.id); const v = el.value.toUpperCase(); if (el.value !== v) el.value = v; c.code = v; },
     label(el) { crit(el.dataset.id).label = el.value; },
     pronote(el) { crit(el.dataset.id).pronote = el.value; },
@@ -243,11 +257,13 @@ export default {
       const untitled = criteria.find(c => !c.label && c.pronote);
       if (untitled) { toast({ text: `Donnez un intitulé au critère ${untitled.code}` }); focusLabel(untitled.id); return; }
       const isNew = !draft.id;
-      const rec = { title, desc: draft.desc.trim(), nSeances: draft.nSeances, criteria };
+      const materiel = {};
+      for (const [n, t] of Object.entries(draft.materiel)) { const list = prepa.depuisTexte(t); if (list.length && +n <= draft.nSeances) materiel[n] = list; }
+      const rec = { title, desc: draft.desc.trim(), nSeances: draft.nSeances, criteria, materiel: Object.keys(materiel).length ? materiel : undefined };
       if (!isNew) rec.id = draft.id;
       const undo = db.commit(w => w.put('projects', rec));
       draft = null;
-      go('#/admin');
+      go(retour || '#/admin');
       toast({ text: isNew ? `Projet « ${title} » créé` : 'Modifications enregistrées', undo: async () => { await undo(); refresh(); } });
     },
     async deleteProject() {

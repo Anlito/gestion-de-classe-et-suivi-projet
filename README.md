@@ -37,6 +37,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/sync.js` | fusion des données entre appareils (synchronisation Google Drive) |
 | `js/drive.js` | connexion Google (identifiant client propre à chaque professeur) et échanges avec son Drive |
 | `js/autosync.js` | synchronisation automatique et indicateur « Synchronisé à … » dans l'en-tête |
+| `js/prepa.js` | matériel à préparer : séance prévue d'un cours, liste (projet + cours), coches, rappel la veille |
 | `js/screens/archives.js` | Administration → Archives : archiver l'année, consulter une année passée en lecture seule |
 | `js/pronote-lien.js` | emploi du temps mis à jour par lien Pronote (via le relais Google du professeur), chaque soir ou sur demande |
 | `js/alertes.js` | alertes dans l'app (appel non fait, séances à remplir), coin de l'écran, tous les écrans |
@@ -81,6 +82,17 @@ et, s'il le souhaite, dans **son** Google Drive — personne d'autre n'y a accè
    Sur chaque autre appareil : même identifiant, même compte Google, « Se connecter à Google ».
 4. Si un professeur héberge sa propre copie du projet (autre adresse), l'origine à autoriser est la sienne : le guide
    affiche automatiquement l'adresse exacte à copier.
+## Chantier en cours : plan de classe et matériel à préparer (décisions prises, 1er oct.)
+
+Étapes : **1** matériel à préparer + rappel la veille (1.18.0) · **2** plans de salle (1.19.0) · **3** plan de classe :
+placer les élèves, appel et observations + / − depuis le plan (1.20.0).
+- Matériel : rattaché à la **séance du projet** (réutilisée par toutes les classes, toutes les années) **et** au cours
+  (ajouts ponctuels). Rappel dans l'app uniquement (pas de notification app fermée).
+- Plans de salle : **un plan par salle** (Techno 1, salle de cours…), réutilisé par toutes les classes qui y ont cours ;
+  chaque salle est soit en **îlots** (groupes de 2 à 6 places placés librement), soit en **rangées** (grille).
+- Plan de classe : depuis le plan, **faire l'appel** et mettre des **+ / −** (pas de placement automatique par groupes,
+  pas d'impression demandés).
+
 ## Chantier terminé : emploi du temps par lien Pronote (décisions prises)
 
 Demande du professeur (1er oct.) : utiliser le **lien d'abonnement iCal** de Pronote (un par collège) pour que le
@@ -156,6 +168,20 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 - Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
+
+### 1.18.0 — 1er octobre 2026 · Plan de classe et matériel, étape 1 : matériel à préparer
+- Projet → nouvelle partie **« Matériel à préparer par séance »** (une ligne par élément) : `projects.materiel =
+  { "3": ["Imprimante 3D", …] }`, réutilisée pour chaque classe qui fait le projet, chaque année (copiée par « Dupliquer »).
+- Nouveau `js/prepa.js` : **séance prévue** d'un cours à venir (séances faites + cours suivis de la classe d'ici là sans
+  séance reliée + 1 ; un cours qui a sa séance garde son numéro) ; liste d'un cours = liste de la séance du projet +
+  **ajouts ponctuels sur le cours** (`cours.aPreparer`) ; coches « prêt » propres à chaque cours (`cours.prepa`).
+- Planning → panneau du cours : partie **« À préparer »** (cases à cocher, ajout pour ce cours, lien « Modifier la liste
+  de la séance n du projet » qui revient au planning). Petite boîte orange sur le cours tant que tout n'est pas prêt.
+- **Rappel** dans le coin des alertes (une app web fermée ne peut pas envoyer de notification sans serveur) : la veille
+  du prochain jour de cours à partir de 16 h (le vendredi pour le lundi), et le jour même jusqu'au début du cours ;
+  « Voir la liste » ouvre le panneau du cours.
+- Vérifié sur la démonstration : séances prévues 6, 7, 8 pour les 3 prochains cours d'une classe ; liste projet + ajout
+  + coches ; rappel présent à 16 h 30 la veille, absent à 15 h ; enregistrement du projet depuis le planning. Tests : 63 / 63.
 
 ### 1.17.1 — 1er octobre 2026 · Planning : la vie de classe se distingue d'un cours
 - Retour du professeur (professeur principal de 2 classes) : au planning, une heure de **vie de classe** ressemblait à

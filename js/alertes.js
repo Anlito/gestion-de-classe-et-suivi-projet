@@ -8,6 +8,7 @@
 import * as db from './db.js';
 import * as model from './model.js';
 import * as planning from './planning.js';
+import * as prepa from './prepa.js';
 import { html, toast, todayISO } from './ui.js';
 import { go, refresh } from './nav.js';
 
@@ -41,6 +42,14 @@ export function alertes(now = new Date()) {
 let open = (() => { try { return localStorage.getItem('carnet-alertes') !== 'repliees'; } catch (e) { return true; } })();
 let startAppelHook = null; // fourni par le trombinoscope : ouvre l'appel d'une classe
 export function onFaireAppel(fn) { startAppelHook = fn; }
+let ouvrirCoursHook = null; // fourni par le planning : ouvre le panneau d'un cours
+export function onOuvrirCours(fn) { ouvrirCoursHook = fn; }
+// « demain », ou le jour (« lundi ») si le prochain jour de cours n'est pas demain.
+function quandLabel(p) {
+  if (p.quand === 'aujourdhui') return 'aujourd’hui';
+  const d = new Date(p.cours.date + 'T12:00:00'), t = new Date(); t.setDate(t.getDate() + 1);
+  return todayISO(t) === p.cours.date ? 'demain' : d.toLocaleDateString('fr-FR', { weekday: 'long' });
+}
 
 export function render() {
   const el = document.getElementById('alerts');
@@ -60,12 +69,15 @@ export function render() {
   try { planning.lierAppels(); } catch (e) { console.error(e); }
   const list = alertes();
   const appels = list.filter(a => a.type === 'appel'), seances = list.filter(a => a.type === 'seance');
-  if (!list.length) { el.innerHTML = ''; return; }
-  el.innerHTML = html`<div class="alerts-box" role="status">
+  let prep = [];
+  try { prep = prepa.aPreparerBientot(); } catch (e) { console.error(e); }
+  if (!list.length && !prep.length) { el.innerHTML = ''; return; }
+  el.innerHTML = html`<div class="alerts-box${!list.length ? ' calm' : ''}" role="status">
     <button type="button" class="alerts-head" data-a="toggle">
       <span class="alerts-dot"></span>
       <span class="grow">${[appels.length && `${appels.length} appel${appels.length > 1 ? 's' : ''} non fait${appels.length > 1 ? 's' : ''}`,
-        seances.length && `${seances.length} séance${seances.length > 1 ? 's' : ''} à remplir`].filter(Boolean).join(' · ')}</span>
+        seances.length && `${seances.length} séance${seances.length > 1 ? 's' : ''} à remplir`,
+        prep.length && `${prep.length} cours à préparer`].filter(Boolean).join(' · ')}</span>
       <span class="alerts-chev">${open ? '▾' : '▸'}</span>
     </button>
     ${open ? html`<div class="alerts-list">
@@ -78,6 +90,11 @@ export function render() {
         <span class="grow"><strong>${a.cls.name}</strong><span class="muted small"> · ${a.cours.debut}–${a.cours.fin}</span></span>
         <button type="button" class="btn accent small" data-a="remplir" data-id="${a.cours.id}">Remplir la séance</button>
         <button type="button" class="btn soft small" data-a="pas" data-id="${a.cours.id}">Pas une séance projet</button>
+      </div>`)}
+      ${prep.length ? html`<div class="alert-sec">Matériel à préparer</div>` : ''}
+      ${prep.map(p => html`<div class="alert-row">
+        <span class="grow"><strong>${p.cls ? p.cls.name : p.cours.classe || p.cours.matiere}</strong><span class="muted small"> · ${quandLabel(p)} ${p.cours.debut} · ${p.reste} chose${p.reste > 1 ? 's' : ''}</span></span>
+        <button type="button" class="btn soft small" data-a="prepa" data-id="${p.cours.id}">Voir la liste</button>
       </div>`)}
     </div>` : ''}
   </div>`.s;
@@ -96,6 +113,7 @@ function clickHandler(e) {
   }
   const c = db.get('cours', b.dataset.id);
   if (!c) return;
+  if (kind === 'prepa') { if (ouvrirCoursHook) ouvrirCoursHook(c.id); return; }
   const classId = planning.classIdOf(c);
   if (kind === 'appel') {
     planning.openedFromPlanning(c);

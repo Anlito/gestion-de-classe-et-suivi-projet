@@ -13,12 +13,24 @@ import { go, refresh } from '../nav.js';
 import accueil from './accueil.js';
 import { demanderAppel } from './trombi.js';
 import * as pronote from '../pronote-lien.js';
+import * as prepa from '../prepa.js';
+import { ouvrirMateriel } from './edit-projet.js';
+import { onOuvrirCours } from '../alertes.js';
 
 let weekStart = null;   // lundi affiché (AAAA-MM-JJ)
 let dayIdx = null;      // jour affiché sur téléphone (0 = lundi)
 let timer = null, onResize = null;
 let screenW = 0, screenH = 0;
 let moving = null;      // id du cours en cours de déplacement (créneaux libres affichés)
+// Alerte « À préparer » : ouvre le panneau du cours dans la bonne semaine.
+onOuvrirCours(id => {
+  const c = db.get('cours', id);
+  if (!c) return;
+  const e = planning.eff(c);
+  weekStart = mondayOf(e.date); dayIdx = null; moving = null;
+  sheet = { mode: 'view', id: c.id, note: c.note || '' };
+  if ((location.hash || '#/') === '#/') refresh(); else go('#/');
+});
 
 // ---------- Dates ----------
 const pad = n => String(n).padStart(2, '0');
@@ -76,6 +88,7 @@ function weekCours(mon) {
       chip: planning.statutLabel(c) && c.statut !== 'deplace' ? planning.statutLabel(c) : moved ? 'Déplacé' : live ? 'En cours' : '',
       progress: live ? Math.round((now - start) / (end - start) * 100) : 0,
       appelFait: !!model.appelOfCours(c.id),
+      prepa: !off && c.date >= today ? prepa.listeCours(c.src, today).reste : 0,
     };
   });
 }
@@ -144,10 +157,11 @@ function block(it, top, height, left, width, lanesN) {
   const line2 = wide ? time + (it.c.salle ? ' · ' + it.c.salle : '') + (it.appelFait ? ' · appel ✓' : '') : it.chip || it.mat || (lanesN === 2 ? time : it.c.debut);
   return html`<div role="button" tabindex="0" class="${cls}" data-click="sheet" data-id="${it.c.id}"
     style="top:${top}px;height:${height}px;left:calc(${left}% + ${it.lane ? 3 : 0}px);width:calc(${width}% - ${lanesN > 1 ? 3 : 0}px);--tint:${it.off ? 'transparent' : tintOf(it.cls)};--etab:${it.e ? it.e.color : 'transparent'}"
-    aria-label="${it.name}${it.mat ? ', ' + it.mat : ''}, ${time}${it.chip ? ', ' + it.chip : ''}${it.c.note ? ', note : ' + it.c.note : ''}">
+    aria-label="${it.name}${it.mat ? ', ' + it.mat : ''}, ${time}${it.chip ? ', ' + it.chip : ''}${it.prepa ? `, ${it.prepa} à préparer` : ''}${it.c.note ? ', note : ' + it.c.note : ''}">
     <span class="wk-row1"><span class="wk-name">${it.name}${it.link === 'todo' ? ' ?' : ''}</span>
       ${it.mat && wide ? html`<span class="wk-mat">${it.mat}</span>` : ''}
       ${it.c.note ? html`<span class="wk-note-ic" title="${it.c.note}">${icon.list}</span>` : ''}
+      ${it.prepa ? html`<span class="wk-prepa" title="${it.prepa} chose${it.prepa > 1 ? 's' : ''} à préparer">${icon.box}${wide ? it.prepa : ''}</span>` : ''}
       ${wide && it.chip ? html`<span class="wk-chip${it.live ? ' live' : it.off ? ' warn' : ''}">${it.chip}</span>` : ''}</span>
     <span class="wk-meta${!wide && (it.chip || it.mat) ? ' strong' : ''}">${line2}</span>
     ${proj ? html`<span class="wk-proj">${proj}</span>` : ''}
@@ -157,6 +171,27 @@ function block(it, top, height, left, width, lanesN) {
 
 // ---------- Panneau d'un cours ; formulaires « autre horaire » et « ajouter un cours » ----------
 let sheet = null; // { mode: 'view'|'edit'|'add', id?, f: { classId, etabId, date, debut, fin, salle, role, repeat }, note }
+
+// « À préparer » dans le panneau d'un cours : liste de la séance du projet + ajouts sur ce cours, à cocher.
+function prepaView(c) {
+  const l = prepa.listeCours(c);
+  const s = l.seance;
+  return html`<div class="stack-tight">
+    <div class="cs-sec">À préparer${l.items.length ? html` <span class="muted normal">· ${l.reste ? `${l.reste} sur ${l.items.length}` : 'tout est prêt ✓'}</span>` : ''}</div>
+    ${s ? html`<div class="muted small">${s.p.title} · séance ${s.n}${model.seanceOfCours(c.id) ? '' : ' (prévue)'}</div>` : ''}
+    ${l.items.map(i => html`<div class="prepa-row">
+      <button type="button" class="prepa-item${i.fait ? ' on' : ''}" data-click="prepaToggle" data-t="${i.text}" aria-pressed="${i.fait ? 'true' : 'false'}">
+        <span class="prepa-box">${i.fait ? icon.check : ''}</span><span class="grow">${i.text}</span>
+        ${i.src === 'cours' ? html`<span class="muted xsmall">ce cours</span>` : ''}</button>
+      ${i.src === 'cours' ? html`<button type="button" class="icon-btn" data-click="prepaDel" data-t="${i.text}" aria-label="Retirer ${i.text}">${icon.close}</button>` : ''}
+    </div>`)}
+    <div class="row-center">
+      <input class="input grow" value="${sheet.prepaNew || ''}" data-input="prepaNew" placeholder="Ajouter pour ce cours (ex. rallonge, photocopies)" enterkeyhint="done">
+      <button type="button" class="btn soft small" data-click="prepaAdd">Ajouter</button>
+    </div>
+    ${s ? html`<button type="button" class="link-btn self-start" data-click="prepaProjet" data-id="${s.p.id}">${(s.p.materiel || {})[s.n] ? 'Modifier' : 'Écrire'} la liste de la séance ${s.n} du projet (pour toutes les classes)</button>` : ''}
+  </div>`;
+}
 
 // Formulaire d'un événement (ajout ou modification).
 function evtView() {
@@ -238,6 +273,7 @@ function sheetView() {
         </div>
         <button type="button" class="link-btn self-start" data-click="editForm">Autre horaire ou salle…</button>
       </div>
+      ${prepaView(c)}
       <div class="stack-tight">
         <div class="cs-sec">Note sur ce cours</div>
         <textarea class="field" rows="3" data-input="noteText" placeholder="Photo de classe, élection des délégués, sortie à préparer…">${sheet.note}</textarea>
@@ -638,6 +674,30 @@ export default {
       refresh();
       toast({ text: choice === 'all' ? `${n + 1} événements supprimés` : 'Événement supprimé', undo: async () => { await undo(); refresh(); } });
     },
+    // ----- À préparer -----
+    prepaToggle(el) {
+      const c = db.get('cours', sheet.id);
+      const t = el.dataset.t;
+      prepa.cocher(c, t, !(c.prepa || {})[t]);
+      refresh();
+    },
+    prepaNew(el) { sheet.prepaNew = el.value; },
+    prepaAdd() {
+      const c = db.get('cours', sheet.id);
+      const t = (sheet.prepaNew || '').trim();
+      if (!t) { toast({ text: 'Écrivez d’abord ce qu’il faut préparer' }); return; }
+      prepa.ajouter(c, t);
+      sheet.prepaNew = '';
+      refresh();
+      const i = document.querySelector('[data-input="prepaNew"]'); if (i) i.focus();
+    },
+    prepaDel(el) {
+      const c = db.get('cours', sheet.id);
+      const undo = prepa.retirer(c, el.dataset.t);
+      refresh();
+      toast({ text: `« ${el.dataset.t} » retiré`, undo: async () => { await undo(); refresh(); } });
+    },
+    prepaProjet(el) { sheet = null; ouvrirMateriel(el.dataset.id, '#/'); },
     resetPerso() {
       const c = db.get('cours', sheet.id);
       const undo = planning.resetPerso(c);
