@@ -517,8 +517,9 @@ et notes sur un cours · 5 appel rattaché et alertes · 6 réimportation et con
 
 ## Pistes pour la suite
 
-- Synchronisation chiffrée avec Google Drive (`db.js` est prévu pour : `onChange`, `exportSnapshot`).
-- Chiffrement des sauvegardes (les besoins particuliers sont des données sensibles).
+- Chiffrement des sauvegardes et du Drive (écarté pour l'instant par le professeur ; les besoins particuliers sont des
+  données sensibles).
+- Aligner les autres écrans sur la maquette graphique du planning.
 - Archive de l'année avant « Nouvelle année » (aujourd'hui, les classes sont supprimées).
 - Semestres au lieu des trimestres, coefficients sur les critères, seuils de mention réglables.
 - Tests automatiques des règles de `model.js`.
