@@ -144,6 +144,12 @@ function demoPlanning(put, classes, students = null, r = null) {
   set(near[7], 'sortie', 'Sortie pédagogique');
   set(near[10], 'salle', 'Changement de salle');
   if (near[1]) put('cours', { ...near[1], id: undefined, debut: '16:14', fin: '17:09', statut: 'deplace', statutLabel: 'Déplacé' });
+  // Événements hors Pronote, cette semaine et la suivante.
+  const lundi = new Date(); lundi.setHours(12, 0, 0, 0); lundi.setDate(lundi.getDate() - ((lundi.getDay() + 6) % 7));
+  const jour = n => { const d = new Date(lundi); d.setDate(d.getDate() + n); return todayISO(d); };
+  put('evenements', { date: jour(1), debut: '17:30', fin: '18:30', type: 'reunion', titre: 'Conseil pédagogique', lieu: 'Salle des professeurs' });
+  put('evenements', { date: jour(3), debut: '16:30', fin: '19:00', type: 'parents', titre: '', lieu: 'Salle 12', classId: (classes.find(c => c.name === '5e A') || {}).id, note: 'Prévoir les bulletins' });
+  put('evenements', { date: jour(12), debut: '09:00', fin: '12:00', type: 'portes', titre: '', lieu: 'Atelier techno' });
 }
 
 export async function loadDemo() {

@@ -72,6 +72,32 @@ function weekCours(mon) {
   });
 }
 
+// Événements hors Pronote de la semaine (réunions, parents-profs…), au même format que les cours.
+function weekEvts(mon) {
+  const today = todayISO(), now = nowMin();
+  return planning.evenementsEntre(mon, addDays(mon, 6)).map(ev => {
+    const start = toMin(ev.debut), end = Math.max(toMin(ev.fin), start + 1);
+    const cls = ev.classId ? db.get('classes', ev.classId) : null;
+    return { evt: true, c: ev, cls, start, end, off: false, live: false, name: planning.titreEvt(ev), type: planning.typeEvt(ev),
+      past: ev.date < today || (ev.date === today && end <= now) };
+  });
+}
+
+function evtBlock(it, top, height, left, width, lanesN) {
+  const wide = lanesN === 1, ev = it.c;
+  const time = `${ev.debut}–${ev.fin}`;
+  const line2 = wide ? [time, ev.lieu, it.cls && it.cls.name].filter(Boolean).join(' · ') : lanesN === 2 ? time : ev.debut;
+  const cls = ['wk-c', 'wk-evt', it.past ? 'past' : '', moving ? 'faded' : '', height < 44 ? 'tiny' : ''].filter(Boolean).join(' ');
+  return html`<div role="button" tabindex="0" class="${cls}" data-click="evtSheet" data-id="${ev.id}"
+    style="top:${top}px;height:${height}px;left:calc(${left}% + ${it.lane ? 3 : 0}px);width:calc(${width}% - ${lanesN > 1 ? 3 : 0}px);--evt:${it.type.color}"
+    aria-label="${it.name}, ${time}${ev.lieu ? ', ' + ev.lieu : ''}${ev.note ? ', note : ' + ev.note : ''}">
+    <span class="wk-row1"><span class="wk-name">${it.name}</span>
+      ${ev.note ? html`<span class="wk-note-ic" title="${ev.note}">${icon.list}</span>` : ''}
+      ${wide && ev.titre ? html`<span class="wk-chip">${it.type.court}</span>` : ''}</span>
+    <span class="wk-meta">${line2}</span>
+  </div>`;
+}
+
 // Répartit les cours qui se chevauchent sur plusieurs colonnes (« couloirs »).
 function lanes(items) {
   items.sort((a, b) => a.start - b.start || b.end - a.end);
@@ -123,7 +149,42 @@ function block(it, top, height, left, width, lanesN) {
 // ---------- Panneau d'un cours ; formulaires « autre horaire » et « ajouter un cours » ----------
 let sheet = null; // { mode: 'view'|'edit'|'add', id?, f: { classId, etabId, date, debut, fin, salle, role, repeat }, note }
 
+// Formulaire d'un événement (ajout ou modification).
+function evtView() {
+  const f = sheet.f;
+  const ev = sheet.id ? db.get('evenements', sheet.id) : null;
+  if (sheet.id && !ev) { sheet = null; return ''; }
+  const head = html`<div class="drawer-head"><span class="drawer-title grow ellipsis">${ev ? planning.titreEvt(ev) : 'Ajouter un événement'}</span>
+      <button type="button" class="btn soft" data-click="closeSheet">Annuler</button>
+      <button type="button" class="btn accent" data-click="saveEvt">Enregistrer</button></div>`;
+  const body = html`<div class="stack">
+    <div class="lbl">Type
+      <div class="evt-types">${Object.entries(planning.TYPES_EVT).map(([k, t]) =>
+        html`<button type="button" class="evt-type${f.type === k ? ' on' : ''}" style="--evt:${t.color}" data-click="fType" data-k="${k}">${t.label}</button>`)}</div></div>
+    <label class="lbl">Intitulé (facultatif) <input class="input" value="${f.titre}" data-input="fTitre" placeholder="${planning.TYPES_EVT[f.type].court}"></label>
+    <label class="lbl">Date <input class="input" type="date" value="${f.date}" data-change="fDate"></label>
+    <div class="row-center">
+      <label class="lbl grow">Début <input class="input" type="time" value="${f.debut}" data-change="fDebut"></label>
+      <label class="lbl grow">Fin <input class="input" type="time" value="${f.fin}" data-change="fFin"></label>
+    </div>
+    <label class="lbl">Lieu (facultatif) <input class="input" value="${f.lieu}" data-input="fLieu" placeholder="Salle des professeurs, CDI…"></label>
+    <label class="lbl">Classe concernée (facultatif)
+      <select class="input" data-change="fClass"><option value="">—</option>${model.classes().map(k => html`<option value="${k.id}" ${f.classId === k.id ? 'selected' : ''}>${k.name}</option>`)}</select></label>
+    <label class="lbl">Note (facultatif) <textarea class="field" rows="3" data-input="fNote" placeholder="Ordre du jour, documents à apporter…">${f.note}</textarea></label>
+    ${ev ? '' : html`<label class="check-row"><input type="checkbox" data-change="fRepeat" ${f.repeat ? 'checked' : ''}> Chaque semaine jusqu’à la fin de l’année (vacances sautées)</label>`}
+    ${ev ? html`<button type="button" class="btn danger-soft" data-click="delEvt">Supprimer cet événement</button>`
+      : html`<div class="muted small">Les cours viennent de Pronote. Besoin d’un cours absent de Pronote (rattrapage…) ?
+          <button type="button" class="link-btn" data-click="add">Ajouter plutôt un cours</button></div>`}
+  </div>`;
+  return html`<div class="scrim dim" data-click="closeSheet"></div>
+    <aside class="drawer cours-sheet" role="dialog" aria-modal="true">
+      ${head}
+      <div class="drawer-body" data-scroll="sheet">${body}</div>
+    </aside>`;
+}
+
 function sheetView() {
+  if (sheet.mode === 'evt') return evtView();
   const c = sheet.id ? db.get('cours', sheet.id) : null;
   if (sheet.mode !== 'add' && !c) { sheet = null; return ''; }
   const e = c ? planning.eff(c) : null;
@@ -209,16 +270,14 @@ function sheetView() {
 }
 
 // Chevauchements : avertit et demande confirmation. Renvoie true pour continuer.
-async function okMalgreChevauchement(placements, ignore = []) {
-  const conflicts = planning.chevauchements(placements, ignore);
+// ignore : { ignoreCours: [ids], ignoreEvt: [ids] } ; quoi : « Ce cours » / « Cet événement ».
+async function okMalgreChevauchement(placements, ignore = {}, quoi = 'Ce cours') {
+  const conflicts = planning.chevauchementsTout(placements, ignore);
   if (!conflicts.length) return true;
-  const lines = conflicts.slice(0, 4).map(({ cours: x }) => {
-    const k = planning.classIdOf(x.src);
-    return `${fmtSlot(x.date, x.debut)}–${x.fin} : ${nameOf(x, k && db.get('classes', k))}`;
-  });
+  const lines = conflicts.slice(0, 4).map(x => `${fmtSlot(x.date, x.debut)}–${x.fin} : ${x.label}`);
   const n = conflicts.length;
   const choice = await choiceDialog({
-    title: n > 1 ? `Ce cours en chevauche ${n} autres` : 'Ce cours en chevauche un autre',
+    title: n > 1 ? `${quoi} en chevauche ${n} autres` : `${quoi} en chevauche un autre`,
     text: lines.join(' · ') + (n > 4 ? ` · et ${n - 4} autre${n - 4 > 1 ? 's' : ''}` : ''),
     choices: [
       { label: 'Enregistrer quand même', value: true, style: 'soft' },
@@ -248,7 +307,7 @@ async function deplacer(c, changes) {
   const serie = await askSerie(c);
   if (serie === null) return false;
   const placements = planning.placementsDeplacement(c, changes, serie);
-  if (!(await okMalgreChevauchement(placements, placements.map(p => p.id)))) return false;
+  if (!(await okMalgreChevauchement(placements, { ignoreCours: placements.map(p => p.id) }))) return false;
   const undo = planning.editCours(c, changes, serie);
   toast({ text: (serie ? `${placements.length} cours déplacés` : `${nameOf(c, db.get('classes', planning.classIdOf(c)))} déplacé au ${fmtSlot(changes.date, changes.debut)}`),
     undo: async () => { await undo(); refresh(); } });
@@ -262,7 +321,7 @@ export default {
 
     const today = todayISO();
     if (!weekStart) weekStart = mondayOf(today);
-    const items = weekCours(weekStart);
+    const items = [...weekCours(weekStart), ...weekEvts(weekStart)];
     const hasSat = items.some(it => parse(it.c.date).getDay() === 6);
     const nDays = hasSat ? 6 : 5;
     const dates = Array.from({ length: nDays }, (_, i) => addDays(weekStart, i));
@@ -280,7 +339,7 @@ export default {
     const ppm = Math.max(phone ? 1.1 : 0.9, avail / (to - from));
     const H = Math.round((to - from) * ppm);
     const y = m => Math.round((m - from) * ppm);
-    const lunch = lunchOf(items);
+    const lunch = lunchOf(items.filter(it => !it.evt));
 
     const isThisWeek = mondayOf(today) === weekStart;
     const live = items.find(it => it.live && it.classId);
@@ -315,7 +374,7 @@ export default {
         ${saveStatus()}
         ${live ? html`<button type="button" class="btn accent wk-livebtn" data-click="open" data-id="${live.c.id}"><span class="dot"></span><span class="hide-phone">En cours · </span><strong>${live.name}</strong>${icon.arrow}</button>` : ''}
         ${pronote.avecLien().length && pronote.relais() ? html`<button type="button" class="icon-btn${pronote.occupe() ? ' spin' : ''}" data-click="majPronote" aria-label="Mettre à jour depuis Pronote" title="Mettre à jour depuis Pronote">${icon.refresh}</button>` : ''}
-        <button type="button" class="btn soft" data-click="add" aria-label="Ajouter un cours">${icon.plusBig}<span class="hide-narrow">Cours</span></button>
+        <button type="button" class="btn soft" data-click="addEvt" aria-label="Ajouter un événement (réunion, parents-profs…)">${icon.plusBig}<span class="hide-narrow">Événement</span></button>
         <a class="btn soft" href="#/classes">${icon.tabTrombi}<span class="hide-narrow">Classes</span></a>
         <a class="btn soft" href="#/admin">${icon.sliders}<span class="hide-narrow">Administration</span></a>
       </header>
@@ -334,7 +393,7 @@ export default {
             const showLunch = lunch && !off && !dayItems.some(it => !it.off && it.start < lunch.b && lunch.a < it.end);
             return html`<div class="wk-col${d === today ? ' today' : ''}${off ? ' holiday' : ''}" style="height:${H}px;--hour:${Math.round(60 * ppm)}px;--first:${y(from)}px">
               ${showLunch ? html`<div class="wk-lunch" style="top:${y(lunch.a) + 4}px;height:${y(lunch.b) - y(lunch.a) - 8}px">Pause méridienne</div>` : ''}
-              ${dayItems.map(it => block(it, y(it.start) + 1, Math.max(22, y(it.end) - y(it.start) - 3), it.lane * 100 / it.lanes, 100 / it.lanes, it.lanes))}
+              ${dayItems.map(it => (it.evt ? evtBlock : block)(it, y(it.start) + 1, Math.max(22, y(it.end) - y(it.start) - 3), it.lane * 100 / it.lanes, 100 / it.lanes, it.lanes))}
               ${targets(d).map(s => html`<button type="button" class="wk-target" style="top:${y(s.start) + 1}px;height:${Math.max(26, y(s.end) - y(s.start) - 3)}px;left:calc(${s.lane * 100 / s.lanes}% + ${s.lane ? 3 : 0}px);width:calc(${100 / s.lanes}% - ${s.lanes > 1 ? 3 : 0}px);right:auto"
                 data-click="moveTo" data-date="${d}" data-debut="${s.debut}" data-fin="${s.fin}" aria-label="Déplacer à ${s.debut}–${s.fin}">${icon.plus}${s.debut}</button>`)}
               ${d === today && t >= from && t <= to ? html`<div class="wk-now" style="top:${y(t)}px"></div>` : ''}
@@ -503,6 +562,72 @@ export default {
       weekStart = mondayOf(f.date); dayIdx = null;
       refresh();
       toast({ text: n > 1 ? `${n} cours ajoutés (chaque semaine)` : 'Cours ajouté', undo: async () => { await undo(); refresh(); } });
+    },
+    // ----- Événements hors Pronote -----
+    addEvt() {
+      moving = null;
+      const d = narrow() ? addDays(weekStart, dayIdx || 0) : (mondayOf(todayISO()) === weekStart ? todayISO() : weekStart);
+      sheet = { mode: 'evt', f: { type: 'reunion', titre: '', date: d, debut: '17:30', fin: '18:30', lieu: '', classId: '', note: '', repeat: false } };
+      refresh();
+    },
+    evtSheet(el) {
+      if (moving) return;
+      const ev = db.get('evenements', el.dataset.id);
+      if (!ev) return;
+      sheet = { mode: 'evt', id: ev.id, f: { type: ev.type, titre: ev.titre || '', date: ev.date, debut: ev.debut, fin: ev.fin, lieu: ev.lieu || '', classId: ev.classId || '', note: ev.note || '' } };
+      refresh();
+    },
+    fType(el) { sheet.f.type = el.dataset.k; refresh(); },
+    fTitre(el) { sheet.f.titre = el.value; },
+    fLieu(el) { sheet.f.lieu = el.value; },
+    fNote(el) { sheet.f.note = el.value; },
+    async saveEvt() {
+      const f = sheet.f;
+      if (!f.date || !f.debut || !f.fin || f.fin <= f.debut) { toast({ text: 'Vérifiez la date et les heures (la fin doit suivre le début)' }); return; }
+      const ev = sheet.id ? db.get('evenements', sheet.id) : null;
+      let serie = false;
+      if (ev && planning.suivantsEvt(ev).length) {
+        const n = planning.suivantsEvt(ev).length;
+        const choice = await choiceDialog({
+          title: 'Appliquer la modification à…',
+          choices: [
+            { label: 'Cet événement seulement', value: 'one', style: 'soft' },
+            { label: 'Celui-ci et les semaines suivantes', sub: `${n + 1} événements`, value: 'all', style: 'soft' },
+            { label: 'Annuler', value: null, style: 'soft' },
+          ],
+        });
+        if (!choice) return;
+        serie = choice === 'all';
+      }
+      const shift = ev ? Math.round((parse(f.date) - parse(ev.date)) / 864e5) : 0;
+      const placements = (ev ? [ev, ...(serie ? planning.suivantsEvt(ev) : [])].map(x => ({ date: x === ev ? f.date : addDays(x.date, shift), debut: f.debut, fin: f.fin }))
+        : planning.datesAjout(f.date, f.repeat).map(date => ({ date, debut: f.debut, fin: f.fin })));
+      const ignoreEvt = ev ? [ev.id, ...(serie ? planning.suivantsEvt(ev).map(x => x.id) : [])] : [];
+      if (!(await okMalgreChevauchement(placements, { ignoreEvt }, 'Cet événement'))) return;
+      let undo, text;
+      if (ev) { undo = planning.editEvenement(ev, f, serie); text = serie ? `${placements.length} événements modifiés` : 'Événement modifié'; }
+      else { const r = planning.addEvenement(f, f.repeat); undo = r.undo; text = r.n > 1 ? `${r.n} événements ajoutés (chaque semaine)` : 'Événement ajouté'; }
+      sheet = null;
+      if (f.date < weekStart || f.date > addDays(weekStart, 6)) { weekStart = mondayOf(f.date); dayIdx = null; }
+      refresh();
+      toast({ text, undo: async () => { await undo(); refresh(); } });
+    },
+    async delEvt() {
+      const ev = db.get('evenements', sheet.id);
+      const n = planning.suivantsEvt(ev).length;
+      const choice = await choiceDialog({
+        title: `Supprimer « ${planning.titreEvt(ev)} » ?`,
+        choices: [
+          { label: n ? 'Cet événement seulement' : 'Supprimer', value: 'one', style: n ? 'soft' : 'accent' },
+          ...(n ? [{ label: 'Celui-ci et les semaines suivantes', sub: `${n + 1} événements`, value: 'all', style: 'soft' }] : []),
+          { label: 'Annuler', value: null, style: 'soft' },
+        ],
+      });
+      if (!choice) return;
+      const undo = planning.deleteEvenement(ev, choice === 'all');
+      sheet = null;
+      refresh();
+      toast({ text: choice === 'all' ? `${n + 1} événements supprimés` : 'Événement supprimé', undo: async () => { await undo(); refresh(); } });
     },
     resetPerso() {
       const c = db.get('cours', sheet.id);

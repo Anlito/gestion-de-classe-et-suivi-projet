@@ -80,12 +80,17 @@ et, s'il le souhaite, dans **son** Google Drive — personne d'autre n'y a accè
    Sur chaque autre appareil : même identifiant, même compte Google, « Se connecter à Google ».
 4. Si un professeur héberge sa propre copie du projet (autre adresse), l'origine à autoriser est la sienne : le guide
    affiche automatiquement l'adresse exacte à copier.
-## Chantier en cours : emploi du temps par lien Pronote (décisions prises)
+## Chantier terminé : emploi du temps par lien Pronote (décisions prises)
 
 Demande du professeur (1er oct.) : utiliser le **lien d'abonnement iCal** de Pronote (un par collège) pour que le
 planning reste toujours à jour avec Pronote, sans import de fichier. Étapes : **1** lien + relais + mise à jour auto
-(1.15.0) · **2** « événements » hors Pronote (réunion entre profs, rencontre parents-profs, porte ouverte…) à la place
-de l'ajout manuel de cours (à faire).
+(1.15.0, validé avec un vrai compte) · **2** « événements » hors Pronote (1.16.0).
+
+- Les **cours viennent de Pronote** : le bouton « + » du planning ajoute désormais un **événement** (réunion entre
+  professeurs, rencontre parents-professeurs, conseil de classe, portes ouvertes, formation, autre). Un événement n'a
+  ni appel, ni séance, ni alerte ; il a un intitulé, un lieu, une classe concernée et une note facultatifs, et peut se
+  répéter chaque semaine. L'ajout d'un cours à la main reste possible (lien discret dans le formulaire), pour un
+  rattrapage ou un professeur sans lien Pronote.
 
 - **Pronote n'autorise pas la lecture du calendrier par une page web** (pas d'en-tête CORS, vérifié le 1er oct.) :
   passage par un **relais Google Apps Script créé par chaque professeur dans son propre compte** (choix du professeur,
@@ -150,6 +155,22 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 - Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
+
+### 1.16.0 — 1er octobre 2026 · Emploi du temps par lien Pronote, étape 2 : événements hors Pronote
+- Nouvelle table `evenements` (`DB_VERSION` 7) : `{ date, debut, fin, type, titre, lieu, classId, note, serieId }`,
+  synchronisée par Drive comme le reste, effacée en fin d'année (`clearYearIn`) ; suppression d'une classe → l'événement
+  perd seulement sa classe (`forgetClassIn`).
+- Planning : bouton **« + Événement »** (à la place de « + Cours ») ; formulaire : type (6 choix en gros boutons
+  colorés), intitulé, date, heures, lieu, classe concernée, note, « chaque semaine jusqu'à la fin de l'année ». Lien
+  « Ajouter plutôt un cours » pour un cours absent de Pronote.
+- Les événements s'affichent dans la semaine (cadre en pointillés de la couleur du type), à côté des cours qui se
+  chevauchent ; toucher = modifier ou supprimer (cette fois / les semaines suivantes pour une série).
+- Avertissement de chevauchement commun (`planning.chevauchementsTout`) : un événement sur un cours, ou un cours sur
+  un événement, demande confirmation.
+- `planning.js` : `TYPES_EVT`, `evenementsEntre`, `addEvenement`, `editEvenement`, `deleteEvenement`, `suivantsEvt`.
+  Démonstration : 3 événements fictifs.
+- Vérifié : ajout (avec classe et lieu), modification, suppression avec « Annuler », série hebdomadaire (31 semaines,
+  vacances sautées) modifiée en entier, chevauchement signalé, lien vers l'ajout d'un cours. Tests : 60 / 60.
 
 ### 1.15.0 — 1er octobre 2026 · Emploi du temps par lien Pronote, étape 1 : mise à jour automatique
 - Administration → Emploi du temps : nouvelle partie **« Mise à jour automatique depuis Pronote »** : adresse du relais

@@ -936,3 +936,9 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .lien-edit { margin-top: 8px; gap: 8px; }
 .icon-btn.spin svg { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* Événements hors Pronote (1.16.0) */
+.wk-c.wk-evt { background: color-mix(in srgb, var(--evt) 14%, var(--surface)); border: 2px dashed color-mix(in srgb, var(--evt) 60%, transparent); box-shadow: inset 4px 0 0 var(--evt); }
+.wk-c.wk-evt .wk-name { color: color-mix(in srgb, var(--evt) 70%, var(--ink)); }
+.evt-types { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.evt-type { min-height: 44px; padding: 8px 14px; border-radius: 22px; border: 2px solid color-mix(in srgb, var(--evt) 45%, transparent); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.evt-type.on { background: var(--evt); border-color: var(--evt); color: #fff; }

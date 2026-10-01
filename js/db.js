@@ -12,7 +12,7 @@
 //   chiffré déposé sur Google Drive.
 
 const DB_NAME = 'carnet-de-classe';
-const DB_VERSION = 6; // 2 : absences · 3 : appels · 4 : retards · 5 : emploi du temps · 6 : effacements (synchronisation)
+const DB_VERSION = 7; // 2 : absences · 3 : appels · 4 : retards · 5 : emploi du temps · 6 : effacements (synchronisation) · 7 : événements
 export const SNAPSHOT_FORMAT = 1;
 // Réglages propres à cet appareil, jamais synchronisés (voir sync.js).
 export const LOCAL_META = new Set(['lastBackupAt', 'lastModified', 'sync']);
@@ -38,6 +38,7 @@ export const STORES = [
   'cours',         // { etabId, date, debut:'HH:MM', fin, classe (nom Pronote), salle, matiere, statut, statutLabel, source }
   'jours',         // { etabId, du, au, type:'vacances'|'ferie', label } — vacances et jours fériés
   'effacements',   // { id: 'store:recId', store, recId, at } — trace de chaque suppression, pour la synchronisation
+  'evenements',    // { date, debut, fin, type, titre, lieu, classId, note, serieId } — hors Pronote (réunions…), voir planning.js
 ];
 
 let idb = null;

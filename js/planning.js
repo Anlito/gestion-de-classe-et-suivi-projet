@@ -338,6 +338,7 @@ function lierAppelsSeuls() {
 export const setPasSeance = (c, v = true) => db.commit(w => w.update('cours', c.id, { pasSeance: v || undefined }));
 // Dans une suppression de classe : les correspondances qui la visaient redeviennent « à choisir ».
 export function forgetClassIn(w, classId) {
+  for (const ev of db.where('evenements', x => x.classId === classId)) w.update('evenements', ev.id, { classId: undefined });
   for (const e of db.all('etablissements')) {
     const entries = Object.entries(e.classes || {});
     if (!entries.some(([, m]) => m.classId === classId)) continue;
@@ -346,7 +347,7 @@ export function forgetClassIn(w, classId) {
 }
 // Fin d'année : l'emploi du temps de l'année écoulée est effacé (les établissements et réglages restent).
 export function clearYearIn(w) {
-  for (const s of ['cours', 'jours']) for (const r of db.all(s)) w.del(s, r.id);
+  for (const s of ['cours', 'jours', 'evenements']) for (const r of db.all(s)) w.del(s, r.id);
   for (const e of db.all('etablissements')) w.update('etablissements', e.id, { classes: {}, importedAt: null });
 }
 
@@ -527,4 +528,60 @@ export function coursContexte(classId, now = new Date()) {
     .sort((a, b) => a.debut.localeCompare(b.debut));
   // Le cours en cours, sinon le prochain de la journée, sinon le dernier passé.
   return list.find(e => m >= toMin(e.debut) - 15 && m < toMin(e.fin)) || list.find(e => toMin(e.debut) > m) || list[list.length - 1] || null;
+}
+
+// ---------- Événements hors Pronote (1.16.0) ----------
+// Réunions, rencontres parents-professeurs, portes ouvertes… ajoutés par le professeur. Pas d'appel, pas de séance,
+// pas d'alerte : ils s'affichent au planning (les cours viennent de Pronote).
+// Table evenements : { date, debut, fin, type, titre, lieu, classId?, note?, serieId? }
+export const TYPES_EVT = {
+  reunion: { label: 'Réunion entre professeurs', court: 'Réunion', color: '#6b5bd2' },
+  parents: { label: 'Rencontre parents-professeurs', court: 'Parents-profs', color: '#d9822b' },
+  conseil: { label: 'Conseil de classe', court: 'Conseil de classe', color: '#2f9e6e' },
+  portes: { label: 'Portes ouvertes', court: 'Portes ouvertes', color: '#c9434f' },
+  formation: { label: 'Formation', court: 'Formation', color: '#3d7dd8' },
+  autre: { label: 'Autre', court: 'Événement', color: '#8a6d3b' },
+};
+export const typeEvt = ev => TYPES_EVT[ev.type] || TYPES_EVT.autre;
+export const titreEvt = ev => (ev.titre || '').trim() || typeEvt(ev).court;
+export const evenementsEntre = (du, au) => db.where('evenements', e => e.date >= du && e.date <= au);
+
+// Ce qui chevauche des créneaux : cours affichés et événements. Renvoie [{ at, label }].
+export function chevauchementsTout(placements, { ignoreCours = [], ignoreEvt = [] } = {}) {
+  const out = chevauchements(placements, ignoreCours).map(({ at, cours: e }) => {
+    const k = classIdOf(e.src); const cl = k && db.get('classes', k);
+    return { at, date: e.date, debut: e.debut, fin: e.fin, label: cl ? cl.name : e.classe || e.matiere };
+  });
+  const skip = new Set(ignoreEvt);
+  for (const p of placements) {
+    for (const ev of db.where('evenements', x => x.date === p.date && !skip.has(x.id))) {
+      if (mins(p.debut) < mins(ev.fin) && mins(ev.debut) < mins(p.fin)) out.push({ at: p, date: ev.date, debut: ev.debut, fin: ev.fin, label: titreEvt(ev) });
+    }
+  }
+  return out;
+}
+
+const champsEvt = f => ({ type: TYPES_EVT[f.type] ? f.type : 'autre', titre: (f.titre || '').trim(), lieu: (f.lieu || '').trim(),
+  classId: f.classId || undefined, note: (f.note || '').trim() || undefined, debut: f.debut, fin: f.fin });
+// Ajout ; repeat : chaque semaine jusqu'à la fin de l'année (vacances et fériés sautés).
+export function addEvenement(f, repeat = false) {
+  const dates = datesAjout(f.date, repeat);
+  const serieId = repeat ? db.uid() : undefined;
+  const undo = db.commit(w => { for (const d of dates) w.put('evenements', { ...champsEvt(f), date: d, serieId }); });
+  return { undo, n: dates.length };
+}
+// Événements suivants de la même série (répétition hebdomadaire), à partir de celui-ci.
+export const suivantsEvt = ev => (ev.serieId ? db.where('evenements', x => x.serieId === ev.serieId && x.id !== ev.id && x.date > ev.date) : []);
+// Modification ; serie = true : aussi les semaines suivantes (décalées du même nombre de jours).
+export function editEvenement(ev, f, serie = false) {
+  const shift = dayDiff(ev.date, f.date);
+  const targets = serie ? suivantsEvt(ev) : [];
+  return db.commit(w => {
+    w.update('evenements', ev.id, { ...champsEvt(f), date: f.date, serieId: serie ? ev.serieId : undefined });
+    for (const t of targets) w.update('evenements', t.id, { ...champsEvt(f), note: t.note, date: shift ? addDays(t.date, shift) : t.date });
+  });
+}
+export function deleteEvenement(ev, serie = false) {
+  const targets = serie ? suivantsEvt(ev) : [];
+  return db.commit(w => { w.del('evenements', ev.id); for (const t of targets) w.del('evenements', t.id); });
 }
