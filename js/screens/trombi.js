@@ -10,7 +10,7 @@ import { go, refresh } from '../nav.js';
 import { onFaireAppel } from '../alertes.js';
 import * as PC from '../plan-classe.js';
 import * as S from '../salles.js';
-import { planHtml } from '../plan-view.js';
+import { planHtml, proportions } from '../plan-view.js';
 
 const LONG_PRESS_MS = 450;
 const COLOR = { neg: 'var(--neg)', pos: 'var(--pos)' };
@@ -26,14 +26,15 @@ let placing = null;      // classId en mode « Placer les élèves »
 let selSid = null;       // élève choisi (à placer / à déplacer)
 const choixSalle = {};   // classId → salle choisie à la main (sinon celle du cours)
 
+const salleCourante = classId => PC.salleDe(classId, choixSalle[classId]).salle;
+
 function planVue(classId, inAppel, stateOf, counts) {
-  const salle = PC.salleDe(classId, choixSalle[classId]);
+  const { salle, fixe, choix } = PC.salleDe(classId, choixSalle[classId]);
   if (!salle) return html`<div class="empty-block">Aucun plan de salle pour l’instant.
     <a class="btn accent" href="#/admin/salles">${icon.grid}Créer le plan de votre salle</a></div>`;
   const map = PC.placement(classId, salle);
   const enPlace = placing === classId;
   const libres = PC.nonPlaces(classId, salle);
-  const salles = S.salles();
   const seat = p => {
     const s = map[p.id] && db.get('students', map[p.id]);
     if (!s) return html`<button type="button" class="pseat empty${enPlace && selSid ? ' target' : ''}" data-click="seatTap" data-seat="${p.id}" aria-label="Place ${p.num} libre">${enPlace ? p.num : ''}</button>`;
@@ -44,27 +45,24 @@ function planVue(classId, inAppel, stateOf, counts) {
       ${!enPlace && !inAppel && c.pos ? html`<span class="pbadge pos">+${c.pos}</span>` : ''}
       ${st !== 'present' ? html`<span class="pstate">${st === 'absent' ? 'Absent' : 'Retard'}</span>` : ''}</button>`;
   };
-  return html`<div class="plan-classe${enPlace ? ' placing' : ''}">
-    <div class="plan-bar">
-      ${salles.length > 1 ? html`<div class="segmented">${salles.map(x => html`<button type="button" class="seg${x.id === salle.id ? ' on' : ''}" data-click="pickSalle" data-id="${x.id}">${x.name}</button>`)}</div>`
-        : html`<span class="strong-15">${salle.name}</span>`}
-      <span class="grow"></span>
-      ${inAppel ? '' : enPlace ? html`
-          <button type="button" class="btn soft small" data-click="remplir" data-h="0">Compléter (A → Z)</button>
-          <button type="button" class="btn soft small" data-click="remplir" data-h="1">Compléter au hasard</button>
-          <button type="button" class="btn soft small" data-click="viderPlan">Tout retirer</button>
-          <button type="button" class="btn accent small" data-click="finPlacer">Terminé</button>`
-        : html`<button type="button" class="btn soft small" data-click="placer">${icon.edit}Placer les élèves</button>`}
-    </div>
-    ${enPlace ? html`<div class="plan-aide muted small">${selSid ? html`<strong>${model.fullName(db.get('students', selSid))}</strong> : touchez sa place (une place prise = échange).
-        <button type="button" class="link-btn" data-click="retirerEleve">Retirer de sa place</button>`
-      : 'Touchez un élève ci-dessous (ou sur le plan, pour le déplacer), puis sa place.'}</div>
+  // Choix de salle seulement si l'emploi du temps ne donne pas la salle du cours (et qu'il y en a plusieurs au collège).
+  const choixHtml = !fixe && choix.length > 1 ? html`<div class="segmented plan-salles">${choix.map(x => html`<button type="button" class="seg${x.id === salle.id ? ' on' : ''}" data-click="pickSalle" data-id="${x.id}">${x.name}</button>`)}</div>` : '';
+  const vide = !Object.keys(map).length;
+  return html`<div class="plan-classe-wrap${enPlace ? ' placing' : ''}">
+    ${enPlace ? html`<aside class="plan-side">
+      <div class="plan-aide small">${selSid ? html`<strong>${model.fullName(db.get('students', selSid))}</strong><br>Touchez sa place (une place prise = échange).
+          <button type="button" class="link-btn" data-click="retirerEleve">Retirer de sa place</button>`
+        : html`Touchez un élève, puis sa place sur le plan. Touchez un élève du plan pour le déplacer.`}</div>
       <div class="plan-libres">${libres.length ? libres.map(s => html`<button type="button" class="libre${selSid === s.id ? ' on' : ''}" data-click="pickEleve" data-sid="${s.id}">
           ${photo(s, { label: false, cls: 'mini' })}<span>${s.prenom} ${s.nom.charAt(0)}.</span></button>`)
-        : html`<span class="muted small">Tous les élèves sont placés ✓</span>`}</div>` : ''}
-    ${planHtml(salle, { seat })}
-    ${!enPlace && libres.length && Object.keys(map).length ? html`<div class="muted small">Non placés : ${libres.map(s => model.shortName(s)).join(', ')}</div>` : ''}
-    ${!enPlace && !Object.keys(map).length ? html`<div class="muted small center">Personne n’est encore placé : touchez « Placer les élèves ».</div>` : ''}
+        : html`<span class="muted small">Tous les élèves sont placés ✓</span>`}</div>
+    </aside>` : ''}
+    <div class="plan-classe" style="--ar:${proportions(salle, true).toFixed(4)}">
+      ${choixHtml}
+      ${planHtml(salle, { seat, zoom: true })}
+      ${!enPlace && !vide && libres.length ? html`<div class="muted small">Non placés : ${libres.map(s => model.shortName(s)).join(', ')}</div>` : ''}
+      ${!enPlace && vide ? html`<div class="muted small center">Personne n’est encore placé : touchez « Placer les élèves » en haut.</div>` : ''}
+    </div>
   </div>`;
 }
 
@@ -407,11 +405,17 @@ export default {
           <button type="button" class="seg${vue === 'photos' ? ' on' : ''}" data-click="vue" data-k="photos">Photos</button>
           <button type="button" class="seg${vue === 'plan' ? ' on' : ''}" data-click="vue" data-k="plan">Plan</button>
         </div>
-        ${inAppel ? '' : html`
+        ${inAppel ? '' : vue === 'plan' && placing === classId ? html`
+          <button type="button" class="btn soft" data-click="remplir" data-h="0">Compléter A → Z</button>
+          <button type="button" class="btn soft" data-click="remplir" data-h="1">Au hasard</button>
+          <button type="button" class="btn soft" data-click="viderPlan">Tout retirer</button>
+          <button type="button" class="btn accent" data-click="finPlacer">Terminé</button>`
+        : html`
+          ${vue === 'plan' && students.length && salleCourante(classId) ? html`<button type="button" class="btn soft" data-click="placer">${icon.edit}<span class="hide-phone">Placer les élèves</span></button>` : ''}
           <button type="button" class="btn soft" data-click="startAppel">${icon.roll}<span class="hide-phone">Appel</span></button>
           <button type="button" class="btn soft" data-click="draw">${icon.dice}<span class="hide-phone">Tirage</span></button>
           <button type="button" class="btn soft" data-click="presence">${icon.tabProjet}<span class="hide-phone">Présence</span></button>
-          <div class="legend hide-narrow">
+          <div class="legend hide-narrow${vue === 'plan' ? ' hide-plan' : ''}">
             <span><i class="sw neg"></i>Comportement</span>
             <span><i class="sw pos"></i>Aide / soutien / rangement</span>
           </div>
@@ -520,7 +524,7 @@ export default {
     finPlacer() { placing = null; selSid = null; refresh(); toast({ text: 'Plan de classe enregistré' }); },
     pickEleve(el) { selSid = selSid === el.dataset.sid ? null : el.dataset.sid; refresh(); },
     seatTap(el, e, { classId }) {
-      const salle = PC.salleDe(classId, choixSalle[classId]);
+      const salle = salleCourante(classId);
       const sid = el.dataset.sid || null;
       if (placing === classId) {
         if (selSid) { PC.placer(classId, salle, el.dataset.seat, selSid); selSid = null; }
@@ -542,19 +546,19 @@ export default {
       });
     },
     retirerEleve(el, e, { classId }) {
-      const salle = PC.salleDe(classId, choixSalle[classId]);
+      const salle = salleCourante(classId);
       const seat = Object.entries(PC.placement(classId, salle)).find(([, s]) => s === selSid);
       if (seat) PC.placer(classId, salle, seat[0], null);
       selSid = null; refresh();
     },
     remplir(el, e, { classId }) {
-      const salle = PC.salleDe(classId, choixSalle[classId]);
+      const salle = salleCourante(classId);
       const { undo, reste } = PC.remplir(classId, salle, { hasard: el.dataset.h === '1' });
       selSid = null; refresh();
       toast({ text: reste ? `Plus de place libre : ${reste} élève${reste > 1 ? 's' : ''} non placé${reste > 1 ? 's' : ''}` : 'Élèves placés', undo: async () => { await undo(); refresh(); } });
     },
     async viderPlan(el, e, { classId }) {
-      const salle = PC.salleDe(classId, choixSalle[classId]);
+      const salle = salleCourante(classId);
       const undo = PC.vider(classId, salle);
       selSid = null; refresh();
       toast({ text: 'Plan vidé', undo: async () => { await undo(); refresh(); } });

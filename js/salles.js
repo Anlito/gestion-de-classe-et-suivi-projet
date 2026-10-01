@@ -23,6 +23,20 @@ export function disposition(t) {
 }
 export function tailleIlot(t) { const d = disposition(t); return { w: d.cols, h: d.rows }; }
 
+// Cadre des îlots (en unités), îlots tournés compris, avec une petite marge : sert à « zoomer » le plan de classe.
+export function cadre(salle, marge = 0.25) {
+  const ts = tablesOf(salle);
+  if (!ts.length) return { x: 0, y: 0, w: LARGEUR, h: HAUTEUR };
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const t of ts) {
+    const { cols, rows } = disposition(t), a = (t.angle || 0) * Math.PI / 180;
+    const ex = Math.abs(cols / 2 * Math.cos(a)) + Math.abs(rows / 2 * Math.sin(a));
+    const ey = Math.abs(cols / 2 * Math.sin(a)) + Math.abs(rows / 2 * Math.cos(a));
+    x0 = Math.min(x0, t.cx - ex); x1 = Math.max(x1, t.cx + ex); y0 = Math.min(y0, t.cy - ey); y1 = Math.max(y1, t.cy + ey);
+  }
+  return { x: x0 - marge, y: y0 - marge, w: x1 - x0 + 2 * marge, h: y1 - y0 + 2 * marge };
+}
+
 // Ancien format (1.19.0 : coin en haut à gauche sur une grille, vertical) → centre + angle.
 export function normTable(t) {
   if (t.cx != null) return t;
@@ -62,27 +76,36 @@ export function places(salle) {
 }
 export const nbPlaces = salle => places(salle).length;
 
+// Une salle appartient à un collège (etabId, 1.20.1) : deux collèges peuvent avoir chacun une « Techno 1 ».
 export const salles = () => db.all('salles').sort((a, b) => a.name.localeCompare(b.name, 'fr', { numeric: true }));
 const norm = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-export const salleNommee = name => db.all('salles').find(s => norm(s.name) === norm(name)) || null;
-// Salle d'un cours (plan de classe, étape 3) : le plan qui porte le nom de la salle du cours.
-export const salleDuCours = cours => (cours && cours.salle ? salleNommee(planning.eff(cours).salle) : null);
+const memeEtab = (s, etabId) => !etabId || !s.etabId || s.etabId === etabId;
+// Plan d'une salle d'après son nom (et son collège : celui-ci d'abord, puis une salle sans collège).
+export function salleNommee(name, etabId = null) {
+  const ok = db.all('salles').filter(s => norm(s.name) === norm(name) && memeEtab(s, etabId));
+  return ok.find(s => s.etabId && s.etabId === etabId) || ok[0] || null;
+}
+// Salle d'un cours : le plan qui porte le nom de la salle du cours, dans le collège du cours.
+export const salleDuCours = cours => { const e = cours && planning.eff(cours); return e && e.salle ? salleNommee(e.salle, e.etabId) : null; };
+export const sallesDuCollege = etabId => salles().filter(s => memeEtab(s, etabId));
+export const etabLabel = s => { const e = s && s.etabId && db.get('etablissements', s.etabId); return e ? e.initiales : ''; };
 
-// Salles de l'emploi du temps (cours suivis ou « appel seulement ») sans plan : [{ name, n }], les plus utilisées d'abord.
+// Salles de l'emploi du temps (cours suivis ou « appel seulement ») sans plan : [{ name, etabId, n }], les plus utilisées d'abord.
 export function sallesSansPlan() {
   const m = new Map();
   for (const c of db.all('cours').map(planning.eff)) {
     if (!c.salle || !['suivi', 'appel'].includes(planning.roleOfCours(c))) continue;
-    const k = norm(c.salle);
-    const x = m.get(k) || { name: c.salle, n: 0 };
+    const k = (c.etabId || '') + '|' + norm(c.salle);
+    const x = m.get(k) || { name: c.salle, etabId: c.etabId || null, n: 0 };
     x.n++; m.set(k, x);
   }
-  return [...m.entries()].filter(([k]) => !db.all('salles').some(s => norm(s.name) === k)).map(([, x]) => x).sort((a, b) => b.n - a.n);
+  return [...m.values()].filter(x => !db.all('salles').some(s => norm(s.name) === norm(x.name) && memeEtab(s, x.etabId)))
+    .sort((a, b) => b.n - a.n);
 }
 
 // Plan de départ : 6 îlots de 4 (salle de techno), ou 5 rangs de 3 tables de 2.
-export function nouvelleSalle(name, type = 'ilots') {
-  const s = { name: name.trim(), type, tables: [], rangs: 5, colonnes: 3, parTable: 2 };
+export function nouvelleSalle(name, type = 'ilots', etabId = null) {
+  const s = { name: name.trim(), etabId: etabId || (db.all('etablissements').length === 1 ? db.all('etablissements')[0].id : null), type, tables: [], rangs: 5, colonnes: 3, parTable: 2 };
   if (type === 'ilots') {
     const pos = [[2, 2.5], [6, 2.5], [10, 2.5], [2, 6.5], [6, 6.5], [10, 6.5]];
     s.tables = pos.map(([cx, cy]) => ({ id: db.uid().slice(0, 8), cx, cy, angle: 0, places: 4, ligne: false }));

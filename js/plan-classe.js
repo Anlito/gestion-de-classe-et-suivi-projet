@@ -6,15 +6,20 @@ import * as model from './model.js';
 import * as planning from './planning.js';
 import * as S from './salles.js';
 
-// Salle du plan pour une classe : celle du cours en contexte (planning), sinon la dernière utilisée, sinon la première.
+// Collège d'une classe : celui dont l'emploi du temps relie une classe Pronote à cette classe.
+export const etabDe = classId => (db.all('etablissements').find(e => Object.values(e.classes || {}).some(m => m.classId === classId)) || {}).id || null;
+
+// Salle du plan pour une classe : { salle, fixe, choix }.
+// - salle de l'emploi du temps pour le cours en contexte : elle seule (fixe = true, pas de choix affiché) ;
+// - sinon : salles du collège de la classe (choix), la dernière utilisée d'abord.
 export function salleDe(classId, choisie = null) {
-  if (choisie && db.get('salles', choisie)) return db.get('salles', choisie);
   const k = planning.coursContexte(classId);
-  const ducours = k && S.salleNommee(k.salle);
-  if (ducours) return ducours;
+  const ducours = k && S.salleDuCours(k.src || k);
+  if (ducours && !choisie) return { salle: ducours, fixe: true, choix: [ducours] };
+  const choix = S.sallesDuCollege(etabDe(classId));
   const c = db.get('classes', classId);
-  if (c && c.planSalle && db.get('salles', c.planSalle)) return db.get('salles', c.planSalle);
-  return S.salles()[0] || null;
+  const salle = (choisie && db.get('salles', choisie)) || (c && c.planSalle && choix.find(s => s.id === c.planSalle)) || choix[0] || null;
+  return { salle, fixe: false, choix };
 }
 
 // Placement { idPlace: studentId } limité aux places de la salle et aux élèves de la classe.

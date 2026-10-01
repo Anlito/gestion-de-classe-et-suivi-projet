@@ -1031,3 +1031,17 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 @media (max-width: 1180px) { .hide-admin-status { display: none; } }
 @media (max-width: 1000px) { .admin-nav .hide-narrow { display: none; } }
 .pseat.empty { background: color-mix(in srgb, var(--surface) 70%, transparent); border: 2px dashed color-mix(in srgb, var(--ink2) 45%, transparent); }
+
+/* Plan de classe agrandi (1.20.1) : recadré sur les îlots, à la hauteur de l'écran ; élèves à placer sur le côté */
+.plan-classe-wrap { display: flex; gap: 14px; align-items: flex-start; justify-content: center; }
+.plan-classe { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; width: auto; max-width: min(100%, calc((100dvh - 190px) * var(--ar))); margin: 0 auto; }
+.plan-classe-wrap.placing .plan-classe { max-width: min(100%, calc((100dvh - 190px) * var(--ar))); }
+.plan-side { flex: 0 0 210px; display: flex; flex-direction: column; gap: 8px; max-height: calc(100dvh - 170px); position: sticky; top: 0; }
+.plan-side .plan-libres { flex-direction: column; overflow-y: auto; overflow-x: hidden; padding: 0 4px 6px 0; }
+.plan-side .libre { justify-content: flex-start; }
+.plan-salles { align-self: center; }
+.plan-room.zoom { background-image: none; }
+.legend.hide-plan, .legend.hide-plan + .vsep { display: none; }
+.plan-classe .pname { font-size: 12.5px; }
+.plan-classe .pbadge { font-size: 11.5px; }
+@media (max-width: 760px) { .plan-classe-wrap { flex-direction: column; } .plan-side { flex: none; width: 100%; max-height: none; position: static; } .plan-side .plan-libres { flex-direction: row; overflow-x: auto; } }

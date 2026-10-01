@@ -3,6 +3,7 @@
 // Rangées : nombre de rangs, de tables par rang et de places par table.
 import * as db from '../db.js';
 import * as S from '../salles.js';
+import * as planning from '../planning.js';
 import { planHtml } from '../plan-view.js';
 import { html, toast, confirmDialog } from '../ui.js';
 import { icon, backLink } from '../components.js';
@@ -34,16 +35,16 @@ function listView() {
           y placera les élèves. Le nom de la salle doit être celui de l’emploi du temps (ex. « Techno 1 ») pour que chaque cours retrouve son plan.</div>
         ${list.length ? list.map(s => html`<a class="etab-row salle-row" href="#/admin/salle/${s.id}">
             <span class="arch-ic">${icon.grid}</span>
-            <div class="grow"><div class="strong-15">${s.name}</div>
+            <div class="grow"><div class="strong-15">${s.name}${S.etabLabel(s) ? html` <span class="chip">${S.etabLabel(s)}</span>` : ''}</div>
               <div class="muted small">${s.type === 'rangees' ? `Rangées · ${s.rangs} × ${s.colonnes} tables` : `Îlots · ${plural((s.tables || []).length, 'îlot', 'îlots')}`} · ${plural(S.nbPlaces(s), 'place', 'places')}</div></div>
             ${icon.chevron}</a>`)
           : html`<div class="muted">Aucun plan de salle pour l’instant.</div>`}
       </div>
       ${sans.length ? html`<div class="set-block">
         <div class="set-title">Salles de votre emploi du temps sans plan</div>
-        ${sans.slice(0, 8).map(x => html`<div class="etab-row"><div class="grow"><div class="strong-15">${x.name}</div>
+        ${sans.slice(0, 8).map(x => html`<div class="etab-row"><div class="grow"><div class="strong-15">${x.name}${S.etabLabel(x) ? html` <span class="chip">${S.etabLabel(x)}</span>` : ''}</div>
           <div class="muted small">${plural(x.n, 'cours', 'cours')}</div></div>
-          <button type="button" class="btn soft small" data-click="creer" data-name="${x.name}">Créer le plan</button></div>`)}
+          <button type="button" class="btn soft small" data-click="creer" data-name="${x.name}" data-etab="${x.etabId || ''}">Créer le plan</button></div>`)}
       </div>` : ''}
     </main>
   </div>`;
@@ -65,7 +66,9 @@ function editView() {
       <section class="panel form">
         <label class="lbl">Nom de la salle (comme dans l’emploi du temps)
           <input class="input big" value="${s.name}" data-input="name" placeholder="ex. Techno 1"></label>
-        ${sugg.length ? html`<div class="row-center wrap">${sugg.map(x => html`<button type="button" class="chip-btn${x.name === s.name ? ' on' : ''}" data-click="pickName" data-name="${x.name}">${x.name}</button>`)}</div>` : ''}
+        ${sugg.length ? html`<div class="row-center wrap">${sugg.map(x => html`<button type="button" class="chip-btn${x.name === s.name ? ' on' : ''}" data-click="pickName" data-name="${x.name}" data-etab="${x.etabId || ''}">${x.name}${S.etabLabel(x) ? ' · ' + S.etabLabel(x) : ''}</button>`)}</div>` : ''}
+        ${db.all('etablissements').length ? html`<label class="lbl">Collège
+          <select class="input" data-change="etab"><option value="">— Tous —</option>${planning.etablissements().map(e => html`<option value="${e.id}" ${s.etabId === e.id ? 'selected' : ''}>${e.initiales} · ${e.name}</option>`)}</select></label>` : ''}
         <div class="segmented">
           <button type="button" class="seg${s.type === 'ilots' ? ' on' : ''}" data-click="type" data-k="ilots">Îlots</button>
           <button type="button" class="seg${s.type === 'rangees' ? ' on' : ''}" data-click="type" data-k="rangees">Rangées</button>
@@ -115,9 +118,14 @@ export default {
     if (!draft || draft.key !== id) {
       const s = id === 'new' ? null : db.get('salles', id);
       if (id !== 'new' && !s) { go('#/admin/salles', { replace: true }); return null; }
-      draft = s ? { ...JSON.parse(JSON.stringify(s)), key: id } : { ...S.nouvelleSalle(pendingName || ''), key: id };
+      draft = s ? { ...JSON.parse(JSON.stringify(s)), key: id } : { ...S.nouvelleSalle(pendingName || '', 'ilots', pendingEtab), key: id };
       draft.tables = S.tablesOf(draft);
-      pendingName = '';
+      // Ancien plan sans collège : celui des cours qui ont lieu dans cette salle, s'il n'y en a qu'un.
+      if (draft.etabId === undefined) {
+        const etabs = [...new Set(db.all('cours').filter(c => (c.salle || '').trim().toLowerCase() === (draft.name || '').trim().toLowerCase()).map(c => c.etabId).filter(Boolean))];
+        draft.etabId = etabs.length === 1 ? etabs[0] : null;
+      }
+      pendingName = ''; pendingEtab = null;
       sel = null;
     }
     return editView();
@@ -165,9 +173,10 @@ export default {
   leave() { draft = null; sel = null; },
 
   actions: {
-    creer(el) { pendingName = el.dataset.name; go('#/admin/salle/new'); },
+    creer(el) { pendingName = el.dataset.name; pendingEtab = el.dataset.etab || null; go('#/admin/salle/new'); },
     name(el) { draft.name = el.value; },
-    pickName(el) { draft.name = el.dataset.name; refresh(); },
+    pickName(el) { draft.name = el.dataset.name; if (el.dataset.etab) draft.etabId = el.dataset.etab; refresh(); },
+    etab(el) { draft.etabId = el.value || null; },
     type(el) {
       if (draft.type === el.dataset.k) return;
       draft.type = el.dataset.k;
@@ -205,8 +214,8 @@ export default {
     save() {
       const name = (draft.name || '').trim();
       if (!name) { toast({ text: 'Donnez le nom de la salle' }); document.querySelector('[data-input="name"]').focus(); return; }
-      const autre = S.salleNommee(name);
-      if (autre && autre.id !== draft.id) { toast({ text: `Il existe déjà un plan pour « ${autre.name} »` }); return; }
+      const autre = S.salleNommee(name, draft.etabId);
+      if (autre && autre.id !== draft.id && (autre.etabId || null) === (draft.etabId || null)) { toast({ text: `Il existe déjà un plan pour « ${autre.name} »${S.etabLabel(autre) ? ' (' + S.etabLabel(autre) + ')' : ''}` }); return; }
       if (!S.nbPlaces(draft)) { toast({ text: 'Le plan n’a aucune place' }); return; }
       const { key, ...rec } = draft;
       rec.name = name;
@@ -226,4 +235,4 @@ export default {
     },
   },
 };
-let pendingName = ''; // nom proposé par « Créer le plan » (liste des salles sans plan)
+let pendingName = '', pendingEtab = null; // nom et collège proposés par « Créer le plan » (salles sans plan)

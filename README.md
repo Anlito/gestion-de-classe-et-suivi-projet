@@ -171,6 +171,16 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 
 ## Historique des versions
 
+### 1.20.1 — 1er octobre 2026 · Plan de classe : plus grand, salle du collège
+- Retours du professeur : le bloc « Tableau » prenait de la place → **supprimé** (plan de classe et éditeur des salles).
+- Une salle appartient à un **collège** (`salles.etabId`, champ « Collège » dans l'éditeur ; deviné d'après l'emploi du
+  temps pour les plans existants, proposé par « Créer le plan ») : deux collèges peuvent avoir chacun leur « Techno 1 ».
+  Quand l'emploi du temps donne la salle du cours, **seule cette salle** est affichée (aucun choix) ; sinon, choix parmi
+  les salles du collège de la classe (`planClasse.etabDe`).
+- **Plan agrandi** : « Placer les élèves » et, pendant le placement, « Compléter A → Z / Au hasard / Tout retirer /
+  Terminé » passent dans la **barre du haut** ; élèves à placer dans une **colonne à gauche** ; plan **recadré sur les
+  îlots** (`salles.cadre`, `planHtml({ zoom })`) et dimensionné à la hauteur de l'écran (places ≈ 45 → 69 px à 1280 × 800).
+
 ### 1.20.0 — 1er octobre 2026 · Plan de classe et matériel, étape 3 : plan de classe
 - Trombinoscope : bascule **« Photos | Plan »** (choix mémorisé sur l'appareil). Le plan affiche la salle du cours en
   contexte (salle de l'emploi du temps), sinon la dernière utilisée par la classe ; choix de la salle au-dessus du plan.
