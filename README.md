@@ -157,6 +157,13 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 
 ## Historique des versions
 
+### 1.17.1 — 1er octobre 2026 · Planning : la vie de classe se distingue d'un cours
+- Retour du professeur (professeur principal de 2 classes) : au planning, une heure de **vie de classe** ressemblait à
+  un cours de technologie avec la même classe. Désormais, tout cours d'une classe reliée qui n'est pas un « cours
+  suivi » (vie de classe, matière en grisé, cours ajouté en « appel seulement ») affiche sa **matière** (« Vie de
+  classe ») à côté du nom de la classe — ou en 2e ligne si plusieurs cours se partagent le créneau — avec un fond
+  hachuré ; aussi dans le panneau du cours.
+
 ### 1.17.0 — 1er octobre 2026 · Archives des années consultables
 - Demande du professeur : archiver l'année avant « Nouvelle année ». Avant : un fichier téléchargé, qu'on ne pouvait
   rouvrir qu'en **remplaçant** toutes les données. Maintenant l'archive est **consultable dans l'app, en lecture seule**,

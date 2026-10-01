@@ -44,6 +44,12 @@ function projetOf(classId) {
   return { a, p, label: `${p.title} · séance ${pr.cur}/${pr.total}` };
 }
 const nameOf = (e, cls) => (cls ? cls.name : e.classe || e.matiere);
+// « VIE DE CLASSE » → « Vie de classe » ; cours ajouté à la main en « appel seulement » → « Appel seulement ».
+const matLabel = (c, role) => {
+  const m = (c.matiere || '').trim();
+  if (m) return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+  return role === 'appel' ? 'Appel seulement' : '';
+};
 
 // Cours de la semaine prêts à afficher (tels que modifiés par le professeur : planning.eff).
 function weekCours(mon) {
@@ -63,6 +69,8 @@ function weekCours(mon) {
     return {
       c, e, cls, classId, link, off, start, end, live, moved,
       name: nameOf(c, cls),
+      // Matière affichée quand ce n'est pas un cours suivi « normal » (ex. vie de classe avec sa classe de PP).
+      mat: role !== 'suivi' && cls ? matLabel(c, role) : '',
       dim: role === 'grise' || link === 'ignored' || link === 'none',
       past: !live && (c.date < today || (c.date === today && end <= now)),
       chip: planning.statutLabel(c) && c.statut !== 'deplace' ? planning.statutLabel(c) : moved ? 'Déplacé' : live ? 'En cours' : '',
@@ -129,18 +137,19 @@ function lunchOf(items) {
 
 function block(it, top, height, left, width, lanesN) {
   const wide = lanesN === 1;
-  const cls = ['wk-c', it.dim ? 'dim' : '', it.off ? 'off' : '', it.live ? 'live' : '', it.link === 'todo' ? 'todo' : '',
+  const cls = ['wk-c', it.mat ? 'mat' : '', it.dim ? 'dim' : '', it.off ? 'off' : '', it.live ? 'live' : '', it.link === 'todo' ? 'todo' : '',
     it.past && !it.off ? 'past' : '', moving && moving !== it.c.id ? 'faded' : '', moving === it.c.id ? 'sel' : '', height < 44 ? 'tiny' : ''].filter(Boolean).join(' ');
   const proj = wide && !it.off && height >= 62 ? (it.c.deplaceDe ? 'Déplacé depuis ' + fmtSlot(it.c.deplaceDe.date, it.c.deplaceDe.debut) : (projetOf(it.classId) || {}).label) : '';
   const time = `${it.c.debut}–${it.c.fin}`;
-  const line2 = wide ? time + (it.c.salle ? ' · ' + it.c.salle : '') + (it.appelFait ? ' · appel ✓' : '') : it.chip || (lanesN === 2 ? time : it.c.debut);
+  const line2 = wide ? time + (it.c.salle ? ' · ' + it.c.salle : '') + (it.appelFait ? ' · appel ✓' : '') : it.chip || it.mat || (lanesN === 2 ? time : it.c.debut);
   return html`<div role="button" tabindex="0" class="${cls}" data-click="sheet" data-id="${it.c.id}"
     style="top:${top}px;height:${height}px;left:calc(${left}% + ${it.lane ? 3 : 0}px);width:calc(${width}% - ${lanesN > 1 ? 3 : 0}px);--tint:${it.off ? 'transparent' : tintOf(it.cls)};--etab:${it.e ? it.e.color : 'transparent'}"
-    aria-label="${it.name}, ${time}${it.chip ? ', ' + it.chip : ''}${it.c.note ? ', note : ' + it.c.note : ''}">
+    aria-label="${it.name}${it.mat ? ', ' + it.mat : ''}, ${time}${it.chip ? ', ' + it.chip : ''}${it.c.note ? ', note : ' + it.c.note : ''}">
     <span class="wk-row1"><span class="wk-name">${it.name}${it.link === 'todo' ? ' ?' : ''}</span>
+      ${it.mat && wide ? html`<span class="wk-mat">${it.mat}</span>` : ''}
       ${it.c.note ? html`<span class="wk-note-ic" title="${it.c.note}">${icon.list}</span>` : ''}
       ${wide && it.chip ? html`<span class="wk-chip${it.live ? ' live' : it.off ? ' warn' : ''}">${it.chip}</span>` : ''}</span>
-    <span class="wk-meta${!wide && it.chip ? ' strong' : ''}">${line2}</span>
+    <span class="wk-meta${!wide && (it.chip || it.mat) ? ' strong' : ''}">${line2}</span>
     ${proj ? html`<span class="wk-proj">${proj}</span>` : ''}
     ${it.live ? html`<span class="wk-progress"><span style="width:${it.progress}%"></span></span>` : ''}
   </div>`;
@@ -196,7 +205,7 @@ function sheetView() {
     const proj = projetOf(classId);
     const choix = planning.choixOf(e.statut);
     head = html`<div class="cs-head" style="background:${tintOf(cls)}">
-        <div class="grow"><div class="cs-title">${nameOf(e, cls)}</div>
+        <div class="grow"><div class="cs-title">${nameOf(e, cls)}${(() => { const r = planning.roleOfCours(e); const m = r !== 'suivi' && cls ? matLabel(e, r) : ''; return m ? html` <span class="wk-mat big">${m}</span>` : ''; })()}</div>
           <div class="cs-when">${fmtLong(e.date)} · ${e.debut}–${e.fin}</div>
           <div class="cs-where">${[e.salle && 'Salle ' + e.salle, etab && etab.initiales, e.source === 'manuel' && 'ajouté à la main'].filter(Boolean).join(' · ') || ' '}</div></div>
         <button type="button" class="cs-close" data-click="closeSheet" aria-label="Fermer">${icon.close}</button>

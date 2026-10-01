@@ -947,3 +947,8 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .archive-box { background: var(--accentTint, #ece8ff); border: 2px solid var(--accent, #6b5bd2); }
 .archive-box .alerts-head { cursor: default; gap: 10px; }
 .archive-box .alerts-dot { background: var(--accent, #6b5bd2); }
+/* Matière d'un cours autre qu'un cours suivi, ex. « Vie de classe » (1.17.1) */
+.wk-mat { flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 800; line-height: 1; padding: 4px 7px; border-radius: 7px; background: var(--ink); color: var(--surface); }
+.wk-mat.big { font-size: 14px; padding: 5px 9px; vertical-align: middle; max-width: none; }
+.wk-c.mat { background-image: repeating-linear-gradient(135deg, transparent 0 9px, color-mix(in srgb, var(--ink) 7%, transparent) 9px 11px); }
+.wk-c.tiny .wk-mat { font-size: 10.5px; padding: 3px 5px; }
