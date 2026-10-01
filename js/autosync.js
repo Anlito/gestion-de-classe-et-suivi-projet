@@ -105,7 +105,7 @@ function afficher() {
   if (occupe()) { attente = setTimeout(afficher, 2000); return; }
   refresh();
 }
-const occupe = () => !!(document.querySelector('#layer > *') || document.querySelector('.drawer, .draw-box, .appel-mode, .busy')
+const occupe = () => !!(document.querySelector('#layer > *') || document.querySelector('.drawer, .draw-box, .appel-mode, .busy, #view .scrim')
   || (document.activeElement && document.activeElement.matches('input, select, textarea')));
 function fail(e, interactive) {
   if (e instanceof drive.NeedAuth) setState('auth', 'Touchez pour vous reconnecter à Google.');

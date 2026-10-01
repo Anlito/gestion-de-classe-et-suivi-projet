@@ -37,6 +37,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/sync.js` | fusion des données entre appareils (synchronisation Google Drive) |
 | `js/drive.js` | connexion Google (identifiant client propre à chaque professeur) et échanges avec son Drive |
 | `js/autosync.js` | synchronisation automatique et indicateur « Synchronisé à … » dans l'en-tête |
+| `js/pronote-lien.js` | emploi du temps mis à jour par lien Pronote (via le relais Google du professeur), chaque soir ou sur demande |
 | `js/alertes.js` | alertes dans l'app (appel non fait, séances à remplir), coin de l'écran, tous les écrans |
 | `js/screens/semaine.js` | accueil `#/` : planning de la semaine (sans emploi du temps : affiche la liste des classes) |
 | `js/screens/accueil.js` | liste des classes en tuiles (`#/classes`) |
@@ -79,7 +80,30 @@ et, s'il le souhaite, dans **son** Google Drive — personne d'autre n'y a accè
    Sur chaque autre appareil : même identifiant, même compte Google, « Se connecter à Google ».
 4. Si un professeur héberge sa propre copie du projet (autre adresse), l'origine à autoriser est la sienne : le guide
    affiche automatiquement l'adresse exacte à copier.
-## Chantier en cours : synchronisation Google Drive (décisions prises)
+## Chantier en cours : emploi du temps par lien Pronote (décisions prises)
+
+Demande du professeur (1er oct.) : utiliser le **lien d'abonnement iCal** de Pronote (un par collège) pour que le
+planning reste toujours à jour avec Pronote, sans import de fichier. Étapes : **1** lien + relais + mise à jour auto
+(1.15.0) · **2** « événements » hors Pronote (réunion entre profs, rencontre parents-profs, porte ouverte…) à la place
+de l'ajout manuel de cours (à faire).
+
+- **Pronote n'autorise pas la lecture du calendrier par une page web** (pas d'en-tête CORS, vérifié le 1er oct.) :
+  passage par un **relais Google Apps Script créé par chaque professeur dans son propre compte** (choix du professeur,
+  plutôt qu'un relais public qui verrait le lien secret et les noms des collègues). Code et guide dans l'app
+  (`pronote.RELAIS_CODE`) ; déploiement « Application Web », exécuté en tant que soi, accès « Tout le monde ». Le relais
+  n'accepte que des liens `https://…/pronote/ical/…`. L'app lui envoie le lien dans le **corps** d'un POST `text/plain`.
+- Le **lien Pronote est secret** (équivaut à un mot de passe en lecture de l'emploi du temps) : jamais dans le dépôt, ni
+  dans les tests (liens fictifs). Il est enregistré sur l'établissement et **synchronisé via Drive** (choix du
+  professeur) ; l'adresse du relais aussi (`meta.relaisPronote`).
+- Mise à jour **automatique chaque soir à partir de 18 h** si l'app est ouverte, sinon à l'ouverture suivante
+  (`aFaire` : dernière mise à jour avant le dernier « 18 h ») ; bouton **« Mettre à jour maintenant »** (admin) et bouton
+  ⟳ dans l'en-tête du planning (ex. cours déplacé par la direction).
+- En automatique : conflits réglés par les choix par défaut (les modifications du professeur l'emportent, ses cours
+  avec appel / séance / note sont gardés) ; **aucune nouvelle classe reliée d'office** (signalée dans l'admin).
+- **Identifiants stables** pour les cours et vacances importés (`planning.stableId`) : si deux appareils mettent à jour
+  le même emploi du temps, la synchronisation Drive ne crée pas de doublons.
+
+## Chantier terminé : synchronisation Google Drive (décisions prises)
 
 Même méthode que le chantier Planning : une étape = une version, tests sur la tablette, retour du professeur.
 Étapes : **A** fondations de la fusion (1.12.0) · **B** connexion Google Drive et choix du mode (1.13.0) ·
@@ -126,6 +150,23 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 - Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
+
+### 1.15.0 — 1er octobre 2026 · Emploi du temps par lien Pronote, étape 1 : mise à jour automatique
+- Administration → Emploi du temps : nouvelle partie **« Mise à jour automatique depuis Pronote »** : adresse du relais
+  Google (Enregistrer, Tester), guide pas à pas en 4 parties avec le code à copier, lien Pronote d'un nouveau collège
+  (« Ajouter » ouvre l'assistant habituel : classes puis aperçu), « Mettre à jour maintenant ».
+- Chaque collège : bouton **« Lien »** (ajouter / modifier / retirer ; le lien est vérifié : il doit donner CE collège),
+  état « Lien Pronote ✓ vérifié le … » ou dernière erreur, et « Nouvelle classe Pronote à relier » si besoin.
+- Nouveau `js/pronote-lien.js` : relais, téléchargement, mise à jour d'un collège sans assistant (`mettreAJour`),
+  résumé avec « Annuler », mise à jour automatique chaque soir à partir de 18 h ou à l'ouverture suivante (pas pendant
+  une saisie ou un panneau ouvert).
+- Planning : bouton ⟳ « Mettre à jour depuis Pronote » dans l'en-tête (si un lien est configuré).
+- `planning.readTexts` (import à partir de textes), `applyImport` : identifiants stables (cours, vacances), vacances
+  mises à jour seulement si elles changent, classes « pas encore décidées » laissées sans correspondance.
+- Synchronisation Drive : l'écran n'est plus redessiné quand le panneau d'un cours du planning est ouvert.
+- Vérifié avec un relais simulé et un calendrier fictif : salle modifiée, cours retiré, cours ajouté (identifiant
+  stable), 2e passage sans changement ; automatique silencieux sans changement, résumé + « nouvelle classe à relier »
+  sinon ; erreur affichée dans l'admin. Code du relais exécuté avec de faux services Google. Tests : 60 / 60.
 
 ### 1.14.1 — 1er octobre 2026 · Correctif : les modifications de l'ordinateur n'arrivaient pas sur la tablette
 - Retour du professeur : tablette → ordinateur OK, mais ordinateur → tablette seulement après une synchro manuelle

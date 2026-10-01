@@ -44,7 +44,8 @@ import { tests as icalTests } from './ical.test.js';
 import { tests as planningTests } from './planning.test.js';
 import { tests as syncTests } from './sync.test.js';
 import { tests as driveTests } from './drive.test.js';
-const tests = [...icalTests, ...planningTests, ...syncTests, ...driveTests];
+import { tests as pronoteTests } from './pronote.test.js';
+const tests = [...icalTests, ...planningTests, ...syncTests, ...driveTests, ...pronoteTests];
 import { parseICS, STATUTS } from '../js/ical.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

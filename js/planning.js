@@ -119,9 +119,13 @@ export function diffCours(existing, incoming) {
 // Lit des fichiers .ics et prépare l'import (sans rien enregistrer).
 // Renvoie [{ fileName, etabName, etab, initiales, color, cours, jours, classes: [{ key, name, n, matieres, classId, suggested }] }]
 export async function readFiles(files) {
+  return readTexts(await Promise.all(files.map(async f => ({ name: f.name, text: await f.text() }))));
+}
+// Même chose à partir de textes déjà lus ([{ name, text }]) : fichiers ou calendriers récupérés par lien.
+export function readTexts(sources) {
   const plans = [];
-  for (const f of files) {
-    const r = parseICS(await f.text());
+  for (const f of sources) {
+    const r = parseICS(f.text);
     if (!r.cours.length && !r.jours.length) throw new Error(`« ${f.name} » ne contient aucun cours : est-ce bien un export iCal de Pronote ?`);
     const etabName = r.etablissement || f.name.replace(/\.ics$/i, '');
     const etab = findEtab(etabName);
@@ -133,7 +137,7 @@ export async function readFiles(files) {
       const s = suggestClass(pc.name, initiales);
       return { ...pc, classId: s ? s.id : null, suggested: !!s };
     });
-    plans.push({ fileName: f.name, etabName, etab, initiales, color: etab ? etab.color : null, cours: r.cours.map(pick), jours: r.jours, classes });
+    plans.push({ fileName: f.name, etabName, etab, initiales, color: etab ? etab.color : null, cours: r.cours.map(pick), jours: r.jours, classes, lien: f.lien });
   }
   // Couleurs des nouveaux établissements : différentes entre elles et des existants.
   const used = new Set(db.all('etablissements').map(e => e.color));
@@ -181,14 +185,18 @@ function raisons(c, linked = liens()) {
 
 // Enregistre l'import (une seule action, annulable). Les cours inchangés gardent leur identifiant.
 // p.choix : { [id du cours en conflit]: 'moi'|'pronote'|'garder'|'supprimer' } (sinon choix par défaut).
+// p.classes : classId null = pas encore décidée (mise à jour automatique : nouvelle classe à relier dans l'admin).
+// p.lien : lien Pronote de l'établissement, enregistré avec lui (mise à jour par lien).
 export function applyImport(plans) {
   return db.commit(w => {
     for (const p of plans) {
       const map = { ...((p.etab && p.etab.classes) || {}) };
-      for (const c of p.classes) map[c.key] = { name: c.name, classId: c.classId || '' };
+      for (const c of p.classes) if (c.classId !== null) map[c.key] = { name: c.name, classId: c.classId || '' };
+      const at = new Date().toISOString();
+      const extra = p.lien ? { lien: p.lien, lienAt: at, lienErreur: undefined } : {};
       const etab = p.etab
-        ? w.update('etablissements', p.etab.id, { initiales: p.initiales, color: p.color, classes: map, importedAt: new Date().toISOString() })
-        : w.put('etablissements', { name: p.etabName, initiales: p.initiales, color: p.color, classes: map, importedAt: new Date().toISOString() });
+        ? w.update('etablissements', p.etab.id, { initiales: p.initiales, color: p.color, classes: map, importedAt: at, ...extra })
+        : w.put('etablissements', { name: p.etabName, initiales: p.initiales, color: p.color, classes: map, importedAt: at, ...extra });
       const d = previewOf({ ...p, etab: p.etab && etab });
       for (const c of d.suppressions) w.del('cours', c.id);
       for (const { old, now } of d.modifs) w.update('cours', old.id, now);
@@ -204,11 +212,28 @@ export function applyImport(plans) {
           w.update('cours', k.id, versManuel(k.old));
         }
       }
-      for (const c of d.ajouts) w.put('cours', { ...c, etabId: etab.id, source: 'pronote' });
-      for (const j of joursOfEtab(etab.id)) w.del('jours', j.id);
-      for (const j of p.jours) w.put('jours', { ...j, etabId: etab.id });
+      // Identifiants stables (même cours → même identifiant sur tous les appareils) : si la tablette et l'ordinateur
+      // mettent tous deux à jour l'emploi du temps, la synchronisation Drive ne crée pas de doublons.
+      const taken = new Set(d.suppressions.map(c => c.id));
+      for (const c of d.ajouts) {
+        let id = stableId('c', etab.id, [c.date, c.debut, normClasse(c.classe), c.matiere].join('|'));
+        for (let i = 2; taken.has(id) || db.get('cours', id); i++) id = stableId('c', etab.id, [c.date, c.debut, normClasse(c.classe), c.matiere, i].join('|'));
+        taken.add(id);
+        w.put('cours', { ...c, id, etabId: etab.id, source: 'pronote' });
+      }
+      // Vacances et fériés : seulement ce qui change (même raison).
+      const jours = new Map(p.jours.map(j => [stableId('j', etab.id, [j.du, j.au, j.type, j.label].join('|')), j]));
+      for (const j of joursOfEtab(etab.id)) if (!jours.has(j.id)) w.del('jours', j.id);
+      for (const [id, j] of jours) if (!db.get('jours', id)) w.put('jours', { ...j, id, etabId: etab.id });
     }
   });
+}
+// Identifiant déterministe court (FNV-1a 53 bits).
+export function stableId(prefix, etabId, key) {
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  const s = etabId + '|' + key;
+  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 ^ c, 2246822519); }
+  return prefix + '-' + ((h1 >>> 0).toString(36) + (h2 >>> 0).toString(36));
 }
 
 // Cours Pronote gardé alors que Pronote l'a retiré : devient un cours « ajouté à la main » tel qu'il s'affichait

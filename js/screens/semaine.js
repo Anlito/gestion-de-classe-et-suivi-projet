@@ -12,6 +12,7 @@ import { icon, saveStatus } from '../components.js';
 import { go, refresh } from '../nav.js';
 import accueil from './accueil.js';
 import { demanderAppel } from './trombi.js';
+import * as pronote from '../pronote-lien.js';
 
 let weekStart = null;   // lundi affiché (AAAA-MM-JJ)
 let dayIdx = null;      // jour affiché sur téléphone (0 = lundi)
@@ -313,6 +314,7 @@ export default {
         <div class="spacer"></div>
         ${saveStatus()}
         ${live ? html`<button type="button" class="btn accent wk-livebtn" data-click="open" data-id="${live.c.id}"><span class="dot"></span><span class="hide-phone">En cours · </span><strong>${live.name}</strong>${icon.arrow}</button>` : ''}
+        ${pronote.avecLien().length && pronote.relais() ? html`<button type="button" class="icon-btn${pronote.occupe() ? ' spin' : ''}" data-click="majPronote" aria-label="Mettre à jour depuis Pronote" title="Mettre à jour depuis Pronote">${icon.refresh}</button>` : ''}
         <button type="button" class="btn soft" data-click="add" aria-label="Ajouter un cours">${icon.plusBig}<span class="hide-narrow">Cours</span></button>
         <a class="btn soft" href="#/classes">${icon.tabTrombi}<span class="hide-narrow">Classes</span></a>
         <a class="btn soft" href="#/admin">${icon.sliders}<span class="hide-narrow">Administration</span></a>
@@ -378,6 +380,13 @@ export default {
   },
 
   actions: {
+    async majPronote() {
+      if (pronote.occupe()) return;
+      const p = pronote.toutMettreAJour();
+      refresh(); // bouton qui tourne
+      await p;
+      refresh();
+    },
     ...accueil.actions,
     prev() {
       if (narrow()) { if (dayIdx > 0) dayIdx--; else { weekStart = addDays(weekStart, -7); dayIdx = 4; } }

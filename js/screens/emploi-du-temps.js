@@ -3,13 +3,16 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import * as planning from '../planning.js';
-import { html, toast, confirmDialog, openMenu, fmtDay, fmtDate } from '../ui.js';
+import * as pronote from '../pronote-lien.js';
+import { html, raw, toast, confirmDialog, openMenu, fmtDay, fmtDate, fmtTime } from '../ui.js';
 import { icon, backLink, saveStatus } from '../components.js';
 import { refresh } from '../nav.js';
 
 // Assistant en cours : { mode: 'import'|'edit', step: 'map'|'preview', i (établissement affiché), plans }
 let wiz = null;
 let busy = '';
+// Saisies en cours (lien Pronote, relais) ; lienEdit = établissement dont on modifie le lien.
+let relaisDraft = null, lienDraft = {}, lienEdit = null;
 
 function pickIcs() {
   return new Promise(resolve => {
@@ -27,32 +30,113 @@ const plural = (n, one, many) => n + ' ' + (n > 1 ? many : one);
 const range = cours => { const d = cours.map(c => c.date).sort(); return d.length ? `du ${fmtDate(d[0])} au ${fmtDate(d[d.length - 1])}` : ''; };
 const coursLine = c => `${fmtDay(c.date)} ${c.debut} · ${c.classe || 'sans classe'} · ${c.matiere}${planning.statutLabel(c) ? ' · ' + planning.statutLabel(c) : ''}`;
 
+// ---------- Mise à jour par lien Pronote ----------
+const inputAttrs = 'autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url"';
+function lienEtat(e) {
+  if (!e.lien) return html`<span class="muted">Pas de lien Pronote : mise à jour par fichier seulement</span>`;
+  if (e.lienErreur) return html`<span class="lien-err">Lien Pronote : dernière mise à jour en échec — ${e.lienErreur}</span>`;
+  return html`<span class="lien-ok">Lien Pronote ✓</span>${e.lienAt ? ` · vérifié le ${fmtDate(e.lienAt)} à ${fmtTime(e.lienAt)}` : ''}`;
+}
+// Classes Pronote apparues depuis le dernier choix (mise à jour automatique) : à relier.
+const aRelier = e => planning.pronoteClasses(planning.coursOfEtab(e.id).filter(c => c.source === 'pronote')).filter(pc => !(e.classes || {})[pc.key]);
+
+function lienView() {
+  const r = pronote.relais();
+  const rv = relaisDraft != null ? relaisDraft : r;
+  const avec = pronote.avecLien();
+  return html`<div class="set-block">
+    <div class="set-title">Mise à jour automatique depuis Pronote</div>
+    <div class="muted small">Avec le <strong>lien d’abonnement iCal</strong> de Pronote (un par collège), l’emploi du temps se met à jour
+      tout seul <strong>chaque soir à partir de ${pronote.SOIR} h</strong> (ou à l’ouverture suivante de l’app), et quand vous le demandez —
+      par exemple après un cours déplacé par la direction. Vos modifications, notes, appels et séances sont conservés.</div>
+    <label class="lbl">Adresse de votre relais Google (une seule fois, pour tous vos appareils)
+      <input class="input" value="${rv}" data-input="relais" placeholder="https://script.google.com/macros/s/…/exec" ${raw(inputAttrs)}></label>
+    <div class="row-center wrap">
+      <button type="button" class="btn soft small" data-click="saveRelais">Enregistrer</button>
+      ${r ? html`<button type="button" class="btn soft small" data-click="testRelais">Tester le relais</button>` : ''}
+      <span class="muted small">${r ? '✓ Relais enregistré' : 'Pas encore de relais'}</span>
+    </div>
+    <details class="guide"${r ? '' : ' open'}>
+      <summary>Pourquoi un relais, et comment le créer ? — une seule fois, 5 minutes, <strong>sur un ordinateur</strong> de préférence</summary>
+      <p class="muted small">Pronote ne permet pas à une application web de lire directement votre calendrier. Le relais est un petit
+        programme placé dans <strong>votre</strong> compte Google : il récupère le calendrier et le transmet à l’app. Personne d’autre n’y a accès.</p>
+      <div class="g-part"><span class="g-n">1</span><div class="grow"><strong>Créer le script</strong><ol>
+        <li>Allez sur <strong>script.google.com</strong> (même compte Google que pour Drive) → <strong>Nouveau projet</strong>.</li>
+        <li>En haut, cliquez sur « Projet sans titre » → nommez-le <strong>Relais Carnet de classe</strong>.</li>
+      </ol></div></div>
+      <div class="g-part"><span class="g-n">2</span><div class="grow"><strong>Coller le code</strong><ol>
+        <li>Effacez tout le code affiché, puis collez celui-ci :
+          <span class="origin"><button type="button" class="btn soft small" data-click="copyCode">Copier le code</button></span>
+          <pre class="code-box">${pronote.RELAIS_CODE}</pre></li>
+        <li><strong>Enregistrer</strong> (icône disquette ou Ctrl + S).</li>
+      </ol></div></div>
+      <div class="g-part"><span class="g-n">3</span><div class="grow"><strong>Déployer</strong><ol>
+        <li>En haut à droite : <strong>Déployer</strong> → <strong>Nouveau déploiement</strong> → roue dentée « Sélectionner le type » → <strong>Application Web</strong>.</li>
+        <li>Exécuter en tant que : <strong>Moi</strong> · Qui peut accéder : <strong>Tout le monde</strong> → <strong>Déployer</strong>.
+          <span class="g-warn">« Tout le monde » est indispensable : l’app n’a pas de compte Google pour s’y connecter.</span></li>
+        <li><strong>Autoriser l’accès</strong> → votre compte → « Google n’a pas validé cette application » → <strong>Paramètres avancés</strong> →
+          <strong>Accéder à Relais Carnet de classe</strong> → <strong>Autoriser</strong> (il demande à « se connecter à un service externe » : c’est Pronote).</li>
+      </ol></div></div>
+      <div class="g-part"><span class="g-n">4</span><div class="grow"><strong>Dans l’application</strong><ol>
+        <li>Copiez l’<strong>URL de l’application Web</strong> (elle se termine par <code>/exec</code>) → collez-la ci-dessus → <strong>Enregistrer</strong> → <strong>Tester le relais</strong>.</li>
+        <li>Puis ajoutez le lien Pronote de chaque collège (ci-dessous).</li>
+      </ol></div></div>
+      <div class="g-errors"><strong>En cas de souci</strong><ul>
+        <li>« demande une connexion Google » : redéployez avec « Qui peut accéder : <strong>Tout le monde</strong> » (Déployer → Gérer les déploiements → crayon → Version : Nouvelle version).</li>
+        <li>Après une modification du code, il faut un <strong>nouveau déploiement</strong> (ou une nouvelle version) pour qu’elle soit prise en compte.</li>
+      </ul></div>
+    </details>
+    <div class="lbl">Lien Pronote d’un nouveau collège
+      <div class="muted xsmall">Dans Pronote : votre emploi du temps → bouton <strong>iCal</strong> → copier le lien d’abonnement. Ce lien est
+        <strong>secret</strong> (il donne accès à votre emploi du temps) : ne le partagez pas. En cas de fuite, Pronote permet d’en générer un nouveau.</div>
+      <div class="row-center">
+        <input class="input grow" value="${lienDraft.new || ''}" data-input="lien" data-id="new" placeholder="https://…index-education.net/pronote/ical/….ics?icalsecurise=…" ${raw(inputAttrs)}>
+        <button type="button" class="btn soft small" data-click="addLien"${r ? '' : ' disabled'}>Ajouter</button>
+      </div>
+      <div class="muted xsmall">Pour un collège déjà importé par fichier, utilisez plutôt le bouton « Lien » de sa ligne ci-dessous.</div>
+    </div>
+    ${avec.length ? html`<div class="row-center wrap">
+      <button type="button" class="btn accent" data-click="majNow"${r && !pronote.occupe() ? '' : ' disabled'}>Mettre à jour maintenant</button>
+      <span class="muted small">${avec.map(e => e.initiales).join(', ')}</span></div>` : ''}
+  </div>`;
+}
+
 // ---------- Vue principale ----------
 function mainView() {
   const etabs = planning.etablissements();
   const mats = planning.matieres();
   return html`
+    ${lienView()}
     <div class="set-block">
       <div class="set-title">Établissements</div>
       ${etabs.length ? etabs.map(e => {
         const cours = planning.coursOfEtab(e.id);
         const linked = Object.values(e.classes || {}).filter(m => m.classId && db.get('classes', m.classId)).length;
+        const nouv = aRelier(e);
         return html`<div class="etab-row">
           ${dot(e.color)}
           <div class="grow">
             <div class="strong-15">${e.name} <span class="chip">${e.initiales}</span></div>
             <div class="muted small">${plural(cours.length, 'cours', 'cours')} ${range(cours)} · ${plural(linked, 'classe reliée', 'classes reliées')}
               ${e.importedAt ? ' · importé le ' + fmtDate(e.importedAt) : ''}</div>
+            <div class="small">${lienEtat(e)}</div>
+            ${nouv.length ? html`<div class="lien-err small">Nouvelle classe Pronote à relier : ${nouv.map(c => c.name).join(', ')} → bouton « Classes »</div>` : ''}
+            ${lienEdit === e.id ? html`<div class="row-center lien-edit">
+              <input class="input grow" value="${lienDraft[e.id] != null ? lienDraft[e.id] : e.lien || ''}" data-input="lien" data-id="${e.id}" placeholder="Lien d’abonnement iCal Pronote" ${raw(inputAttrs)}>
+              <button type="button" class="btn accent small" data-click="saveLien" data-id="${e.id}">Enregistrer</button>
+              ${e.lien ? html`<button type="button" class="btn soft small" data-click="removeLien" data-id="${e.id}">Retirer</button>` : ''}
+              <button type="button" class="btn soft small" data-click="cancelLien">Annuler</button></div>` : ''}
           </div>
+          <button type="button" class="btn soft small" data-click="editLien" data-id="${e.id}">Lien</button>
           <button type="button" class="btn soft small" data-click="editMap" data-id="${e.id}">Classes</button>
           <button type="button" class="btn soft small" data-click="color" data-id="${e.id}">Couleur</button>
           <button type="button" class="icon-btn" data-click="delEtab" data-id="${e.id}" aria-label="Supprimer l’emploi du temps de ${e.name}">${icon.trash}</button>
         </div>`;
       }) : html`<div class="muted">Aucun emploi du temps importé.</div>`}
-      <div class="muted small">Dans Pronote, exportez votre emploi du temps au format iCal (un fichier .ics par collège),
-        puis touchez « Importer des fichiers Pronote ». Le fichier est lu sur la tablette : seuls la date, les heures, la classe,
+      <div class="muted small">Sans lien : dans Pronote, exportez votre emploi du temps au format iCal (un fichier .ics par collège),
+        puis touchez « Importer des fichiers Pronote ». Seuls la date, les heures, la classe,
         la salle, la matière et le statut du cours sont gardés (ni noms de professeurs, ni événements de l’agenda).
-        Réimporter plus tard un nouvel export met à jour les cours sans les dupliquer.</div>
+        Une nouvelle importation met à jour les cours sans les dupliquer.</div>
     </div>
     ${mats.length ? html`<div class="set-block">
       <div class="set-title">Rôle des matières</div>
@@ -193,9 +277,70 @@ export default {
     </div>`;
   },
 
-  leave() { wiz = null; busy = ''; },
+  leave() { wiz = null; busy = ''; relaisDraft = null; lienDraft = {}; lienEdit = null; },
 
   actions: {
+    // ----- Relais et liens Pronote -----
+    relais(el) { relaisDraft = el.value; },
+    saveRelais() {
+      const typed = relaisDraft != null ? relaisDraft : pronote.relais();
+      const url = pronote.extractRelais(typed);
+      if (!url) { toast({ text: 'Adresse non reconnue : elle commence par https://script.google.com/macros/s/ et se termine par /exec', ms: 9000 }); return; }
+      pronote.setRelais(url); relaisDraft = null; refresh();
+      toast({ text: 'Relais enregistré : touchez « Tester le relais »' });
+    },
+    async testRelais() {
+      busy = 'Test du relais…'; refresh();
+      try { await pronote.testerRelais(); busy = ''; refresh(); toast({ text: 'Le relais répond correctement ✓' }); }
+      catch (e) { busy = ''; refresh(); toast({ text: e.message, ms: 9000 }); }
+    },
+    async copyCode() {
+      try { await navigator.clipboard.writeText(pronote.RELAIS_CODE); toast({ text: 'Code copié : collez-le dans script.google.com' }); }
+      catch (e) { toast({ text: 'Copie impossible : sélectionnez le code à la main', ms: 6000 }); }
+    },
+    lien(el) { lienDraft = { ...lienDraft, [el.dataset.id]: el.value }; },
+    editLien(el) { lienEdit = lienEdit === el.dataset.id ? null : el.dataset.id; refresh(); },
+    cancelLien() { lienEdit = null; lienDraft = {}; refresh(); },
+    // Nouveau collège : le calendrier est lu puis l'assistant habituel (classes, aperçu) s'ouvre.
+    async addLien() {
+      const lien = pronote.extractLien(lienDraft.new);
+      if (!lien) { toast({ text: 'Lien non reconnu : il contient « /pronote/ical/ » (lien d’abonnement iCal de Pronote).', ms: 8000 }); return; }
+      busy = 'Lecture du calendrier Pronote…'; refresh();
+      try {
+        const p = await pronote.planDuLien(lien);
+        if (p.etab && p.etab.lien && p.etab.lien !== lien) throw new Error(`${p.etab.name} a déjà un lien : modifiez-le avec le bouton « Lien » de sa ligne.`);
+        lienDraft = {};
+        wiz = { mode: 'import', step: 'map', i: 0, plans: [p] };
+      } catch (e) { toast({ text: e.message, ms: 9000 }); }
+      busy = ''; refresh();
+    },
+    // Collège déjà importé : on vérifie que le lien donne bien CE collège, puis on met à jour tout de suite.
+    async saveLien(el) {
+      const e = db.get('etablissements', el.dataset.id);
+      const lien = pronote.extractLien(lienDraft[e.id] != null ? lienDraft[e.id] : e.lien);
+      if (!lien) { toast({ text: 'Lien non reconnu : il contient « /pronote/ical/ » (lien d’abonnement iCal de Pronote).', ms: 8000 }); return; }
+      if (!pronote.relais()) { toast({ text: 'Créez d’abord votre relais (en haut de cette page).', ms: 6000 }); return; }
+      busy = 'Lecture du calendrier Pronote…'; refresh();
+      try {
+        const p = await pronote.planDuLien(lien, e.name);
+        if (!p.etab || p.etab.id !== e.id) throw new Error(`Ce lien donne l’emploi du temps de « ${p.etabName} », pas celui de ${e.name}.`);
+        db.commit(w => w.update('etablissements', e.id, { lien, lienErreur: undefined }));
+        lienEdit = null; lienDraft = {};
+        const r = await pronote.mettreAJour(db.get('etablissements', e.id));
+        busy = ''; refresh();
+        toast({ text: `Lien enregistré · ${e.initiales} : ${pronote.resume(r)}`, undo: r.undo ? async () => { await r.undo(); refresh(); } : undefined, ms: 8000 });
+      } catch (err) { busy = ''; refresh(); toast({ text: err.message, ms: 9000 }); }
+    },
+    removeLien(el) {
+      const undo = db.commit(w => w.update('etablissements', el.dataset.id, { lien: undefined, lienAt: undefined, lienErreur: undefined }));
+      lienEdit = null; refresh();
+      toast({ text: 'Lien retiré : plus de mise à jour automatique pour ce collège', undo: async () => { await undo(); refresh(); } });
+    },
+    async majNow() {
+      busy = 'Mise à jour depuis Pronote…'; refresh();
+      try { await pronote.toutMettreAJour(); } finally { busy = ''; refresh(); }
+    },
+
     async import() {
       const files = await pickIcs();
       if (!files.length) return;
