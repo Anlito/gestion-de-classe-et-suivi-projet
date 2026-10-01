@@ -37,6 +37,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/sync.js` | fusion des données entre appareils (synchronisation Google Drive) |
 | `js/drive.js` | connexion Google (identifiant client propre à chaque professeur) et échanges avec son Drive |
 | `js/autosync.js` | synchronisation automatique et indicateur « Synchronisé à … » dans l'en-tête |
+| `js/salles.js`, `js/plan-view.js`, `js/screens/salles.js` | plans de salle (îlots ou rangées) : modèle, dessin, éditeur |
 | `js/prepa.js` | matériel à préparer : séance prévue d'un cours, liste (projet + cours), coches, rappel la veille |
 | `js/screens/archives.js` | Administration → Archives : archiver l'année, consulter une année passée en lecture seule |
 | `js/pronote-lien.js` | emploi du temps mis à jour par lien Pronote (via le relais Google du professeur), chaque soir ou sur demande |
@@ -168,6 +169,19 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 - Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
+
+### 1.19.0 — 1er octobre 2026 · Plan de classe et matériel, étape 2 : plans de salle
+- Nouvelle table `salles` (`DB_VERSION` 9), synchronisée, gardée d'une année sur l'autre : `{ name, type: 'ilots'|'rangees',
+  tables: [{ id, x, y, places, vertical }], rangs, colonnes, parTable }`.
+- Nouveau `js/salles.js` : grille de 12 × 9 cases ; taille d'un îlot selon ses places (1 = poste individuel … 8),
+  pivoté ou non ; chevauchements et bords interdits ; **places à identifiant stable** (« idÎlot-n », « r-rang-col-n »)
+  numérotées en lecture ; salle d'un cours = plan qui porte le **nom de la salle de l'emploi du temps** (`salleDuCours`).
+- Nouveau `js/plan-view.js` (dessin d'un plan, réutilisé à l'étape 3) et écran **Administration → Plans de salle**
+  (`js/screens/salles.js`) : liste, « Salles de votre emploi du temps sans plan » (Créer le plan), éditeur : nom (avec
+  propositions), Îlots / Rangées ; îlots : toucher un îlot puis une case vide pour le déplacer, places − / +, pivoter,
+  supprimer, ajouter ; rangées : rangs, tables par rang, places par table. Tableau en haut du plan.
+- Vérifié à la taille de la tablette (1280 × 800) : plan de départ en 6 îlots de 4, îlot de 6 pivoté, déplacement
+  refusé sur un autre îlot, poste individuel, salle en rangées 6 × 2 × 2. Tests : 66 / 66.
 
 ### 1.18.0 — 1er octobre 2026 · Plan de classe et matériel, étape 1 : matériel à préparer
 - Projet → nouvelle partie **« Matériel à préparer par séance »** (une ligne par élément) : `projects.materiel =

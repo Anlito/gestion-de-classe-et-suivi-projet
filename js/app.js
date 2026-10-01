@@ -18,6 +18,7 @@ import sauvegarde from './screens/sauvegarde.js';
 import imprimer from './screens/imprimer.js';
 import emploiDuTemps from './screens/emploi-du-temps.js';
 import archives from './screens/archives.js';
+import salles from './screens/salles.js';
 import { initLock } from './lock.js';
 import { initAlertes, render as renderAlertes } from './alertes.js';
 import { lierAppels } from './planning.js';
@@ -40,6 +41,8 @@ const ROUTES = [
   [/^#\/admin\/sauvegarde$/, sauvegarde, []],
   [/^#\/admin\/planning$/, emploiDuTemps, []],
   [/^#\/admin\/archives$/, archives, []],
+  [/^#\/admin\/salles$/, salles, []],
+  [/^#\/admin\/salle\/([^/]+)$/, salles, ['id']],
   [/^#\/imprimer\/(eleve|fiches|recap)\/([^/]+)$/, imprimer, ['kind', 'id']],
   [/^#\/admin\/classe\/([^/]+)$/, editClasse, ['id']],
   [/^#\/admin\/projet\/([^/]+)$/, editProjet, ['id']],
