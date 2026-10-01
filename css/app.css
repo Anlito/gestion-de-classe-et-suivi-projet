@@ -998,3 +998,36 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .seat-in { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 .rot-row { display: flex; align-items: center; gap: 10px; }
 .rot-n { min-width: 56px; text-align: center; }
+/* Plan de classe (1.20.0) */
+.vue-seg { flex: none; }
+.plan-classe { display: flex; flex-direction: column; gap: 10px; width: min(100%, calc((100dvh - 230px) * 4 / 3)); margin: 0 auto; }
+.plan-classe.placing { width: min(100%, calc((100dvh - 330px) * 4 / 3)); }
+.plan-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.plan-aide { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.plan-libres { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.libre { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 10px 4px 4px; border-radius: 22px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.libre.on { background: var(--accent); border-color: var(--accentInk); }
+.libre .photo.mini { width: 30px; height: 36px; border-radius: 15px; overflow: hidden; }
+.plan-classe .seat { padding: 0; border: none; background: none; overflow: visible; }
+.pseat { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 0; border-radius: 8px; border: 2px solid transparent; background: var(--surface); color: var(--ink); font: inherit; overflow: hidden; cursor: pointer; }
+.pseat .pphoto { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; }
+.pseat .pphoto img { width: 100%; height: 100%; object-fit: cover; }
+.pseat .pphoto .photo-missing { display: none; }
+.pname { position: relative; width: 100%; padding: 1px 2px; font-size: 11px; font-weight: 800; line-height: 1.2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--surface) 82%, transparent); }
+.pseat.empty { border: 2px dashed var(--line); background: transparent; color: var(--ink2); font-size: 12px; font-weight: 700; justify-content: center; }
+.pseat.empty.target { border-color: var(--accentInk); background: var(--accentTint); }
+.pseat.sel { border-color: var(--accentInk); box-shadow: 0 0 0 3px var(--accent); }
+.pseat.absent { border-color: var(--neg); }
+.pseat.absent .pphoto { filter: grayscale(1); opacity: .45; }
+.pseat.retard { border-color: var(--warn); }
+.pstate { position: absolute; top: 2px; left: 2px; right: 2px; padding: 1px 3px; border-radius: 5px; font-size: 10px; font-weight: 800; color: #fff; background: var(--neg); text-align: center; }
+.pseat.retard .pstate { background: var(--warn); }
+.pbadge { position: absolute; top: 2px; padding: 1px 4px; border-radius: 6px; font-size: 10.5px; font-weight: 800; color: #fff; }
+.pbadge.neg { left: 2px; background: var(--neg); } .pbadge.pos { right: 2px; background: var(--pos); }
+.plan-classe .plan-table .seat { aspect-ratio: 3 / 4; }
+/* En-tête de l'administration : 5 raccourcis sur une ligne, sans déborder (1.20.0) */
+.admin-nav { display: flex; gap: 6px; flex: 0 1 auto; min-width: 0; }
+.admin-nav .btn { padding-left: 12px; padding-right: 12px; white-space: nowrap; }
+@media (max-width: 1180px) { .hide-admin-status { display: none; } }
+@media (max-width: 1000px) { .admin-nav .hide-narrow { display: none; } }
+.pseat.empty { background: color-mix(in srgb, var(--surface) 70%, transparent); border: 2px dashed color-mix(in srgb, var(--ink2) 45%, transparent); }

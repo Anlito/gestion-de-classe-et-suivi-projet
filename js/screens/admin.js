@@ -13,12 +13,14 @@ export default {
       <header class="topbar">
         ${backLink('#/', 'Accueil')}
         <div class="title">Administration</div>
-        <div class="spacer"></div>${saveStatus()}
-        <a class="btn soft" href="#/admin/planning">${icon.calendar}<span class="hide-narrow">Emploi du temps</span></a>
-        <a class="btn soft" href="#/admin/salles">${icon.grid}<span class="hide-narrow">Plans de salle</span></a>
-        <a class="btn soft" href="#/admin/sauvegarde">${icon.download}<span class="hide-narrow">Sauvegarde et exports</span></a>
-        <a class="btn soft" href="#/admin/archives">${icon.archive}<span class="hide-narrow">Archives</span></a>
-        <a class="btn soft" href="#/admin/reglages">${icon.sliders}<span class="hide-narrow">Réglages</span></a>
+        <div class="spacer"></div><span class="hide-admin-status">${saveStatus()}</span>
+        <nav class="admin-nav">
+          <a class="btn soft" href="#/admin/planning" title="Emploi du temps">${icon.calendar}<span class="hide-narrow">Emploi du temps</span></a>
+          <a class="btn soft" href="#/admin/salles" title="Plans de salle">${icon.grid}<span class="hide-narrow">Salles</span></a>
+          <a class="btn soft" href="#/admin/sauvegarde" title="Sauvegarde et exports">${icon.download}<span class="hide-narrow">Sauvegarde</span></a>
+          <a class="btn soft" href="#/admin/archives" title="Archives des années">${icon.archive}<span class="hide-narrow">Archives</span></a>
+          <a class="btn soft" href="#/admin/reglages" title="Réglages">${icon.sliders}<span class="hide-narrow">Réglages</span></a>
+        </nav>
       </header>
       <main class="content admin">
         <section class="panel">

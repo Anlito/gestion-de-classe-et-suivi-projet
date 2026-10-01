@@ -8,6 +8,9 @@ import { html, toast, openMenu, buzz, todayISO, fmtDayLong, choiceDialog } from 
 import { icon, backLink, saveStatus, tabBar, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
 import { onFaireAppel } from '../alertes.js';
+import * as PC from '../plan-classe.js';
+import * as S from '../salles.js';
+import { planHtml } from '../plan-view.js';
 
 const LONG_PRESS_MS = 450;
 const COLOR = { neg: 'var(--neg)', pos: 'var(--pos)' };
@@ -15,6 +18,64 @@ const COLOR = { neg: 'var(--neg)', pos: 'var(--pos)' };
 let appel = null;   // classId en mode appel
 let draw = null;    // { classId, sid, spinning, restarted }
 let presence = null; // { classId, period: 1|2|3|'annee' } : panneau des statistiques de présence de la classe
+
+// ---------- Plan de classe (1.20.0) ----------
+// Vue « Photos » (trombinoscope) ou « Plan » (élèves à leur place dans la salle) : choix mémorisé sur l'appareil.
+let vue = (() => { try { return localStorage.getItem('carnet-vue-trombi') === 'plan' ? 'plan' : 'photos'; } catch (e) { return 'photos'; } })();
+let placing = null;      // classId en mode « Placer les élèves »
+let selSid = null;       // élève choisi (à placer / à déplacer)
+const choixSalle = {};   // classId → salle choisie à la main (sinon celle du cours)
+
+function planVue(classId, inAppel, stateOf, counts) {
+  const salle = PC.salleDe(classId, choixSalle[classId]);
+  if (!salle) return html`<div class="empty-block">Aucun plan de salle pour l’instant.
+    <a class="btn accent" href="#/admin/salles">${icon.grid}Créer le plan de votre salle</a></div>`;
+  const map = PC.placement(classId, salle);
+  const enPlace = placing === classId;
+  const libres = PC.nonPlaces(classId, salle);
+  const salles = S.salles();
+  const seat = p => {
+    const s = map[p.id] && db.get('students', map[p.id]);
+    if (!s) return html`<button type="button" class="pseat empty${enPlace && selSid ? ' target' : ''}" data-click="seatTap" data-seat="${p.id}" aria-label="Place ${p.num} libre">${enPlace ? p.num : ''}</button>`;
+    const st = stateOf(s), c = counts.get(s.id) || { neg: 0, pos: 0 };
+    return html`<button type="button" class="pseat ${st}${selSid === s.id ? ' sel' : ''}" data-click="seatTap" data-seat="${p.id}" data-sid="${s.id}" aria-label="${model.fullName(s)}${st !== 'present' ? ' : ' + PRESENCE[st] : ''}">
+      ${photo(s, { label: false, cls: 'pphoto' })}<span class="pname">${s.prenom || s.nom}</span>
+      ${!enPlace && !inAppel && c.neg ? html`<span class="pbadge neg">−${c.neg}</span>` : ''}
+      ${!enPlace && !inAppel && c.pos ? html`<span class="pbadge pos">+${c.pos}</span>` : ''}
+      ${st !== 'present' ? html`<span class="pstate">${st === 'absent' ? 'Absent' : 'Retard'}</span>` : ''}</button>`;
+  };
+  return html`<div class="plan-classe${enPlace ? ' placing' : ''}">
+    <div class="plan-bar">
+      ${salles.length > 1 ? html`<div class="segmented">${salles.map(x => html`<button type="button" class="seg${x.id === salle.id ? ' on' : ''}" data-click="pickSalle" data-id="${x.id}">${x.name}</button>`)}</div>`
+        : html`<span class="strong-15">${salle.name}</span>`}
+      <span class="grow"></span>
+      ${inAppel ? '' : enPlace ? html`
+          <button type="button" class="btn soft small" data-click="remplir" data-h="0">Compléter (A → Z)</button>
+          <button type="button" class="btn soft small" data-click="remplir" data-h="1">Compléter au hasard</button>
+          <button type="button" class="btn soft small" data-click="viderPlan">Tout retirer</button>
+          <button type="button" class="btn accent small" data-click="finPlacer">Terminé</button>`
+        : html`<button type="button" class="btn soft small" data-click="placer">${icon.edit}Placer les élèves</button>`}
+    </div>
+    ${enPlace ? html`<div class="plan-aide muted small">${selSid ? html`<strong>${model.fullName(db.get('students', selSid))}</strong> : touchez sa place (une place prise = échange).
+        <button type="button" class="link-btn" data-click="retirerEleve">Retirer de sa place</button>`
+      : 'Touchez un élève ci-dessous (ou sur le plan, pour le déplacer), puis sa place.'}</div>
+      <div class="plan-libres">${libres.length ? libres.map(s => html`<button type="button" class="libre${selSid === s.id ? ' on' : ''}" data-click="pickEleve" data-sid="${s.id}">
+          ${photo(s, { label: false, cls: 'mini' })}<span>${s.prenom} ${s.nom.charAt(0)}.</span></button>`)
+        : html`<span class="muted small">Tous les élèves sont placés ✓</span>`}</div>` : ''}
+    ${planHtml(salle, { seat })}
+    ${!enPlace && libres.length && Object.keys(map).length ? html`<div class="muted small">Non placés : ${libres.map(s => model.shortName(s)).join(', ')}</div>` : ''}
+    ${!enPlace && !Object.keys(map).length ? html`<div class="muted small center">Personne n’est encore placé : touchez « Placer les élèves ».</div>` : ''}
+  </div>`;
+}
+
+// + / − depuis le plan (toast avec « Annuler », comme dans le trombinoscope).
+function addObsPlan(st, type, motif = '') {
+  const undo = model.addObservation(st, type, motif);
+  buzz(18);
+  refresh();
+  toast({ who: model.shortName(st), text: model.LABEL[type] + (motif ? ' — ' + motif : ''), color: COLOR[type],
+    undo: async () => { await undo(); refresh(); return { who: model.shortName(st), text: 'saisie annulée' }; } });
+}
 
 // ---------- Présence de la classe (panneau) ----------
 function presenceView(classId) {
@@ -342,6 +403,10 @@ export default {
         <div class="heading"><span class="title">${c.name}</span>
           <span class="sub">${students.length} élèves${absent.size ? ` · ${absent.size} absent${absent.size > 1 ? 's' : ''}` : ''}${lateTxt} · Trimestre ${model.trimester()}</span></div>
         <div class="spacer"></div>
+        <div class="segmented vue-seg">
+          <button type="button" class="seg${vue === 'photos' ? ' on' : ''}" data-click="vue" data-k="photos">Photos</button>
+          <button type="button" class="seg${vue === 'plan' ? ' on' : ''}" data-click="vue" data-k="plan">Plan</button>
+        </div>
         ${inAppel ? '' : html`
           <button type="button" class="btn soft" data-click="startAppel">${icon.roll}<span class="hide-phone">Appel</span></button>
           <button type="button" class="btn soft" data-click="draw">${icon.dice}<span class="hide-phone">Tirage</span></button>
@@ -356,7 +421,8 @@ export default {
       <main class="content trombi${inAppel ? ' appel-mode' : ''}" data-scroll="trombi">
         ${(() => { const k = planning.coursContexte(classId); return k && k.note ? html`<div class="cours-note">${icon.list}
           <span><strong>Note du cours · ${new Date(k.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} ${k.debut}</strong> — ${k.note}</span></div>` : ''; })()}
-        ${students.length
+        ${students.length && vue === 'plan' ? planVue(classId, inAppel, stateOf, counts)
+          : students.length
           ? html`<div class="trombi-grid">${students.map(s => card(s, counts.get(s.id) || { neg: 0, pos: 0 }, stateOf(s), inAppel))}</div>`
           : html`<div class="empty-block">Aucun élève dans cette classe. Ajoutez-les depuis Administration.</div>`}
       </main>
@@ -371,7 +437,7 @@ export default {
     </div>`;
   },
 
-  leave() { appel = null; draw = null; presence = null; },
+  leave() { appel = null; draw = null; presence = null; placing = null; selSid = null; },
 
   mount(root, params) {
     if (autoAppel && params && autoAppel === params.classId) { autoAppel = null; setTimeout(() => startAppel(params.classId)); }
@@ -437,6 +503,61 @@ export default {
       model.setPresence(s, NEXT_PRESENCE[model.presenceOf(s)]);
       buzz(18);
       refresh();
+    },
+
+    // ----- Plan de classe -----
+    vue(el) {
+      vue = el.dataset.k === 'plan' ? 'plan' : 'photos';
+      try { localStorage.setItem('carnet-vue-trombi', vue); } catch (err) { /* stockage indisponible */ }
+      placing = null; selSid = null; refresh();
+    },
+    pickSalle(el, e, { classId }) {
+      choixSalle[classId] = el.dataset.id; selSid = null;
+      const s = db.get('salles', el.dataset.id); if (s) PC.retenirSalle(classId, s);
+      refresh();
+    },
+    placer(el, e, { classId }) { placing = classId; selSid = null; refresh(); },
+    finPlacer() { placing = null; selSid = null; refresh(); toast({ text: 'Plan de classe enregistré' }); },
+    pickEleve(el) { selSid = selSid === el.dataset.sid ? null : el.dataset.sid; refresh(); },
+    seatTap(el, e, { classId }) {
+      const salle = PC.salleDe(classId, choixSalle[classId]);
+      const sid = el.dataset.sid || null;
+      if (placing === classId) {
+        if (selSid) { PC.placer(classId, salle, el.dataset.seat, selSid); selSid = null; }
+        else if (sid) selSid = sid;
+        refresh();
+        return;
+      }
+      if (!sid) return;
+      const st = db.get('students', sid);
+      if (appel === classId) { model.setPresence(st, NEXT_PRESENCE[model.presenceOf(st)]); buzz(18); refresh(); return; }
+      openMenu({
+        anchor: el, width: 290, title: model.fullName(st),
+        items: ['neg', 'pos'].flatMap(type => {
+          const chip = { bg: COLOR[type], fg: '#fff', text: type === 'neg' ? '−' : '+' };
+          return [{ section: model.LABEL[type] },
+            { label: 'Sans motif', chip, onPick: () => addObsPlan(st, type) },
+            ...model.motifs(type).map(m => ({ label: m, chip, onPick: () => addObsPlan(st, type, m) }))];
+        }).concat([{ label: 'Fiche de l’élève →', quiet: true, onPick: () => go(`#/classe/${classId}/eleve/${sid}`) }]),
+      });
+    },
+    retirerEleve(el, e, { classId }) {
+      const salle = PC.salleDe(classId, choixSalle[classId]);
+      const seat = Object.entries(PC.placement(classId, salle)).find(([, s]) => s === selSid);
+      if (seat) PC.placer(classId, salle, seat[0], null);
+      selSid = null; refresh();
+    },
+    remplir(el, e, { classId }) {
+      const salle = PC.salleDe(classId, choixSalle[classId]);
+      const { undo, reste } = PC.remplir(classId, salle, { hasard: el.dataset.h === '1' });
+      selSid = null; refresh();
+      toast({ text: reste ? `Plus de place libre : ${reste} élève${reste > 1 ? 's' : ''} non placé${reste > 1 ? 's' : ''}` : 'Élèves placés', undo: async () => { await undo(); refresh(); } });
+    },
+    async viderPlan(el, e, { classId }) {
+      const salle = PC.salleDe(classId, choixSalle[classId]);
+      const undo = PC.vider(classId, salle);
+      selSid = null; refresh();
+      toast({ text: 'Plan vidé', undo: async () => { await undo(); refresh(); } });
     },
 
     draw(el, e, { classId }) { if (!draw || !draw.spinning) startDraw(classId); },
