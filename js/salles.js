@@ -1,9 +1,11 @@
-// salles.js — Plans de salle (1.19.0) : un plan par salle (Techno 1, salle de cours…), réutilisé par toutes les
-// classes qui y ont cours (le plan de classe, étape 3, y placera les élèves).
+// salles.js — Plans de salle (1.19.0, îlots libres en 1.19.1) : un plan par salle (Techno 1, salle de cours…),
+// réutilisé par toutes les classes qui y ont cours (le plan de classe, étape 3, y placera les élèves).
 //
 // Table salles : { name, type: 'ilots'|'rangees',
-//   ilots : tables: [{ id, x, y, places (1 à 8), vertical }]  — position en cases d'une grille LARGEUR × HAUTEUR ;
-//   rangees : rangs, colonnes (tables par rang), parTable (1 ou 2) }
+//   ilots : tables: [{ id, cx, cy, angle, places (1 à 8), ligne }] — centre de l'îlot en unités (salle de
+//           LARGEUR × HAUTEUR unités, 1 unité ≈ une place), angle en degrés (pas de 15°), ligne = places sur une
+//           seule rangée (sinon face à face) ;
+//   rangees : rangs, colonnes (tables par rang), parTable (1 à 3) }
 // Le tableau (avant de la salle) est en haut du plan.
 // Chaque place a un identifiant stable (îlot : « idTable-n » ; rangées : « r-rang-colonne-n »), pour l'étape 3.
 import * as db from './db.js';
@@ -11,24 +13,40 @@ import * as planning from './planning.js';
 
 export const LARGEUR = 12, HAUTEUR = 9;
 export const MAX_PLACES = 8;
+export const PAS_ANGLE = 15;
 
-// Taille d'un îlot en cases : 1 place = 1×1 ; 2 = 2×1 ; 3-4 = 2×2 ; 5-6 = 3×2 ; 7-8 = 4×2 (vertical : inversé).
-export function tailleIlot(t) {
+// Disposition des places d'un îlot : { cols, rows } (places par rangée, rangées) ; taille en unités = cols × rows.
+export function disposition(t) {
+  const p = t.places;
+  if (t.ligne || p <= 2) return { cols: p, rows: 1 };
+  return { cols: Math.ceil(p / 2), rows: 2 };
+}
+export function tailleIlot(t) { const d = disposition(t); return { w: d.cols, h: d.rows }; }
+
+// Ancien format (1.19.0 : coin en haut à gauche sur une grille, vertical) → centre + angle.
+export function normTable(t) {
+  if (t.cx != null) return t;
   const p = t.places;
   const [w, h] = p <= 1 ? [1, 1] : p <= 2 ? [2, 1] : p <= 4 ? [2, 2] : p <= 6 ? [3, 2] : [4, 2];
-  return t.vertical ? { w: h, h: w } : { w, h };
+  const [W, H] = t.vertical ? [h, w] : [w, h];
+  return { id: t.id, places: p, ligne: false, cx: t.x + W / 2, cy: t.y + H / 2, angle: t.vertical ? 90 : 0 };
 }
-const chevauche = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-// L'îlot t (avec sa position) tient-il dans la salle sans chevaucher les autres ?
-export function placeLibre(salle, t) {
-  const r = { x: t.x, y: t.y, ...tailleIlot(t) };
-  if (r.x < 0 || r.y < 0 || r.x + r.w > LARGEUR || r.y + r.h > HAUTEUR) return false;
-  return !(salle.tables || []).some(o => o.id !== t.id && chevauche(r, { x: o.x, y: o.y, ...tailleIlot(o) }));
+export const tablesOf = salle => (salle.tables || []).map(normTable);
+
+// Garde le centre d'un îlot dans la salle.
+export function borner(t) {
+  const c = (v, max) => Math.max(0.5, Math.min(max - 0.5, Math.round(v * 4) / 4));
+  return { ...t, cx: c(t.cx, LARGEUR), cy: c(t.cy, HAUTEUR) };
 }
-// Première position libre pour un nouvel îlot (de gauche à droite, de haut en bas), ou null.
-export function premierePlace(salle, t) {
-  for (let y = 0; y < HAUTEUR; y++) for (let x = 0; x < LARGEUR; x++) if (placeLibre(salle, { ...t, x, y })) return { x, y };
-  return null;
+// Place libre pour un nouvel îlot : un point de la salle loin des autres îlots.
+export function pointLibre(salle) {
+  const tables = tablesOf(salle);
+  let best = { cx: LARGEUR / 2, cy: HAUTEUR / 2 }, bestD = -1;
+  for (let y = 1.5; y < HAUTEUR; y += 1) for (let x = 1.5; x < LARGEUR; x += 1) {
+    const d = Math.min(...tables.map(t => Math.hypot(t.cx - x, t.cy - y)), 99);
+    if (d > bestD) { bestD = d; best = { cx: x, cy: y }; }
+  }
+  return best;
 }
 
 // Places d'une salle : [{ id, tableId, n }] dans l'ordre de lecture.
@@ -39,7 +57,8 @@ export function places(salle) {
     for (let r = 0; r < salle.rangs; r++) for (let c = 0; c < salle.colonnes; c++) for (let n = 0; n < salle.parTable; n++) out.push({ id: `r-${r}-${c}-${n}`, tableId: `r-${r}-${c}`, n });
     return out;
   }
-  return [...(salle.tables || [])].sort((a, b) => a.y - b.y || a.x - b.x).flatMap(t => Array.from({ length: t.places }, (_, n) => ({ id: `${t.id}-${n}`, tableId: t.id, n })));
+  return tablesOf(salle).sort((a, b) => Math.round(a.cy) - Math.round(b.cy) || a.cx - b.cx)
+    .flatMap(t => Array.from({ length: t.places }, (_, n) => ({ id: `${t.id}-${n}`, tableId: t.id, n })));
 }
 export const nbPlaces = salle => places(salle).length;
 
@@ -61,12 +80,12 @@ export function sallesSansPlan() {
   return [...m.entries()].filter(([k]) => !db.all('salles').some(s => norm(s.name) === k)).map(([, x]) => x).sort((a, b) => b.n - a.n);
 }
 
-// Plan de départ : îlots de 4 (salle de techno) ou 5 rangs de 3 tables de 2.
+// Plan de départ : 6 îlots de 4 (salle de techno), ou 5 rangs de 3 tables de 2.
 export function nouvelleSalle(name, type = 'ilots') {
   const s = { name: name.trim(), type, tables: [], rangs: 5, colonnes: 3, parTable: 2 };
   if (type === 'ilots') {
-    const pos = [[1, 1], [5, 1], [9, 1], [1, 5], [5, 5], [9, 5]];
-    s.tables = pos.map(([x, y]) => ({ id: db.uid().slice(0, 8), x, y, places: 4, vertical: false }));
+    const pos = [[2, 2.5], [6, 2.5], [10, 2.5], [2, 6.5], [6, 6.5], [10, 6.5]];
+    s.tables = pos.map(([cx, cy]) => ({ id: db.uid().slice(0, 8), cx, cy, angle: 0, places: 4, ligne: false }));
   }
   return s;
 }

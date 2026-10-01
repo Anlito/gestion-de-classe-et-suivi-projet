@@ -170,6 +170,14 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 
 ## Historique des versions
 
+### 1.19.1 — 1er octobre 2026 · Plans de salle : îlots libres, tournés dans tous les sens
+- Retour du professeur : « Pivoter » (horizontal / vertical) et la grille ne permettaient pas de reproduire la salle.
+- Îlots **glissés au doigt** n'importe où (position au quart d'unité, toujours dans la salle) ; **rotation de 15° en 15°**
+  (↺ ↻, + 90°, « Remettre droit ») ; disposition **face à face** ou **en ligne** (ex. postes le long d'un mur) ; les
+  numéros (et plus tard les photos) restent à l'endroit. Plus de contrôle de chevauchement (le professeur place à l'œil).
+- Format : `tables: [{ id, cx, cy, angle, places, ligne }]` (centre en unités) ; les plans 1.19.0 (grille, `vertical`)
+  sont convertis à l'ouverture (`salles.normTable`), identifiants des places inchangés. Tests : 67 / 67.
+
 ### 1.19.0 — 1er octobre 2026 · Plan de classe et matériel, étape 2 : plans de salle
 - Nouvelle table `salles` (`DB_VERSION` 9), synchronisée, gardée d'une année sur l'autre : `{ name, type: 'ilots'|'rangees',
   tables: [{ id, x, y, places, vertical }], rangs, colonnes, parTable }`.

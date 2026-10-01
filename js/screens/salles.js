@@ -79,19 +79,29 @@ function editView() {
           ${t ? html`<div class="info-box ilot-box">
               <div class="set-title">Îlot sélectionné</div>
               ${stepper('Places', 'ilotPlaces', t.places)}
+              ${t.places > 2 ? html`<div class="segmented">
+                <button type="button" class="seg${t.ligne ? '' : ' on'}" data-click="ligne" data-v="0">Face à face</button>
+                <button type="button" class="seg${t.ligne ? ' on' : ''}" data-click="ligne" data-v="1">En ligne</button></div>` : ''}
+              <div class="rot-row">
+                <span class="lbl-text grow">Rotation</span>
+                <button type="button" class="step-btn" data-click="tourner" data-d="-${S.PAS_ANGLE}" aria-label="Tourner à gauche">↺</button>
+                <span class="step-n rot-n">${((t.angle % 360) + 360) % 360}°</span>
+                <button type="button" class="step-btn" data-click="tourner" data-d="${S.PAS_ANGLE}" aria-label="Tourner à droite">↻</button>
+              </div>
               <div class="row-center wrap">
-                <button type="button" class="btn soft small" data-click="pivoter">Pivoter</button>
-                <button type="button" class="btn danger-soft small" data-click="delIlot">${icon.trash}Supprimer l’îlot</button>
+                <button type="button" class="btn soft small" data-click="tourner" data-d="90">+ 90°</button>
+                <button type="button" class="btn soft small" data-click="droit">Remettre droit</button>
+                <button type="button" class="btn danger-soft small" data-click="delIlot">${icon.trash}Supprimer</button>
                 <button type="button" class="btn soft small" data-click="deselect">Terminé</button>
               </div>
-              <div class="muted small">Pour le déplacer : touchez une case vide du plan (son coin en haut à gauche s’y place).</div>
             </div>`
-          : html`<div class="muted small">Touchez un îlot du plan pour le déplacer, changer son nombre de places (1 = poste individuel, jusqu’à ${S.MAX_PLACES}), le pivoter ou le supprimer.</div>`}`}
+          : html`<div class="muted small">Faites <strong>glisser</strong> un îlot avec le doigt pour le placer. <strong>Touchez</strong>-le pour changer son nombre de places
+              (1 = poste individuel, jusqu’à ${S.MAX_PLACES}), sa disposition (face à face ou en ligne), le tourner dans tous les sens ou le supprimer.</div>`}`}
         <div class="muted">${plural(S.nbPlaces(s), 'place', 'places')} au total</div>
         ${draft.id ? html`<div class="danger-zone"><button type="button" class="btn danger-soft" data-click="delSalle">${icon.trash}Supprimer ce plan</button></div>` : ''}
       </section>
       <section class="panel plan-panel">
-        ${planHtml(s, { sel, cells: s.type === 'ilots' && !!t, tableClick: s.type === 'ilots' ? 'selIlot' : '' })}
+        ${planHtml(s, { sel, drag: s.type === 'ilots' })}
       </section>
     </main>
   </div>`;
@@ -106,10 +116,50 @@ export default {
       const s = id === 'new' ? null : db.get('salles', id);
       if (id !== 'new' && !s) { go('#/admin/salles', { replace: true }); return null; }
       draft = s ? { ...JSON.parse(JSON.stringify(s)), key: id } : { ...S.nouvelleSalle(pendingName || ''), key: id };
+      draft.tables = S.tablesOf(draft);
       pendingName = '';
       sel = null;
     }
     return editView();
+  },
+
+  // Îlots : glisser au doigt (ou à la souris) pour déplacer ; un simple toucher sélectionne.
+  mount(root) {
+    const room = root.querySelector('[data-room]');
+    if (!room || !draft || draft.type !== 'ilots') return;
+    room.querySelectorAll('.plan-ilot.drag').forEach(el => {
+      el.addEventListener('pointerdown', e => {
+        const t = draft.tables.find(x => x.id === el.dataset.ilot);
+        if (!t || e.button > 0) return;
+        e.preventDefault();
+        const rect = room.getBoundingClientRect();
+        const ux = rect.width / S.LARGEUR, uy = rect.height / S.HAUTEUR;
+        const start = { x: e.clientX, y: e.clientY, cx: t.cx, cy: t.cy };
+        let moved = false;
+        el.setPointerCapture(e.pointerId);
+        el.classList.add('dragging');
+        const d = S.disposition(t);
+        const move = ev => {
+          const dx = (ev.clientX - start.x) / ux, dy = (ev.clientY - start.y) / uy;
+          if (!moved && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 6) return;
+          moved = true;
+          const b = S.borner({ cx: start.cx + dx, cy: start.cy + dy });
+          t.cx = b.cx; t.cy = b.cy;
+          el.style.left = ((t.cx - d.cols / 2) / S.LARGEUR * 100) + '%';
+          el.style.top = ((t.cy - d.rows / 2) / S.HAUTEUR * 100) + '%';
+        };
+        const up = () => {
+          el.removeEventListener('pointermove', move);
+          el.removeEventListener('pointerup', up);
+          el.removeEventListener('pointercancel', up);
+          sel = moved ? t.id : (sel === t.id ? null : t.id);
+          refresh();
+        };
+        el.addEventListener('pointermove', move);
+        el.addEventListener('pointerup', up);
+        el.addEventListener('pointercancel', up);
+      });
+    });
   },
 
   leave() { draft = null; sel = null; },
@@ -128,35 +178,24 @@ export default {
     colonnes(el) { draft.colonnes = clamp(draft.colonnes + +el.dataset.d, 1, 6); refresh(); },
     parTable(el) { draft.parTable = clamp(draft.parTable + +el.dataset.d, 1, 3); refresh(); },
     addIlot() {
-      const t = { id: db.uid().slice(0, 8), places: 4, vertical: false };
-      const pos = S.premierePlace(draft, t) || S.premierePlace(draft, { ...t, places: 2 });
-      if (!pos) { toast({ text: 'Plus de place libre sur le plan : déplacez ou supprimez un îlot.' }); return; }
-      if (!S.placeLibre(draft, { ...t, ...pos })) t.places = 2;
-      draft.tables = [...(draft.tables || []), { ...t, ...pos }];
+      const t = { id: db.uid().slice(0, 8), places: 4, ligne: false, angle: 0, ...S.pointLibre(draft) };
+      draft.tables = [...(draft.tables || []), t];
       sel = t.id; refresh();
+      toast({ text: 'Îlot ajouté : faites-le glisser à sa place' });
     },
-    selIlot(el) { sel = sel === el.dataset.id ? null : el.dataset.id; refresh(); },
     deselect() { sel = null; refresh(); },
-    moveTo(el) {
-      const t = draft.tables.find(x => x.id === sel);
-      if (!t) return;
-      const moved = { ...t, x: +el.dataset.x, y: +el.dataset.y };
-      if (!S.placeLibre(draft, moved)) { toast({ text: 'L’îlot ne tient pas ici (il touche un autre îlot ou le bord).' }); return; }
-      Object.assign(t, moved); refresh();
-    },
     ilotPlaces(el) {
       const t = draft.tables.find(x => x.id === sel);
-      const changed = { ...t, places: clamp(t.places + +el.dataset.d, 1, S.MAX_PLACES) };
-      if (changed.places === t.places) return;
-      if (!S.placeLibre(draft, changed)) { toast({ text: 'Pas assez de place autour de l’îlot : déplacez-le d’abord.' }); return; }
-      Object.assign(t, changed); refresh();
+      t.places = clamp(t.places + +el.dataset.d, 1, S.MAX_PLACES);
+      Object.assign(t, S.borner(t)); refresh();
     },
-    pivoter() {
+    ligne(el) { const t = draft.tables.find(x => x.id === sel); t.ligne = el.dataset.v === '1'; refresh(); },
+    tourner(el) {
       const t = draft.tables.find(x => x.id === sel);
-      const changed = { ...t, vertical: !t.vertical };
-      if (!S.placeLibre(draft, changed)) { toast({ text: 'Pas assez de place pour le pivoter ici : déplacez-le d’abord.' }); return; }
-      Object.assign(t, changed); refresh();
+      t.angle = (((t.angle || 0) + +el.dataset.d) % 360 + 360) % 360;
+      refresh();
     },
+    droit() { const t = draft.tables.find(x => x.id === sel); t.angle = 0; refresh(); },
     delIlot() {
       const idx = draft.tables.findIndex(x => x.id === sel);
       const removed = draft.tables.splice(idx, 1)[0];

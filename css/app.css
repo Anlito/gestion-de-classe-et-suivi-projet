@@ -989,3 +989,12 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .plan-rows { grid-template-columns: repeat(var(--cols), minmax(0, calc(var(--n, 2) * 74px))); justify-content: space-evenly; }
 .plan-rangees .plan-rows { --n: 2; }
 .plan-table .seat { aspect-ratio: 3 / 4; }
+/* Îlots libres : glisser, tourner (1.19.1) */
+.plan-room { position: relative; aspect-ratio: var(--w) / var(--h); border-radius: 14px; background: var(--bg); border: 1px solid var(--line);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--ink) 14%, transparent) 1px, transparent 1.5px); background-size: calc(100% / var(--w)) calc(100% / var(--h)); }
+.plan-ilots .plan-ilot { position: absolute; grid-template-columns: repeat(var(--cols), 1fr); grid-template-rows: repeat(var(--rows), 1fr); padding: 4px; gap: 3px; transform-origin: center; }
+.plan-ilot.drag { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.plan-ilot.dragging { cursor: grabbing; z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.seat-in { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.rot-row { display: flex; align-items: center; gap: 10px; }
+.rot-n { min-width: 56px; text-align: center; }
