@@ -12,7 +12,7 @@
 //   chiffré déposé sur Google Drive.
 
 const DB_NAME = 'carnet-de-classe';
-const DB_VERSION = 7; // 2 : absences · 3 : appels · 4 : retards · 5 : emploi du temps · 6 : effacements (synchronisation) · 7 : événements
+const DB_VERSION = 8; // 2 : absences · 3 : appels · 4 : retards · 5 : emploi du temps · 6 : effacements (synchronisation) · 7 : événements · 8 : archives
 export const SNAPSHOT_FORMAT = 1;
 // Réglages propres à cet appareil, jamais synchronisés (voir sync.js).
 export const LOCAL_META = new Set(['lastBackupAt', 'lastModified', 'sync']);
@@ -56,7 +56,7 @@ export async function init() {
     const r = indexedDB.open(DB_NAME, DB_VERSION);
     r.onupgradeneeded = () => {
       const d = r.result;
-      for (const s of STORES) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' });
+      for (const s of [...STORES, ARCHIVES]) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' });
     };
     r.onsuccess = () => resolve(r.result);
     r.onerror = () => reject(r.error);
@@ -104,6 +104,8 @@ export function photoURL(photoId) {
 // oldest = true : valeurs par défaut créées automatiquement (date 0), pour qu'une vraie valeur venue d'un autre
 // appareil l'emporte toujours à la synchronisation.
 export function commit(fn, { track = true, oldest = false } = {}) {
+  // Consultation d'une archive : rien n'est enregistré (lecture seule).
+  if (archiveOuverte) { if (track) emitError(new Error('archive consultée en lecture seule : rien n’est modifié')); return async () => {}; }
   const ops = [];
   const now = oldest ? 0 : Date.now();
   const w = {
@@ -207,6 +209,9 @@ export async function exportSnapshot() {
 }
 
 export async function importSnapshot(snap) {
+  await replaceAll(await prepareSnapshot(snap));
+}
+async function prepareSnapshot(snap) {
   if (!snap || snap.app !== 'carnet-de-classe' || !snap.data) throw new Error('Ce fichier n’est pas une sauvegarde du Carnet de classe.');
   if (snap.format > SNAPSHOT_FORMAT) throw new Error('Cette sauvegarde vient d’une version plus récente de l’app. Mettez l’app à jour.');
   const prepared = {};
@@ -216,7 +221,44 @@ export async function importSnapshot(snap) {
       ? await Promise.all(list.map(async p => ({ id: p.id, updatedAt: p.updatedAt, blob: await dataURLToBlob(p.dataURL) })))
       : list;
   }
-  await replaceAll(prepared);
+  return prepared;
+}
+
+// ---------- Archives des années (1.17.0) ----------
+// Table à part, HORS de STORES : jamais synchronisée enregistrement par enregistrement, jamais dans les sauvegardes,
+// jamais effacée par une restauration. Une archive = l'instantané complet d'une année (même format qu'une sauvegarde).
+//   archives { id, year, createdAt, summary: { classes, students, photos, projects }, size, blob (JSON), driveId? }
+export const ARCHIVES = 'archives';
+function archivesTx(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction(ARCHIVES, mode);
+    const r = fn(tx.objectStore(ARCHIVES));
+    tx.oncomplete = () => resolve(r && r.result);
+    tx.onerror = tx.onabort = () => reject(tx.error);
+  });
+}
+export const archivesList = async () => ((await archivesTx('readonly', os => os.getAll())) || []).sort((a, b) => (b.year || '').localeCompare(a.year || ''));
+export const getArchive = id => archivesTx('readonly', os => os.get(id));
+export const saveArchive = rec => archivesTx('readwrite', os => os.put(rec));
+export const deleteArchive = id => archivesTx('readwrite', os => os.delete(id));
+
+// Consultation : l'archive remplace les données EN MÉMOIRE seulement ; rien n'est écrit (commit inactif,
+// synchronisation suspendue). Pour revenir à l'année en cours, l'app est rechargée (closeArchive).
+let archiveOuverte = null; // { id, year }
+export const archive = () => archiveOuverte;
+export async function openArchive(rec, snap) {
+  const prepared = await prepareSnapshot(snap);
+  await flush();
+  const local = all('meta').filter(r => LOCAL_META.has(r.id));
+  for (const s of STORES) cache[s] = new Map((s === 'meta' ? [...prepared.meta.filter(r => !LOCAL_META.has(r.id)), ...local] : prepared[s] || []).map(x => [x.id, x]));
+  for (const url of photoURLs.values()) URL.revokeObjectURL(url);
+  photoURLs.clear();
+  archiveOuverte = { id: rec.id, year: rec.year };
+  emit({ stores: STORES, archive: true });
+}
+export function closeArchive() {
+  location.hash = '#/';
+  location.reload();
 }
 
 // ---------- Synchronisation (voir sync.js) ----------
@@ -237,6 +279,7 @@ export function exportForSync() {
 // pas d'annulation). changes = { puts: { store: [rec] }, dels: [{ store, id }], tombs: [rec] }.
 // Une photo sans image garde l'image locale si elle existe (l'image arrive séparément).
 export async function applyRemote(changes) {
+  if (archiveOuverte) throw new Error('Archive ouverte : synchronisation suspendue.');
   const ops = [];
   for (const [store, list] of Object.entries(changes.puts || {})) {
     for (const rec of list) {
@@ -267,6 +310,7 @@ export async function applyRemote(changes) {
 // Remplace toutes les données (restauration, démonstration, tout effacer). Les réglages propres à cet appareil
 // (synchronisation Drive, dernière sauvegarde) sont conservés : ils ne viennent jamais d'un fichier.
 export async function replaceAll(prepared) {
+  if (archiveOuverte) throw new Error('Quittez d’abord l’archive consultée.');
   await flush();
   const keep = all('meta').filter(r => LOCAL_META.has(r.id));
   prepared = { ...prepared, meta: [...(prepared.meta || []).filter(r => !LOCAL_META.has(r.id)), ...keep] };

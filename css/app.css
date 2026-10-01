@@ -942,3 +942,8 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .evt-types { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .evt-type { min-height: 44px; padding: 8px 14px; border-radius: 22px; border: 2px solid color-mix(in srgb, var(--evt) 45%, transparent); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .evt-type.on { background: var(--evt); border-color: var(--evt); color: #fff; }
+/* Archives (1.17.0) */
+.arch-ic { display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 12px; background: var(--bg); color: var(--ink2); flex: none; }
+.archive-box { background: var(--accentTint, #ece8ff); border: 2px solid var(--accent, #6b5bd2); }
+.archive-box .alerts-head { cursor: default; gap: 10px; }
+.archive-box .alerts-dot { background: var(--accent, #6b5bd2); }

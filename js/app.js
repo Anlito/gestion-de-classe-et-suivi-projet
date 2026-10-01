@@ -17,6 +17,7 @@ import editProjet from './screens/edit-projet.js';
 import sauvegarde from './screens/sauvegarde.js';
 import imprimer from './screens/imprimer.js';
 import emploiDuTemps from './screens/emploi-du-temps.js';
+import archives from './screens/archives.js';
 import { initLock } from './lock.js';
 import { initAlertes, render as renderAlertes } from './alertes.js';
 import { lierAppels } from './planning.js';
@@ -38,6 +39,7 @@ const ROUTES = [
   [/^#\/admin\/reglages$/, reglages, []],
   [/^#\/admin\/sauvegarde$/, sauvegarde, []],
   [/^#\/admin\/planning$/, emploiDuTemps, []],
+  [/^#\/admin\/archives$/, archives, []],
   [/^#\/imprimer\/(eleve|fiches|recap)\/([^/]+)$/, imprimer, ['kind', 'id']],
   [/^#\/admin\/classe\/([^/]+)$/, editClasse, ['id']],
   [/^#\/admin\/projet\/([^/]+)$/, editProjet, ['id']],
@@ -108,7 +110,8 @@ async function boot() {
       <p>Fermez les autres onglets du Carnet de classe puis rechargez la page.</p></div>`.s;
     return;
   }
-  db.onError(e => toast({ text: 'Erreur d’enregistrement : ' + (e && e.message || e), ms: 8000 }));
+  db.onError(e => toast(db.archive() ? { text: 'Archive en lecture seule : rien n’est modifié. Pour travailler, revenez à l’année en cours.', ms: 5000 }
+    : { text: 'Erreur d’enregistrement : ' + (e && e.message || e), ms: 8000 }));
   model.ensureMeta();
   // Appels faits avant l'emploi du temps (ou hors planning) : rattachés au cours correspondant s'il existe.
   try { lierAppels(); } catch (e) { console.error(e); }

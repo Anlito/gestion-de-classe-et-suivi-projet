@@ -7,8 +7,9 @@ import * as autosync from '../autosync.js';
 import { icon, backLink } from '../components.js';
 import { go, refresh } from '../nav.js';
 import * as backup from '../backup.js';
+import { archiverMaintenant } from './archives.js';
 
-let archived = false; // archive de fin d'année téléchargée pendant cette visite
+let archived = null; // l'année en cours a-t-elle une archive ? (null : pas encore vérifié)
 let busy = '';
 let clientDraft = null; // identifiant client en cours de saisie
 
@@ -143,10 +144,13 @@ export default {
           </div>
 
           <div class="section-title mt">Fin d’année scolaire ${year}</div>
-          <div class="muted small">1. Téléchargez l’archive de l’année. 2. Supprimez les classes : les élèves, photos, observations, séances et notes sont effacés de l’appareil. Les projets (définitions et critères) sont gardés pour l’année suivante.</div>
+          <div class="muted small">1. Archivez l’année : elle reste consultable dans l’app (Administration → Archives)${drive.isDrive() ? ' et une copie va dans Google Drive' : ' et le fichier vous est proposé'}.
+            2. Supprimez les classes : les élèves, photos, observations, séances et notes de l’année sont effacés (ils restent dans l’archive). Les projets (définitions et critères) sont gardés pour l’année suivante.</div>
+          ${archived === null ? (backup.archiveDeCetteAnnee().then(v => { archived = v; refresh(); }), '') : ''}
           <div class="btn-col">
-            <button type="button" class="btn soft" data-click="archive">${archived ? '✓ Archive téléchargée' : '1. Télécharger l’archive ' + year}</button>
+            <button type="button" class="btn soft" data-click="archive">${archived ? `✓ Année ${year} archivée · archiver à nouveau` : '1. Archiver l’année ' + year}</button>
             <button type="button" class="btn danger-soft" data-click="newYear" ${archived ? '' : 'disabled'}>2. Supprimer les classes et passer en ${backup.nextSchoolYear(year)}</button>
+            <a class="link-btn self-start" href="#/admin/archives">Voir les archives des années</a>
           </div>
         </section>
 
@@ -171,7 +175,7 @@ export default {
     </div>`;
   },
 
-  leave() { archived = false; clientDraft = null; },
+  leave() { archived = null; clientDraft = null; },
 
   actions: {
     // ----- Google Drive -----
@@ -251,23 +255,25 @@ export default {
       });
     },
     async archive() {
+      if (db.archive()) { toast({ text: 'Revenez d’abord à l’année en cours.' }); return; }
       try {
-        const r = await backup.giveFile(async () => { busy = 'Préparation de l’archive…'; refresh(); return backup.backupBlob(); },
-          backup.backupName('carnet-archive-' + model.schoolYear().replace(/\D+/g, '-')));
-        if (r.how !== 'cancelled') { backup.markBackupDone(); archived = true; toast({ text: backup.givenMessage(r, 'Archive') }); }
-      } catch (e) { toast({ text: 'Archive impossible : ' + e.message }); }
+        const r = await archiverMaintenant(t => { busy = t; refresh(); });
+        archived = true;
+        toast({ text: r.text, ms: r.ms || 6000 });
+      } catch (e) { toast({ text: 'Archive impossible : ' + e.message, ms: 8000 }); }
       busy = ''; refresh();
     },
     async newYear() {
       const next = backup.nextSchoolYear(model.schoolYear());
       const ok = await confirmDialog({
         title: `Passer à l’année ${next} ?`,
-        text: `Les ${db.all('classes').length} classes, leurs élèves, photos, observations, séances, groupes et notes seront supprimés de cet appareil. Vérifiez que l’archive est bien dans vos téléchargements. Les projets sont conservés.`,
+        text: `Les ${db.all('classes').length} classes, leurs élèves, photos, observations, séances, groupes et notes seront supprimés${drive.isDrive() ? ' (sur tous vos appareils synchronisés)' : ' de cet appareil'}. Ils restent consultables dans l’archive ${model.schoolYear()} (Administration → Archives). Les projets sont conservés.`,
         ok: 'Supprimer les classes', danger: true,
       });
       if (!ok) return;
+      if (!(await backup.archiveDeCetteAnnee())) { archived = false; refresh(); toast({ text: 'Archivez d’abord l’année (étape 1).' }); return; }
       const undo = backup.startNewYear();
-      archived = false;
+      archived = null;
       go('#/');
       toast({ text: `Année ${next} commencée`, undo: async () => { await undo(); refresh(); } });
     },

@@ -174,6 +174,46 @@ export function pronoteCsv(assignmentId) {
   return { blob: csvBlob(rows), name: `competences-${safe(c.name)}-${safe(p.title)}-${todayISO()}.csv` };
 }
 
+// ---------- Archives des années (1.17.0) ----------
+// Une archive = l'instantané complet de l'année (format d'une sauvegarde), gardé dans l'app (table à part, voir
+// db.js) pour être CONSULTÉ en lecture seule sans toucher à l'année en cours ; en mode Google Drive, une copie va
+// dans le dossier Drive (carnet-archive-AAAA-AAAA.json) pour les autres appareils.
+export const archiveId = year => 'annee-' + (year || 'inconnue').replace(/\D+/g, '-').replace(/^-|-$/g, '');
+export const archiveFileName = year => `carnet-archive-${(year || 'inconnue').replace(/\D+/g, '-').replace(/^-|-$/g, '')}.json`;
+const summaryOf = data => {
+  const n = k => (Array.isArray(data[k]) ? data[k].length : 0);
+  return { classes: n('classes'), students: n('students'), photos: n('photos'), projects: n('projects') };
+};
+// Archive l'année en cours (remplace une archive précédente de la même année). Renvoie l'enregistrement.
+export async function creerArchive() {
+  const snap = await db.exportSnapshot();
+  const year = model.schoolYear();
+  const blob = new Blob([JSON.stringify(snap)], { type: 'application/json' });
+  const old = await db.getArchive(archiveId(year));
+  const rec = { id: archiveId(year), year, createdAt: new Date().toISOString(), summary: summaryOf(snap.data), size: blob.size, blob, driveId: old && old.driveId };
+  await db.saveArchive(rec);
+  return rec;
+}
+// Ajoute aux archives un fichier (archive ou sauvegarde d'une année passée). Renvoie l'enregistrement.
+export async function importerArchive(blobOrFile, extra = {}) {
+  let snap;
+  try { snap = JSON.parse(await blobOrFile.text()); } catch (e) { throw new Error('Ce fichier n’est pas une archive lisible.'); }
+  if (!snap || snap.app !== 'carnet-de-classe' || !snap.data) throw new Error('Ce fichier n’est pas une archive du Carnet de classe.');
+  const y = (snap.data.meta || []).find(m => m.id === 'schoolYear');
+  const year = (y && y.value) || model.schoolYearFor(new Date(snap.exportedAt || Date.now()));
+  const blob = blobOrFile instanceof Blob ? new Blob([blobOrFile], { type: 'application/json' }) : blobOrFile;
+  const rec = { id: archiveId(year), year, createdAt: snap.exportedAt || new Date().toISOString(), summary: summaryOf(snap.data), size: blob.size, blob, ...extra };
+  await db.saveArchive(rec);
+  return rec;
+}
+// Ouvre une archive en consultation (lecture seule).
+export async function consulter(rec) {
+  let snap;
+  try { snap = JSON.parse(await rec.blob.text()); } catch (e) { throw new Error('Archive illisible.'); }
+  await db.openArchive(rec, snap);
+}
+export const archiveDeCetteAnnee = async () => !!(await db.getArchive(archiveId(model.schoolYear())));
+
 export function nextSchoolYear(y) {
   const m = /^(\d{4})\D+(\d{4})$/.exec(y || '');
   return m ? `${+m[1] + 1}–${+m[2] + 1}` : model.schoolYearFor(new Date(Date.now() + 200 * 864e5));

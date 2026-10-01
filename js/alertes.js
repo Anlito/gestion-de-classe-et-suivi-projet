@@ -46,6 +46,14 @@ export function render() {
   const el = document.getElementById('alerts');
   if (!el) return;
   const hash = location.hash || '#/';
+  // Archive consultée : à la place des alertes, un bandeau permanent pour la quitter.
+  const ar = db.archive();
+  if (ar) {
+    el.innerHTML = hash.startsWith('#/imprimer') ? '' : html`<div class="alerts-box archive-box" role="status">
+      <div class="alerts-head"><span class="alerts-dot"></span><span class="grow">Archive ${ar.year} · lecture seule</span>
+        <button type="button" class="btn accent small" data-a="quitArchive">Revenir à l’année en cours</button></div></div>`.s;
+    return;
+  }
   // Pas d'alertes à l'impression, sur l'écran verrouillé, ni dans l'administration (formulaires, import).
   if (hash.startsWith('#/imprimer') || hash.startsWith('#/admin') || document.querySelector('.lock')) { el.innerHTML = ''; return; }
   // Appels et séances faits sans cours (ex. séance créée dans l'onglet Projet après le cours) : reliés d'abord.
@@ -79,6 +87,7 @@ function clickHandler(e) {
   const b = e.target.closest('[data-a]');
   if (!b) return;
   const kind = b.dataset.a;
+  if (kind === 'quitArchive') { db.closeArchive(); return; }
   if (kind === 'toggle') {
     open = !open;
     try { localStorage.setItem('carnet-alertes', open ? 'ouvertes' : 'repliees'); } catch (err) { /* stockage indisponible */ }

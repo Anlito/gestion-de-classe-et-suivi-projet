@@ -137,6 +137,7 @@ export const syncing = () => !!running;
 // opts.remplacerDrive : cet appareil fait foi (après une restauration…) : ce qui n'existe plus ici est supprimé
 // de Drive et, à leur prochaine synchronisation, des autres appareils.
 export function synchroniser(onStep = () => {}, opts = {}) {
+  if (db.archive()) return Promise.reject(new Error('Archive consultée : quittez-la pour synchroniser.'));
   running = running || doSyncRetry(onStep, opts).finally(() => { running = null; });
   return running;
 }
@@ -246,6 +247,22 @@ async function doSync(onStep, opts) {
   setConfig({ dataFileId: dataId, remoteVersion: newVersion, photoIdx: idx, lastSync: startedAt, lastStats: stats, reinit: false });
   return stats;
 }
+// ---------- Archives des années (1.17.0) : un fichier « carnet-archive-AAAA-AAAA.json » par année ----------
+// Envoie (ou remplace) l'archive ; renvoie l'identifiant du fichier Drive.
+export async function envoyerArchive(name, blob, knownId = null) {
+  const folderId = await ensureFolder();
+  let id = knownId;
+  if (!id) { const f = await findOne(`name='${name}' and '${folderId}' in parents`); id = f ? f.id : null; }
+  return (await putFile(id, name, folderId, blob)).id;
+}
+// Archives présentes dans le dossier Drive : [{ id, name, size, modifiedTime }].
+export async function archivesDrive() {
+  const folderId = await ensureFolder();
+  const r = await api(`${API}/files?q=${q(`name contains 'carnet-archive-' and '${folderId}' in parents and trashed=false`)}&fields=files(id,name,size,modifiedTime)&spaces=drive&pageSize=100`);
+  return (r.files || []).filter(f => /^carnet-archive-.*\.json$/.test(f.name));
+}
+export const telechargerArchive = id => getBlob(id);
+
 // Drive contient-il déjà des données du Carnet (avec au moins une classe) ?
 export async function driveADesDonnees() {
   const folderId = await ensureFolder();

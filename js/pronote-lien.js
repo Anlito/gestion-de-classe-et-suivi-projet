@@ -154,7 +154,7 @@ export function dernierSoir(now = new Date()) {
 export const aFaire = (e, now = new Date()) => !!e.lien && (!e.lienAt || new Date(e.lienAt) < dernierSoir(now));
 
 function verifier() {
-  if (document.hidden || !navigator.onLine || !relais() || enCours) return;
+  if (db.archive() || document.hidden || !navigator.onLine || !relais() || enCours) return;
   if (!avecLien().some(e => aFaire(e))) return;
   // Pas pendant une saisie ou un panneau ouvert : on réessaiera au prochain passage.
   if (document.querySelector('#layer > *, #view .scrim, .busy, .appel-mode') || (document.activeElement && document.activeElement.matches('input, select, textarea'))) return;

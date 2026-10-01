@@ -55,6 +55,7 @@ export function schedule(ms = DELAI_MODIF) {
 
 // interactive = true : lancé par un toucher (reconnexion Google et questions autorisées).
 export async function run(interactive = false) {
+  if (db.archive()) return null; // archive consultée : rien à synchroniser
   if (!active()) { paint(); return null; }
   if (drive.syncing()) return null;
   const cfg = drive.config();
@@ -150,7 +151,7 @@ async function question() {
 export function initAutoSync() {
   // Modifications : synchronisation 5 s après la dernière (hors réglages propres à l'appareil et échanges reçus).
   db.onChange(info => {
-    if (info.remote) return;
+    if (info.remote || info.archive || db.archive()) return;
     if (info.reset) {
       if (!expectReset && active()) { drive.setConfig({ reinit: true }); setState('reinit', 'Les données de cet appareil ont été remplacées.'); }
       return;

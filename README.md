@@ -37,6 +37,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/sync.js` | fusion des données entre appareils (synchronisation Google Drive) |
 | `js/drive.js` | connexion Google (identifiant client propre à chaque professeur) et échanges avec son Drive |
 | `js/autosync.js` | synchronisation automatique et indicateur « Synchronisé à … » dans l'en-tête |
+| `js/screens/archives.js` | Administration → Archives : archiver l'année, consulter une année passée en lecture seule |
 | `js/pronote-lien.js` | emploi du temps mis à jour par lien Pronote (via le relais Google du professeur), chaque soir ou sur demande |
 | `js/alertes.js` | alertes dans l'app (appel non fait, séances à remplir), coin de l'écran, tous les écrans |
 | `js/screens/semaine.js` | accueil `#/` : planning de la semaine (sans emploi du temps : affiche la liste des classes) |
@@ -155,6 +156,27 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 - Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
+
+### 1.17.0 — 1er octobre 2026 · Archives des années consultables
+- Demande du professeur : archiver l'année avant « Nouvelle année ». Avant : un fichier téléchargé, qu'on ne pouvait
+  rouvrir qu'en **remplaçant** toutes les données. Maintenant l'archive est **consultable dans l'app, en lecture seule**,
+  sans toucher à l'année en cours.
+- Nouvelle table `archives` (`DB_VERSION` 8), **hors de `STORES`** : jamais synchronisée enregistrement par
+  enregistrement, jamais dans les sauvegardes, jamais effacée par une restauration. Une archive = instantané complet
+  de l'année (format d'une sauvegarde, photos comprises), `{ id: 'annee-AAAA-AAAA', year, createdAt, summary, size, blob, driveId }`.
+- Nouvel écran **Administration → Archives** (`js/screens/archives.js`) : archiver l'année (de nouveau = remplace),
+  liste des archives (Consulter, Fichier, Retirer de l'appareil), archives présentes dans **Google Drive**
+  (`carnet-archive-AAAA-AAAA.json` dans le dossier « Carnet de classe », « Récupérer sur cet appareil »), ouvrir un
+  fichier d'archive (aussi les anciens fichiers « carnet-archive-… » téléchargés avant cette version).
+- **Consultation** (`db.openArchive`) : l'archive remplace les données en mémoire seulement ; toute l'app fonctionne
+  (trombinoscope, fiches, projets, impressions, CSV) ; `commit` ne fait rien (message « lecture seule »),
+  synchronisation Drive, mise à jour Pronote et alertes suspendues ; bandeau « Archive AAAA · lecture seule —
+  Revenir à l'année en cours » (rechargement de l'app).
+- Sauvegarde et exports → Fin d'année : « 1. Archiver l'année » (mode Drive : copie dans Drive ; mode manuel : le
+  fichier est aussi proposé), « 2. Supprimer les classes » possible seulement si l'année a une archive.
+- Vérifié : archive de 13 classes / 309 élèves / 283 photos (2 Mo, < 0,5 s), nouvelle année, consultation (photos,
+  écriture refusée), retour à l'année en cours intact ; Drive simulé : envoi, remplacement du même fichier,
+  récupération sur un autre appareil. Tests : 63 / 63.
 
 ### 1.16.0 — 1er octobre 2026 · Emploi du temps par lien Pronote, étape 2 : événements hors Pronote
 - Nouvelle table `evenements` (`DB_VERSION` 7) : `{ date, debut, fin, type, titre, lieu, classId, note, serieId }`,
@@ -517,9 +539,6 @@ et notes sur un cours · 5 appel rattaché et alertes · 6 réimportation et con
 
 ## Pistes pour la suite
 
-- Chiffrement des sauvegardes et du Drive (écarté pour l'instant par le professeur ; les besoins particuliers sont des
-  données sensibles).
-- Aligner les autres écrans sur la maquette graphique du planning.
-- Archive de l'année avant « Nouvelle année » (aujourd'hui, les classes sont supprimées).
-- Semestres au lieu des trimestres, coefficients sur les critères, seuils de mention réglables.
+Écartés par le professeur (1er oct.) : chiffrement, alignement graphique des autres écrans, semestres /
+coefficients / seuils de mention.
 - Tests automatiques des règles de `model.js`.
