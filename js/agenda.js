@@ -83,6 +83,8 @@ export function souhaite() {
       start: quand(e.date, e.debut), end: quand(e.date, e.fin),
       colorId: famille(etab)[2],
       status: 'confirmed', transparency: 'opaque',
+      // Invités choisis dans l'app (sinon, le champ n'est pas envoyé : ceux ajoutés dans Google Agenda sont gardés).
+      ...(e.invitesGeres ? { attendees: (e.invites || []).map(email => ({ email })) } : {}),
     });
   }
   return out;
@@ -101,19 +103,23 @@ async function appel(url, opts, essais = 4) {
   }
 }
 const json = body => ({ body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
-// Crée ou remplace un événement à identifiant fixe (y compris un événement supprimé auparavant : il est rétabli).
+// Crée ou met à jour un événement à identifiant fixe (y compris un événement supprimé auparavant : il est rétabli).
+// Mise à jour PARTIELLE (PATCH, 1.21.1) : seuls les champs venant de l'app changent ; ce que le professeur a ajouté
+// dans Google Agenda (invités, rappels, pièces jointes…) est conservé.
+// Événement avec invités : Google leur envoie l'invitation, puis les modifications (sendUpdates=all).
 async function ecrire(calId, id, ev, neuf = false) {
   const base = `${CAL}/calendars/${encodeURIComponent(calId)}/events`;
+  const q = ev.attendees ? '?sendUpdates=all' : ''; // invités (ou retirés de la liste) prévenus par Google
   if (neuf) {
-    // Jamais envoyé depuis cet agenda : création directe ; déjà là (autre appareil) → remplacement.
-    try { await appel(base, { method: 'POST', ...json({ ...ev, id }) }); return; }
+    // Jamais envoyé depuis cet agenda : création directe ; déjà là (autre appareil) → mise à jour.
+    try { await appel(base + q, { method: 'POST', ...json({ ...ev, id }) }); return; }
     catch (e) { if (e.status !== 409) throw e; }
   }
-  try { await appel(`${base}/${id}`, { method: 'PUT', ...json({ ...ev, id }) }); }
+  try { await appel(`${base}/${id}${q}`, { method: 'PATCH', ...json(ev) }); }
   catch (e) {
     if (!e.notFound) throw e;
-    try { await appel(base, { method: 'POST', ...json({ ...ev, id }) }); }
-    catch (e2) { if (e2.status === 409) await appel(`${base}/${id}`, { method: 'PUT', ...json({ ...ev, id }) }); else throw e2; }
+    try { await appel(base + q, { method: 'POST', ...json({ ...ev, id }) }); }
+    catch (e2) { if (e2.status === 409) await appel(`${base}/${id}${q}`, { method: 'PATCH', ...json(ev) }); else throw e2; }
   }
 }
 async function effacer(calId, id) {

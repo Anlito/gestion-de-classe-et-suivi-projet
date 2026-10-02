@@ -561,8 +561,14 @@ export function chevauchementsTout(placements, { ignoreCours = [], ignoreEvt = [
   return out;
 }
 
+// Adresses e-mail d'un texte (séparées par des virgules, espaces, points-virgules ou retours à la ligne).
+export const emailsDe = text => [...new Set(String(text || '').toLowerCase().split(/[\s,;]+/).filter(s => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(s)))];
+// invites : personnes invitées (Google Agenda leur envoie l'invitation), 1.21.1.
 const champsEvt = f => ({ type: TYPES_EVT[f.type] ? f.type : 'autre', titre: (f.titre || '').trim(), lieu: (f.lieu || '').trim(),
-  classId: f.classId || undefined, note: (f.note || '').trim() || undefined, debut: f.debut, fin: f.fin });
+  classId: f.classId || undefined, note: (f.note || '').trim() || undefined, debut: f.debut, fin: f.fin,
+  invites: emailsDe(f.invites).length ? emailsDe(f.invites) : undefined,
+  // Une fois des invités choisis dans l'app, c'est l'app qui gère la liste (même vidée) ; sinon Google garde les siens.
+  ...(emailsDe(f.invites).length ? { invitesGeres: true } : {}) });
 // Ajout ; repeat : chaque semaine jusqu'à la fin de l'année (vacances et fériés sautés).
 export function addEvenement(f, repeat = false) {
   const dates = datesAjout(f.date, repeat);

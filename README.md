@@ -172,6 +172,16 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 
 ## Historique des versions
 
+### 1.21.1 — 2 octobre 2026 · Google Agenda : partager un événement
+- Demande du professeur : partager certains événements avec une personne. Formulaire d'un événement → champ
+  **« Inviter »** (adresses e-mail, vérifiées) : `evenements.invites` ; envoyé comme invités de l'événement Google, avec
+  `sendUpdates=all` (Google envoie l'invitation, les modifications, et prévient les personnes retirées de la liste).
+- Les mises à jour vers Google Agenda sont désormais **partielles** (PATCH au lieu de remplacer l'événement) : ce qui
+  est ajouté directement dans Google Agenda (invités sur un cours, rappels…) **n'est plus effacé**. Si des invités ont
+  été choisis dans l'app (`invitesGeres`), c'est l'app qui gère la liste de cet événement.
+- Vérifié avec le Google Agenda simulé : adresse invalide refusée ; invitation envoyée à 2 personnes ; invité ajouté
+  dans Google sur un cours gardé quand le cours est déplacé dans l'app ; invités retirés dans l'app retirés dans Google.
+
 ### 1.21.0 — 2 octobre 2026 · Planning copié dans Google Agenda
 - Demande du professeur : retrouver le planning du collège dans Google Agenda, avec une couleur par collège et une
   différence entre cours, vie de classe et rendez-vous. Choix : **une famille de couleurs par collège, nuance selon le

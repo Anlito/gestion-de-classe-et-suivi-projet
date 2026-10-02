@@ -14,6 +14,7 @@ import accueil from './accueil.js';
 import { demanderAppel } from './trombi.js';
 import * as pronote from '../pronote-lien.js';
 import * as prepa from '../prepa.js';
+import * as agenda from '../agenda.js';
 import { ouvrirMateriel } from './edit-projet.js';
 import { onOuvrirCours } from '../alertes.js';
 
@@ -215,6 +216,9 @@ function evtView() {
     <label class="lbl">Classe concernée (facultatif)
       <select class="input" data-change="fClass"><option value="">—</option>${model.classes().map(k => html`<option value="${k.id}" ${f.classId === k.id ? 'selected' : ''}>${k.name}</option>`)}</select></label>
     <label class="lbl">Note (facultatif) <textarea class="field" rows="3" data-input="fNote" placeholder="Ordre du jour, documents à apporter…">${f.note}</textarea></label>
+    <label class="lbl">Inviter (facultatif) — adresses e-mail, séparées par des virgules
+      <input class="input" type="email" multiple value="${f.invites}" data-input="fInvites" placeholder="collegue@exemple.fr, parent@exemple.fr" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="email">
+      <span class="muted xsmall">${agenda.config().actif ? 'Google Agenda leur envoie l’invitation (et les modifications) depuis votre compte.' : 'L’invitation part quand la synchronisation Google Agenda est activée (Administration → Emploi du temps).'}</span></label>
     ${ev ? '' : html`<label class="check-row"><input type="checkbox" data-change="fRepeat" ${f.repeat ? 'checked' : ''}> Chaque semaine jusqu’à la fin de l’année (vacances sautées)</label>`}
     ${ev ? html`<button type="button" class="btn danger-soft" data-click="delEvt">Supprimer cet événement</button>`
       : html`<div class="muted small">Les cours viennent de Pronote. Besoin d’un cours absent de Pronote (rattrapage…) ?
@@ -612,23 +616,26 @@ export default {
     addEvt() {
       moving = null;
       const d = narrow() ? addDays(weekStart, dayIdx || 0) : (mondayOf(todayISO()) === weekStart ? todayISO() : weekStart);
-      sheet = { mode: 'evt', f: { type: 'reunion', titre: '', date: d, debut: '17:30', fin: '18:30', lieu: '', classId: '', note: '', repeat: false } };
+      sheet = { mode: 'evt', f: { type: 'reunion', titre: '', date: d, debut: '17:30', fin: '18:30', lieu: '', classId: '', note: '', invites: '', repeat: false } };
       refresh();
     },
     evtSheet(el) {
       if (moving) return;
       const ev = db.get('evenements', el.dataset.id);
       if (!ev) return;
-      sheet = { mode: 'evt', id: ev.id, f: { type: ev.type, titre: ev.titre || '', date: ev.date, debut: ev.debut, fin: ev.fin, lieu: ev.lieu || '', classId: ev.classId || '', note: ev.note || '' } };
+      sheet = { mode: 'evt', id: ev.id, f: { type: ev.type, titre: ev.titre || '', date: ev.date, debut: ev.debut, fin: ev.fin, lieu: ev.lieu || '', classId: ev.classId || '', note: ev.note || '', invites: (ev.invites || []).join(', ') } };
       refresh();
     },
     fType(el) { sheet.f.type = el.dataset.k; refresh(); },
     fTitre(el) { sheet.f.titre = el.value; },
     fLieu(el) { sheet.f.lieu = el.value; },
     fNote(el) { sheet.f.note = el.value; },
+    fInvites(el) { sheet.f.invites = el.value; },
     async saveEvt() {
       const f = sheet.f;
       if (!f.date || !f.debut || !f.fin || f.fin <= f.debut) { toast({ text: 'Vérifiez la date et les heures (la fin doit suivre le début)' }); return; }
+      const mauvaises = String(f.invites || '').split(/[\s,;]+/).filter(Boolean).filter(t => !planning.emailsDe(t).length);
+      if (mauvaises.length) { toast({ text: `Adresse e-mail à vérifier : ${mauvaises.join(', ')}`, ms: 6000 }); return; }
       const ev = sheet.id ? db.get('evenements', sheet.id) : null;
       let serie = false;
       if (ev && planning.suivantsEvt(ev).length) {
