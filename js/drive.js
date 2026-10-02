@@ -48,18 +48,24 @@ function loadGis() {
   return gis;
 }
 export const connected = () => !!token && token.exp > Date.now();
+// Google Agenda (1.21.0) : autorisation supplémentaire, demandée seulement si la synchronisation de l'agenda est activée.
+// « calendar.app.created » : l'app ne voit que l'agenda qu'elle a créé (« Carnet de classe »), pas vos autres agendas.
+export const SCOPE_AGENDA = 'https://www.googleapis.com/auth/calendar.app.created';
+const veutAgenda = () => !!(db.getMeta('agenda', {}) || {}).actif;
+export const aLAgenda = () => connected() && !!token.scopes && token.scopes.includes(SCOPE_AGENDA);
 
 // interactive = false : tentative discrète (sans fenêtre si Google se souvient de l'autorisation).
-export async function connect(interactive = true) {
+// agenda = true : demande aussi l'accès à Google Agenda (activation).
+export async function connect(interactive = true, { agenda = false } = {}) {
   const { clientId } = config();
   if (!validClientId(clientId)) throw new Error('Indiquez d’abord votre identifiant client Google (il se termine par .apps.googleusercontent.com).');
   await loadGis();
   await new Promise((resolve, reject) => {
     const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: clientId.trim(), scope: SCOPE,
+      client_id: clientId.trim(), scope: SCOPE + (agenda || veutAgenda() ? ' ' + SCOPE_AGENDA : ''), include_granted_scopes: true,
       callback: r => {
         if (r.error) { reject(new Error(r.error === 'access_denied' ? 'Accès refusé dans la fenêtre Google.' : 'Connexion Google refusée (' + r.error + ').')); return; }
-        token = { value: r.access_token, exp: Date.now() + (Number(r.expires_in || 3600) - 120) * 1000 };
+        token = { value: r.access_token, exp: Date.now() + (Number(r.expires_in || 3600) - 120) * 1000, scopes: r.scope || '' };
         resolve();
       },
       error_callback: e => reject(new Error(e && e.type === 'popup_closed' ? 'Fenêtre Google fermée avant la fin.'
@@ -77,17 +83,19 @@ export function disconnect() {
 
 // ---------- Appels à l'API Drive ----------
 export class NeedAuth extends Error {}
-async function api(url, { method = 'GET', body = null, headers = {}, raw = false } = {}) {
+export async function api(url, { method = 'GET', body = null, headers = {}, raw = false } = {}) {
   if (!connected()) throw new NeedAuth('Connexion à Google nécessaire.');
   let res;
   try { res = await fetch(url, { method, body, headers: { Authorization: 'Bearer ' + token.value, ...headers } }); }
   catch (e) { throw new Error('Pas de connexion Internet.'); }
   if (res.status === 401) { token = null; throw new NeedAuth('Connexion à Google expirée.'); }
-  if (res.status === 404) { const err = new Error('Fichier introuvable sur Drive.'); err.notFound = true; throw err; }
+  if (res.status === 404 || res.status === 410) { const err = new Error('Introuvable chez Google.'); err.notFound = true; err.status = res.status; throw err; }
   if (!res.ok) {
     let msg = res.status + '';
     try { const j = await res.json(); msg = (j.error && j.error.message) || msg; } catch (e) { /* rien */ }
-    throw new Error('Google Drive : ' + msg);
+    const err = new Error((url.includes('/calendar/') ? 'Google Agenda : ' : 'Google Drive : ') + msg);
+    err.status = res.status;
+    throw err;
   }
   if (raw) return res;
   return res.status === 204 ? null : res.json();

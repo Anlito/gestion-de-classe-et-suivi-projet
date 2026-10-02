@@ -24,6 +24,7 @@ import { initAlertes, render as renderAlertes } from './alertes.js';
 import { lierAppels } from './planning.js';
 import { initAutoSync } from './autosync.js';
 import { initPronoteAuto } from './pronote-lien.js';
+import { initAgenda } from './agenda.js';
 import { initUpdates } from './update.js';
 
 
@@ -125,6 +126,7 @@ async function boot() {
   initAlertes();
   initAutoSync();
   initPronoteAuto();
+  initAgenda();
   requestPersistentStorage();
   initUpdates();
 }

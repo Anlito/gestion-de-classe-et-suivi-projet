@@ -4,6 +4,8 @@ import * as db from '../db.js';
 import * as model from '../model.js';
 import * as planning from '../planning.js';
 import * as pronote from '../pronote-lien.js';
+import * as agenda from '../agenda.js';
+import * as drive from '../drive.js';
 import { html, raw, toast, confirmDialog, openMenu, fmtDay, fmtDate, fmtTime } from '../ui.js';
 import { icon, backLink, saveStatus } from '../components.js';
 import { refresh } from '../nav.js';
@@ -13,6 +15,7 @@ let wiz = null;
 let busy = '';
 // Saisies en cours (lien Pronote, relais) ; lienEdit = établissement dont on modifie le lien.
 let relaisDraft = null, lienDraft = {}, lienEdit = null;
+let stopProgres = null; // abonnement à l'avancement de l'envoi vers Google Agenda
 
 function pickIcs() {
   return new Promise(resolve => {
@@ -101,12 +104,57 @@ function lienView() {
   </div>`;
 }
 
+// ---------- Google Agenda (1.21.0) ----------
+function agendaView() {
+  const st = agenda.etatSync();
+  const pret = drive.isDrive() && drive.validClientId(drive.config().clientId);
+  const s = st.stats;
+  return html`<div class="set-block">
+    <div class="set-title">Google Agenda</div>
+    <div class="muted small">L’app recopie votre planning (cours de toute l’année et événements ajoutés dans l’app) dans un agenda à part,
+      <strong>« Carnet de classe »</strong>, de votre Google Agenda. Il se met à jour tout seul : événement ajouté, cours déplacé, mise à jour
+      Pronote ; un cours annulé est retiré. Sens unique : modifiez dans l’app, pas dans Google Agenda.</div>
+    ${!pret ? html`<div class="abs-info">Il faut d’abord la synchronisation Google Drive (Administration → Sauvegarde) : l’agenda utilise le même identifiant Google.</div>`
+    : html`
+      ${st.actif ? html`<div class="drive-state on"><span class="status-dot"></span><div class="grow">Synchronisation de l’agenda activée
+          <div class="muted small">${st.progres ? `Envoi en cours : ${st.progres.fait} / ${st.progres.total}`
+            : st.erreur ? html`<span class="lien-err">Dernier essai en échec — ${st.erreur}</span>`
+            : st.derniere ? `Dernière mise à jour : ${fmtDate(st.derniere)} à ${fmtTime(st.derniere)}${s ? ` · ${s.crees} ajouté${s.crees > 1 ? 's' : ''}, ${s.modifies} modifié${s.modifies > 1 ? 's' : ''}, ${s.retires} retiré${s.retires > 1 ? 's' : ''}` : ''}` : 'Pas encore envoyé'}</div></div></div>
+        <div class="row-center wrap">
+          <button type="button" class="btn accent small" data-click="agendaSync"${st.enCours ? ' disabled' : ''}>Mettre à jour l’agenda maintenant</button>
+          <button type="button" class="btn soft small" data-click="agendaOff">Désactiver</button>
+        </div>`
+      : html`<button type="button" class="btn accent self-start" data-click="agendaOn">${icon.calendar}Activer la synchronisation avec Google Agenda</button>`}
+      <div class="agenda-legende">${agenda.legende().map(l => html`<div class="row-center"><strong class="leg-ini">${l.initiales}</strong>
+        ${['Cours', 'Vie de classe', 'Rendez-vous'].map((t, i) => html`<span class="leg-item"><i style="background:${l.couleurs[i]}"></i>${t}</span>`)}</div>`)}
+        <div class="row-center"><strong class="leg-ini">—</strong><span class="leg-item"><i style="background:${agenda.HEX[8]}"></i>Rendez-vous sans classe</span></div></div>
+      <details class="guide"${st.actif ? '' : ' open'}>
+        <summary>À faire une fois dans la console Google (même projet que pour Drive) — 3 minutes, sur un ordinateur de préférence</summary>
+        <div class="g-part"><span class="g-n">1</span><div class="grow"><strong>Activer Google Agenda</strong><ol>
+          <li><strong>console.cloud.google.com</strong> → vérifiez que le projet <strong>Carnet de classe</strong> est sélectionné en haut.</li>
+          <li>Barre de recherche : <strong>Google Calendar API</strong> → ouvrez le résultat → <strong>Activer</strong>.</li>
+        </ol></div></div>
+        <div class="g-part"><span class="g-n">2</span><div class="grow"><strong>Autoriser l’accès à l’agenda</strong><ol>
+          <li>Barre de recherche : <strong>Google Auth Platform</strong> → menu de gauche <strong>Accès aux données</strong> → <strong>Ajouter ou supprimer des champs d’application</strong>.</li>
+          <li>Dans le filtre, tapez <strong>calendar.app.created</strong> → cochez <code>…/auth/calendar.app.created</code> → Mettre à jour → <strong>Enregistrer</strong>.
+            <span class="g-warn">Ce champ ne donne accès qu’à l’agenda créé par l’app, pas à vos autres agendas.</span></li>
+        </ol></div></div>
+        <div class="g-part"><span class="g-n">3</span><div class="grow"><strong>Dans l’application</strong><ol>
+          <li>Touchez <strong>Activer la synchronisation avec Google Agenda</strong> → dans la fenêtre Google, <strong>cochez l’accès à l’agenda</strong> → Continuer.</li>
+          <li>La première fois, tout le planning de l’année est envoyé (quelques minutes). Ensuite, seuls les changements.</li>
+          <li>Dans Google Agenda, l’agenda « Carnet de classe » apparaît dans « Mes agendas ». Les autres appareils n’ont rien à faire.</li>
+        </ol></div></div>
+      </details>`}
+  </div>`;
+}
+
 // ---------- Vue principale ----------
 function mainView() {
   const etabs = planning.etablissements();
   const mats = planning.matieres();
   return html`
     ${lienView()}
+    ${agendaView()}
     <div class="set-block">
       <div class="set-title">Établissements</div>
       ${etabs.length ? etabs.map(e => {
@@ -277,9 +325,35 @@ export default {
     </div>`;
   },
 
-  leave() { wiz = null; busy = ''; relaisDraft = null; lienDraft = {}; lienEdit = null; },
+  leave() { wiz = null; busy = ''; relaisDraft = null; lienDraft = {}; lienEdit = null; if (stopProgres) { stopProgres(); stopProgres = null; } },
+
+  // Avancement de l'envoi vers Google Agenda affiché en direct (sans redessiner pendant une saisie).
+  mount() {
+    if (stopProgres) return;
+    let t = 0;
+    stopProgres = agenda.onProgres(() => {
+      if (Date.now() - t < 400 || wiz || (document.activeElement && document.activeElement.matches('input, select, textarea'))) return;
+      t = Date.now(); refresh();
+    });
+  },
 
   actions: {
+    async agendaOn() {
+      busy = 'Connexion à Google Agenda…'; refresh();
+      try {
+        const p = agenda.activer();
+        busy = ''; refresh();
+        const s = await p;
+        toast({ text: s ? `Agenda « Carnet de classe » à jour : ${s.crees} ajouté${s.crees > 1 ? 's' : ''}` : 'Agenda activé', ms: 6000 });
+      } catch (e) { busy = ''; toast({ text: e.message, ms: 10000 }); }
+      refresh();
+    },
+    async agendaSync() {
+      try { const s = await agenda.synchroniser(); toast({ text: s ? `Agenda à jour : ${s.crees} ajouté${s.crees > 1 ? 's' : ''}, ${s.modifies} modifié${s.modifies > 1 ? 's' : ''}, ${s.retires} retiré${s.retires > 1 ? 's' : ''}` : 'Connexion Google nécessaire : touchez l’indicateur en haut (« Reconnecter Google »).', ms: 6000 }); }
+      catch (e) { toast({ text: e.message, ms: 8000 }); }
+      refresh();
+    },
+    agendaOff() { agenda.desactiver(); refresh(); toast({ text: 'Synchronisation de l’agenda désactivée (l’agenda reste dans Google Agenda, vous pouvez le supprimer là-bas)', ms: 7000 }); },
     // ----- Relais et liens Pronote -----
     relais(el) { relaisDraft = el.value; },
     saveRelais() {

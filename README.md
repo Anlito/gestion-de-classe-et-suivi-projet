@@ -38,6 +38,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/drive.js` | connexion Google (identifiant client propre à chaque professeur) et échanges avec son Drive |
 | `js/autosync.js` | synchronisation automatique et indicateur « Synchronisé à … » dans l'en-tête |
 | `js/salles.js`, `js/plan-view.js`, `js/screens/salles.js` | plans de salle (îlots ou rangées) : modèle, dessin, éditeur |
+| `js/agenda.js` | copie du planning dans l'agenda Google « Carnet de classe » (sens unique, couleurs par collège) |
 | `js/plan-classe.js` | plan de classe : élèves placés par salle (vue « Plan » du trombinoscope) |
 | `js/prepa.js` | matériel à préparer : séance prévue d'un cours, liste (projet + cours), coches, rappel la veille |
 | `js/screens/archives.js` | Administration → Archives : archiver l'année, consulter une année passée en lecture seule |
@@ -170,6 +171,25 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 - Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
+
+### 1.21.0 — 2 octobre 2026 · Planning copié dans Google Agenda
+- Demande du professeur : retrouver le planning du collège dans Google Agenda, avec une couleur par collège et une
+  différence entre cours, vie de classe et rendez-vous. Choix : **une famille de couleurs par collège, nuance selon le
+  type** (foncée = cours, moyenne = vie de classe, claire = rendez-vous ; gris = rendez-vous sans classe) ; **toute
+  l'année** ; seulement les cours et les événements (pas de vacances, notes ni matériel) ; cours annulés **retirés**.
+- Nouveau `js/agenda.js` : agenda à part **« Carnet de classe »** créé par l'app (portée OAuth
+  `calendar.app.created` : l'app ne voit que cet agenda), **sens unique** app → Google Agenda, automatique quelques
+  secondes après un changement du planning (import Pronote, cours déplacé, événement) et à l'ouverture.
+  Identifiants d'événements Google **stables** (dérivés des identifiants de l'app) : plusieurs appareils sans doublons ;
+  empreinte de chaque événement envoyé (`meta.agendaEtat`, synchronisé) : seuls les changements partent ; 3 envois en
+  parallèle avec nouvel essai si Google demande de ralentir. Titre « 5e A · Vie de classe · PR », lieu = salle.
+- `drive.js` : l'autorisation Google Agenda est demandée en plus seulement quand l'agenda est activé ; `api` exportée,
+  erreurs avec leur code.
+- Administration → Emploi du temps : partie **Google Agenda** (activer, mettre à jour, désactiver, avancement, légende
+  des couleurs par collège) et guide : activer « Google Calendar API », ajouter le champ `calendar.app.created`.
+- Vérifié avec un Google Agenda simulé : 960 cours et événements envoyés, 2e passage sans aucun envoi ; cours déplacé
+  → 1 modification, cours annulé → 1 retrait, rendez-vous ajouté → 1 ajout ; « autre appareil » sans mémoire → aucun
+  doublon. À valider avec un vrai compte Google. Tests : 67 / 67.
 
 ### 1.20.1 — 1er octobre 2026 · Plan de classe : plus grand, salle du collège
 - Retours du professeur : le bloc « Tableau » prenait de la place → **supprimé** (plan de classe et éditeur des salles).
