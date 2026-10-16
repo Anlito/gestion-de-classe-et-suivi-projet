@@ -1050,3 +1050,16 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .leg-ini { width: 34px; }
 .leg-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 14px; font-size: 13px; color: var(--ink2); }
 .leg-item i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+/* Import des résultats Labo Blocs (onglet Notes) */
+.lb-import { cursor: pointer; }
+.lb-panel { width: min(760px, 100vw); }
+.lb-ligne { display: flex; align-items: center; gap: 12px; }
+.lb-select { max-width: 320px; min-height: 40px; }
+.lb-equipe { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.lb-equipe.lb-ignoree { opacity: 0.7; }
+.lb-equipe-tete { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lb-niveaux { display: inline-flex; align-items: center; gap: 6px; }
+.lb-eleves { display: flex; gap: 10px; flex-wrap: wrap; }
+.lb-eleve { display: flex; flex-direction: column; gap: 4px; }
+.lb-a-choisir { color: #8a5a00; font-weight: 700; }
+.lb-probleme { background: #fff1d0; color: #4a2f00; border-radius: 8px; padding: 8px 12px; font-weight: 600; }

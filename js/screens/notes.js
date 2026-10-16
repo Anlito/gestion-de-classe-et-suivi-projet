@@ -4,9 +4,11 @@ import * as model from '../model.js';
 import { html, toast, openMenu, fmtDay } from '../ui.js';
 import { icon, backLink, tabBar, projectSwitch } from '../components.js';
 import { go, refresh } from '../nav.js';
+import * as labo from '../labo-blocs.js';
 
 const STATUSES = ['cours', 'avenir', 'fini'];
 let drawer = null; // { aid, gid, sid } : panneau « Ajustement individuel » ouvert
+let importLB = null; // { aid, resultats, prop, fichier } : panneau « Importer des résultats Labo Blocs » ouvert
 const pending = new Map(); // saisies de texte en attente d'enregistrement
 let timer = null;
 
@@ -73,6 +75,66 @@ function drawerView(a, p) {
     </aside>`;
 }
 
+// ---------- Import des résultats Labo Blocs ----------
+const boutonImport = (cls = 'btn') => html`<label class="${cls} lb-import">Importer des résultats Labo Blocs
+  <input type="file" accept=".json,application/json" data-change="importLB" hidden></label>`;
+
+function importView(a, p, c) {
+  const r = importLB.resultats;
+  const prop = importLB.prop;
+  const eleves = model.studentsOf(c.id);
+  const groups = model.groupsOf(a.id);
+  const nomEleve = id => { const s = db.get('students', id); return s ? `${s.prenom} ${s.nom}` : '?'; };
+  const pb = labo.problemes(prop);
+  const nAImporter = prop.equipes.filter(e => e.groupe).length;
+  return html`<div class="scrim dim" data-click="lbFermer"></div>
+    <aside class="drawer lb-panel" aria-label="Importer des résultats Labo Blocs">
+      <div class="drawer-head"><span class="drawer-title grow">Résultats Labo Blocs</span>
+        <button type="button" class="btn" data-click="lbFermer">Annuler</button></div>
+      <div class="drawer-body" data-scroll="lb">
+        <div class="muted">${importLB.fichier} · ${r.parcours ? r.parcours.titre + ' (version ' + r.parcours.version + ') · ' : ''}${r.equipes.length} équipe${r.equipes.length > 1 ? 's' : ''} · fichier du ${r.date || '—'}.
+          Les niveaux sont posés sur les groupes du projet <strong>${p.title}</strong> ; les ajustements individuels restent possibles ensuite.</div>
+        <section class="stack">
+          <div class="strong-15">Compétences → critères du projet</div>
+          ${r.competences.map(k => html`<label class="lb-ligne"><span class="grow"><strong>${k.code}</strong> ${k.libelle}</span>
+            <select class="input lb-select" data-change="lbCritere" data-code="${k.code}">
+              <option value="">Ne pas importer</option>
+              ${p.criteria.map(cr => html`<option value="${cr.id}" ${prop.criteres[k.code] === cr.id ? 'selected' : ''}>${cr.code} · ${cr.label}</option>`)}
+            </select></label>`)}
+        </section>
+        <section class="stack">
+          <div class="strong-15">Équipes → élèves et groupes de la ${c.name}</div>
+          ${r.equipes.map((eq, i) => {
+            const pe = prop.equipes[i];
+            const probs = pb.filter(x => x.i === i);
+            return html`<div class="lb-equipe${pe.groupe ? '' : ' lb-ignoree'}">
+              <div class="lb-equipe-tete"><strong class="grow">${eq.eleves.join(' · ')}${eq.classe ? ' (' + eq.classe + ')' : ''}</strong>
+                <span class="lb-niveaux">${Object.entries(eq.niveaux || {}).map(([k, v]) => html`<span class="lvl-dot" style="background:${model.LEVELS[v - 1].bg};color:${model.LEVELS[v - 1].fg}" title="${k} : ${model.LEVELS[v - 1].pronote}">${v}</span><span class="xsmall muted">${k}</span>`)}
+                ${eq.note != null ? html`<span class="strong-15">${model.f1(eq.note)}</span>` : ''}</span></div>
+              ${pe.autreClasse ? html`<div class="xsmall muted">Équipe de la classe ${eq.classe} : pas importée, sauf si vous choisissez un groupe.</div>` : ''}
+              <div class="lb-eleves">${pe.eleves.map((el, k) => html`<label class="lb-eleve"><span class="xsmall">${el.prenom}${el.choisi ? '' : html` <span class="lb-a-choisir">⚠ à choisir</span>`}</span>
+                <select class="input lb-select" data-change="lbEleve" data-i="${i}" data-k="${k}">
+                  <option value="">— Personne —</option>
+                  ${[...el.candidats.map(id => eleves.find(x => x.id === id)).filter(Boolean), ...eleves.filter(x => !el.candidats.includes(x.id))]
+                    .map(x => html`<option value="${x.id}" ${el.choisi === x.id ? 'selected' : ''}>${x.prenom} ${x.nom}</option>`)}
+                </select></label>`)}</div>
+              <label class="lb-ligne"><span class="grow xsmall">Groupe</span>
+                <select class="input lb-select" data-change="lbGroupe" data-i="${i}">
+                  <option value="" ${pe.groupe ? '' : 'selected'}>Ne pas importer</option>
+                  <option value="nouveau" ${pe.groupe === 'nouveau' ? 'selected' : ''}>Nouveau groupe avec ces élèves</option>
+                  ${groups.map(g => html`<option value="${g.id}" ${pe.groupe === g.id ? 'selected' : ''}>${g.code} · ${g.members.map(id => (db.get('students', id) || {}).prenom).filter(Boolean).join(', ') || 'vide'}</option>`)}
+                </select></label>
+              ${probs.map(x => html`<div class="lb-probleme">⚠ ${x.texte}</div>`)}
+            </div>`;
+          })}
+        </section>
+        ${pb.filter(x => x.i === null).map(x => html`<div class="lb-probleme">⚠ ${x.texte}</div>`)}
+      </div>
+      <div class="drawer-foot"><span class="grow muted small">${nAImporter} équipe${nAImporter > 1 ? 's' : ''} à importer</span>
+        <button type="button" class="btn accent" data-click="lbImporter" ${pb.length || !nAImporter ? 'disabled' : ''}>Importer</button></div>
+    </aside>`;
+}
+
 export default {
   render({ classId }) {
     const c = db.get('classes', classId);
@@ -81,6 +143,7 @@ export default {
     const a = model.chosenAssignment(classId, STATUSES);
     const p = a && db.get('projects', a.projectId);
     if (drawer && (!a || drawer.aid !== a.id)) drawer = null;
+    if (importLB && (!a || importLB.aid !== a.id)) importLB = null;
     const crit = p ? p.criteria : [];
 
     const head = html`<header class="topbar">
@@ -112,6 +175,7 @@ export default {
           <span class="notes-title">Évaluation des groupes</span>
           ${a.status === 'fini' ? html`<span class="chip pos">Projet terminé</span>` : ''}
           <span class="spacer"></span>
+          ${boutonImport()}
           <div class="legend-lvls">${model.LEVELS.map(l => html`<span class="legend-lvl"><span class="lvl-dot" style="background:${l.bg};color:${l.fg}">${l.v}</span>${l.pronote}</span>`)}</div>
         </div>
         ${groups.length ? html`<div class="grade-table">
@@ -153,16 +217,44 @@ export default {
         </div>`
         : html`<div class="soon center-self"><div class="soon-title">Pas encore de groupes</div>
             <p>Composez les groupes de ce projet dans l’onglet Groupes : les notes s’y rattachent.</p>
-            <p><a class="btn accent" href="#/classe/${classId}/groupes">Composer les groupes</a></p></div>`}
+            <p><a class="btn accent" href="#/classe/${classId}/groupes">Composer les groupes</a></p>
+            <p>Ou importez les résultats d’un parcours Labo Blocs : les groupes sont créés avec les équipes.</p>
+            <p>${boutonImport()}</p></div>`}
       </main>
       ${drawer ? drawerView(a, p) : ''}
+      ${importLB ? importView(a, p, c) : ''}
       ${tabBar(classId, 'notes')}
     </div>`;
   },
 
-  leave() { flush(); drawer = null; },
+  leave() { flush(); drawer = null; importLB = null; },
 
   actions: {
+    async importLB(el, e, { classId }) {
+      flush();
+      const f = el.files && el.files[0];
+      el.value = '';
+      if (!f) return;
+      const r = labo.lire(await f.text());
+      if (!r.ok) { toast({ text: r.message, ms: 5000 }); return; }
+      const a = model.chosenAssignment(classId, STATUSES);
+      const p = db.get('projects', a.projectId);
+      const c = db.get('classes', classId);
+      const prop = labo.proposer(r.resultats, { classe: c.name, students: model.studentsOf(classId), groups: model.groupsOf(a.id), criteria: p.criteria });
+      importLB = { aid: a.id, resultats: r.resultats, prop, fichier: f.name };
+      refresh();
+    },
+    lbFermer() { importLB = null; refresh(); },
+    lbCritere(el) { importLB.prop.criteres[el.dataset.code] = el.value; refresh(); },
+    lbEleve(el) { importLB.prop.equipes[+el.dataset.i].eleves[+el.dataset.k].choisi = el.value || null; refresh(); },
+    lbGroupe(el) { importLB.prop.equipes[+el.dataset.i].groupe = el.value; refresh(); },
+    lbImporter(el, e, { classId }) {
+      const a = model.chosenAssignment(classId, STATUSES);
+      const r = labo.importer(a, importLB.prop, importLB.resultats);
+      importLB = null;
+      refresh();
+      toast({ text: `Résultats Labo Blocs : ${r.groupes} groupe${r.groupes > 1 ? 's' : ''}, ${r.niveaux} niveau${r.niveaux > 1 ? 'x' : ''} posé${r.niveaux > 1 ? 's' : ''}`, undo: async () => { await r.undo(); refresh(); }, ms: 8000 });
+    },
     pickAssign(el, e, { classId }) { flush(); model.chooseAssignment(classId, el.dataset.id); refresh(); },
     pickAssignMenu(el, e, { classId }) {
       flush();

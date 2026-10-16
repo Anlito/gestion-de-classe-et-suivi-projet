@@ -48,6 +48,7 @@ Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels qu
 | `js/screens/accueil.js` | liste des classes en tuiles (`#/classes`) |
 | `tests/index.html` | page de tests automatiques (+ vérification locale de ses propres fichiers .ics) |
 | `js/backup.js` | fichiers produits : sauvegarde JSON, CSV |
+| `js/labo-blocs.js` | import des résultats Labo Blocs (onglet Notes) : équipes → élèves et groupes, compétences → critères, niveaux posés |
 | `js/screens/*.js` | un fichier par écran (`render`, `mount`, `actions`) |
 | `css/app.css` | styles (thèmes clair / sombre) |
 
@@ -171,6 +172,21 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 - Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
 
 ## Historique des versions
+
+### 1.22.0 — 20 octobre 2026 · Importer des résultats Labo Blocs
+- Demande du professeur : récupérer dans le Carnet les niveaux par compétence calculés par Labo Blocs (outil de
+  programmation par blocs) et par l'atelier du distributeur de céréales, sans relier Labo Blocs à Pronote.
+- Onglet **Notes** → **« Importer des résultats Labo Blocs »** (fichier `…labo-resultats.json` exporté par l'outil du
+  professeur de Labo Blocs). Nouveau `js/labo-blocs.js`. Le panneau propose :
+  - chaque **compétence** → un **critère** du projet (retrouvé automatiquement s'il a le même libellé du programme,
+    sinon à choisir, ou « Ne pas importer ») ;
+  - chaque **équipe** → ses **élèves** (prénoms comparés sans accents ni majuscules ; deux élèves du même prénom ou un
+    prénom introuvable : « ⚠ à choisir ») et un **groupe** (le groupe où ils sont déjà, sinon « Nouveau groupe avec ces
+    élèves », ou « Ne pas importer » ; une équipe d'une autre classe n'est pas importée par défaut).
+- « Importer » pose les niveaux sur les groupes (une seule action, **annulable**), ajoute le commentaire de Labo Blocs
+  au commentaire du groupe ; ajustements individuels, mention et export Pronote comme d'habitude.
+- Tests : lecture du fichier, prénoms, correspondance proposée (homonymes, autre classe, groupe existant, critère par
+  libellé), contrôles avant import (`tests/labo-blocs.test.js`). Vérifié sur les données de démonstration.
 
 ### 1.21.1 — 2 octobre 2026 · Google Agenda : partager un événement
 - Demande du professeur : partager certains événements avec une personne. Formulaire d'un événement → champ
