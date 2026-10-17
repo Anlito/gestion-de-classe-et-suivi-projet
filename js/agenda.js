@@ -66,7 +66,7 @@ export function souhaite() {
     const vdc = role === 'appel';
     const type = vdc ? (c.matiere ? joli(c.matiere) : 'Vie de classe') : (c.matiere ? joli(c.matiere) : 'Cours');
     const ev = {
-      summary: `${nom} · ${type}${etab ? ' · ' + etab.initiales : ''}`,
+      summary: `${nom} · ${type}${['autre', 'sortie'].includes(c.statut) ? ' · ' + c.statutLabel : ''}${etab ? ' · ' + etab.initiales : ''}`,
       location: c.salle || '',
       start: quand(c.date, c.debut), end: quand(c.date, c.fin),
       colorId: famille(etab)[vdc ? 1 : 0],

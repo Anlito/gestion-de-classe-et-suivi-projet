@@ -361,6 +361,8 @@ export function eff(c) {
   // Statut choisi par le professeur (perso.statut, ou statut direct d'un cours ajouté) ; « annule » = ancien format.
   const st = c.source === 'manuel' ? (c.annule ? 'annule' : c.statut) : p.statut || (p.annule ? 'annule' : null);
   if (st) Object.assign(e, { statut: st, statutLabel: STATUT_CHOIX[st] ? STATUT_CHOIX[st].label : '' });
+  // « Autre » (1.22.1) : la précision écrite par le professeur sert d'étiquette (ex. « Brevet blanc »).
+  if (st === 'autre') e.statutLabel = (e.statutTexte || '').trim() || 'Autre';
   // Déplacé par le professeur : on garde l'ancien créneau pour « Déplacé depuis … ».
   e.deplaceDe = c.source !== 'manuel' && (p.date || p.debut) && (p.date !== c.date || p.debut !== c.debut) ? { date: c.date, debut: c.debut } : null;
   delete e.perso; delete e.annule;
@@ -372,13 +374,15 @@ export const STATUT_CHOIX = {
   annule: { label: 'Annulé', choix: 'Annulé' },
   classe_absente: { label: 'Classe absente', choix: 'Classe absente' },
   sortie: { label: 'Sortie pédagogique', choix: 'Sortie pédagogique' },
+  autre: { label: 'Autre', choix: 'Autre (à préciser)' },
 };
 // Choix correspondant à un statut (les statuts Pronote « déplacé », « modifié »… sont des cours normaux).
 export const choixOf = statut => (statut === 'annule_perso' ? 'annule' : STATUT_CHOIX[statut] ? statut : 'normal');
 export const roleOfCours = c => (c.source === 'manuel' ? c.role || 'suivi' : roleOf(c.matiere));
 // Cours dont le statut supprime l'appel et les alertes (annulé, classe absente, sortie, absence personnelle).
 export const OFF = new Set(['annule', 'annule_perso', 'classe_absente', 'abs_perso']);
-export const NO_ALERT = new Set([...OFF, 'sortie']);
+// « Autre » : le cours reste au planning (appel possible) mais sans alerte, comme une sortie.
+export const NO_ALERT = new Set([...OFF, 'sortie', 'autre']);
 
 // Cours (affichés) entre deux dates incluses, rôle « masqué » exclu.
 export function coursEntre(du, au) {
@@ -440,7 +444,8 @@ export function editCours(c, changes, serie = false) {
     }
   });
 }
-export const setStatut = (c, statut) => db.commit(w => applyTo(w, c, { statut }));
+// texte : précision du statut « Autre » (effacée pour les autres statuts).
+export const setStatut = (c, statut, texte = '') => db.commit(w => applyTo(w, c, { statut, statutTexte: statut === 'autre' ? (texte || '').trim() || undefined : undefined }));
 export const setNote = (c, note) => db.commit(w => w.update('cours', c.id, { note: note.trim() || undefined }));
 // Revenir à la version Pronote (les modifications sont effacées ; la note est gardée).
 export const resetPerso = c => db.commit(w => w.update('cours', c.id, { perso: undefined }));

@@ -173,6 +173,12 @@ Méthode suivie : après chaque étape, nouvelle version, liste de tests à fair
 
 ## Historique des versions
 
+### 1.22.1 — Planning : statut de cours « Autre »
+- Demande du professeur : il manquait un choix « Autre » dans « Statut du cours ». Nouveau statut `autre`
+  (`STATUT_CHOIX`) avec une **précision** écrite par le professeur (`statutTexte`, ex. « Brevet blanc ») qui sert
+  d'étiquette sur le cours, dans le panneau et dans Google Agenda (titre). Comme une sortie : le cours reste au
+  planning, l'appel reste possible, **pas d'alerte** (`NO_ALERT`). Revenir à un autre statut efface la précision.
+
 ### 1.22.0 — 20 octobre 2026 · Importer des résultats Labo Blocs
 - Demande du professeur : récupérer dans le Carnet les niveaux par compétence calculés par Labo Blocs (outil de
   programmation par blocs) et par l'atelier du distributeur de céréales, sans relier Labo Blocs à Pronote.

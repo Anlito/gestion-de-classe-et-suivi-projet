@@ -267,6 +267,9 @@ function sheetView() {
         <div class="cs-sec">Statut du cours</div>
         ${Object.entries(planning.STATUT_CHOIX).map(([k, s]) => html`<button type="button" class="cs-opt${choix === k ? ' on' : ''}" data-click="statut" data-k="${k}">
           <span class="grow">${s.choix}</span>${choix === k ? icon.check : ''}</button>`)}
+        ${choix === 'autre' ? html`<div class="row-center">
+          <input class="input grow" value="${sheet.statutTexte != null ? sheet.statutTexte : e.statutTexte || ''}" data-input="statutTexteIn" placeholder="Précisez : brevet blanc, intervention, conseil…" maxlength="60">
+          <button type="button" class="btn soft small" data-click="statutTexte">Enregistrer</button></div>` : ''}
       </div>
       <div class="stack-tight">
         <div class="cs-sec">Créneau</div>
@@ -539,8 +542,20 @@ export default {
       const k = el.dataset.k;
       if (planning.choixOf(planning.eff(c).statut) === k) return;
       const undo = planning.setStatut(c, k);
+      sheet.statutTexte = null;
       refresh();
+      // « Autre » : on écrit tout de suite la précision.
+      if (k === 'autre') { const i = document.querySelector('[data-input="statutTexteIn"]'); if (i) i.focus(); return; }
       toast({ text: `${nameOf(c, db.get('classes', planning.classIdOf(c)))} · ${planning.STATUT_CHOIX[k].choix}`, undo: async () => { await undo(); refresh(); } });
+    },
+    statutTexteIn(el) { sheet.statutTexte = el.value; },
+    statutTexte() {
+      const c = db.get('cours', sheet.id);
+      const t = (sheet.statutTexte != null ? sheet.statutTexte : planning.eff(c).statutTexte || '').trim();
+      planning.setStatut(c, 'autre', t);
+      sheet.statutTexte = null;
+      refresh();
+      toast({ text: `${nameOf(c, db.get('classes', planning.classIdOf(c)))} · ${t || 'Autre'}` });
     },
     startMove() { moving = sheet.id; sheet = null; refresh(); },
     cancelMove() { moving = null; refresh(); },
