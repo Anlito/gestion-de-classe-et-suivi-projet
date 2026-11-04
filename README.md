@@ -1,12 +1,15 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.1 (4 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.2 (4 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
 
 ### Disponible dans ce lot
+- **Récap classe en premier**, puis élèves dans la liste : l’ouverture du Suivi PP d’une classe présente l’effectif, les actions, pièces, réunions et la préparation des conseils collectifs. Une seule classe PP ouvre directement ce récapitulatif, même si elle ne contient pas encore d’élève.
+- **Conseils collectifs depuis le récap** : avis généraux des professeurs et conclusion de classe séparés des dossiers individuels, par trimestre. La case « La classe » a été retirée des fiches élèves.
+- **Événement → fiche élève** : le détail d’une réunion enregistrée liée à un élève propose l’ouverture directe du suivi PP (ou de la fiche du Carnet si le rôle PP a été désactivé). Si l’événement a des modifications non enregistrées, le choix de rester ou de les abandonner est explicite.
 - Administration → classe : case **Je suis professeur principal de cette classe**, liée à l’année scolaire. L’espace PP n’est proposé que pour les classes actives cochées.
 - Administration → **Mes outils** : choix globaux des modules PP livrés (actions, notes/progrès, carnet scolaire, documents, conseils). Masquer un module conserve ses données. La sauvegarde reste accessible.
 - Accueil PP et fiche élève en colonnes, adaptés au paysage : identité/photo/notes reprises du Carnet, historique, éditeur, listes défilant à l’intérieur des panneaux.
@@ -28,6 +31,7 @@ Les sauvegardes passent au format 2 ; les sauvegardes format 1 restent importabl
 - Parcours Chrome avec élèves fictifs : activation, notes persistées et protection HTML, actions, pièce jointe et restauration binaire, séparation des trimestres, réunion liée, contenu Google Agenda préparé, masquage sans suppression, versions concurrentes, saisie puis redémarrage hors connexion.
 - Migration d’une base IndexedDB version 9 : classe et élève conservés, nouvelle table vide créée.
 - Contrôle de l’absence de défilement global aux tailles utiles **1280×752** et **1024×640**. Aucun test matériel sur la Galaxy Tab S7 réelle à ce stade.
+- Compléments vérifiés : récap en première position, classe vide, classe PP unique, isolation des avis collectifs par classe/trimestre et des avis individuels, ouverture du suivi depuis un événement et protection des modifications non enregistrées.
 - Les appels Google authentifiés, la réception effective des notifications et la prise de photo réelle sur Android ne sont pas vérifiés par ces essais locaux.
 
 ### Suite du développement

@@ -208,11 +208,13 @@ function prepaView(c) {
 function evtView() {
   const f = sheet.f;
   const ev = sheet.id ? db.get('evenements', sheet.id) : null;
+  const pupil = f.studentId && db.get('students', f.studentId);
   if (sheet.id && !ev) { sheet = null; return ''; }
   const head = html`<div class="drawer-head"><span class="drawer-title grow ellipsis">${ev ? planning.titreEvt(ev) : 'Ajouter un événement'}</span>
       <button type="button" class="btn soft" data-click="closeSheet">Annuler</button>
       <button type="button" class="btn accent" data-click="saveEvt">Enregistrer</button></div>`;
   const body = html`<div class="stack">
+    ${ev && pupil ? html`<div class="info-box"><strong>${model.fullName(pupil)}</strong><div class="muted small">${db.get('classes', pupil.classId)?.name || ''}</div><button type="button" class="btn accent" data-click="openEventStudent">${icon.book}${pp.active(pupil.classId) ? 'Ouvrir le suivi de l’élève' : 'Ouvrir la fiche de l’élève'}</button></div>` : ''}
     <div class="lbl">Type
       <div class="evt-types">${Object.entries(planning.TYPES_EVT).map(([k, t]) =>
         html`<button type="button" class="evt-type${f.type === k ? ' on' : ''}" style="--evt:${t.color}" data-click="fType" data-k="${k}">${t.label}</button>`)}</div></div>
@@ -660,6 +662,18 @@ export default {
     fLieu(el) { sheet.f.lieu = el.value; },
     fNote(el) { sheet.f.note = el.value; },
     fInvites(el) { sheet.f.invites = el.value; },
+    async openEventStudent() {
+      const f = sheet?.f, ev = sheet?.id && db.get('evenements', sheet.id);
+      const pupil = f?.studentId && db.get('students', f.studentId);
+      if (!ev || !pupil || pupil.classId !== f.classId) { toast({ text: 'L’élève associé est introuvable. Vérifiez la classe et l’élève.' }); return; }
+      const changed = ['type', 'titre', 'date', 'debut', 'fin', 'lieu', 'classId', 'studentId', 'note'].some(k => String(f[k] || '') !== String(ev[k] || ''))
+        || JSON.stringify(planning.emailsDe(f.invites).sort()) !== JSON.stringify([...(ev.invites || [])].sort());
+      if (changed) {
+        const choice = await choiceDialog({ title: 'Quitter l’événement sans enregistrer ?', text: 'Des modifications sont en cours. Restez sur l’événement pour les enregistrer, ou ouvrez la fiche en abandonnant ces modifications.', choices: [{ label: 'Rester sur l’événement', value: 'stay', style: 'accent' }, { label: 'Ouvrir la fiche sans enregistrer', value: 'open', style: 'soft' }] });
+        if (choice !== 'open') return;
+      }
+      go(pp.active(pupil.classId) ? `#/pp/eleve/${pupil.id}` : `#/classe/${pupil.classId}/eleve/${pupil.id}`);
+    },
     async saveEvt() {
       const f = sheet.f;
       if (!f.date || !f.debut || !f.fin || f.fin <= f.debut) { toast({ text: 'Vérifiez la date et les heures (la fin doit suivre le début)' }); return; }

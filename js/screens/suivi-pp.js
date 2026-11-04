@@ -8,6 +8,7 @@ import { go, refresh } from '../nav.js';
 
 let st = { classId: '', studentId: '', tab: 'journal', filter: '', trimester: 1, collective: false, editId: null, form: {}, file: null, busy: false };
 const drafts = new Map();
+let recapPeriod = 1;
 let previewUrl = null;
 const draftKey = () => [st.studentId, st.classId, st.tab, st.trimester, st.collective].join('|');
 const keepDraft = () => drafts.set(draftKey(), { form: { ...st.form }, editId: st.editId, file: st.file });
@@ -80,37 +81,67 @@ function home() {
       <hr><span class="muted small">Les imports Pronote, campagnes familles, notifications hors application et audio ne sont pas encore intégrés dans cette version de travail.</span>`)}
   </div>`;
 }
+function classSidebar(c, current = 'recap') {
+  return html`<section class="panel pp-sidebar"><div class="pp-class-heading"><span class="title">${c.name}</span><span class="muted small">${model.studentsOf(c.id).length} élèves · Suivi PP</span></div>
+    <div class="pp-class-nav"><a class="pp-pupil${current === 'recap' ? ' current' : ''}" href="#/pp/classe/${c.id}" ${current === 'recap' ? raw('aria-current="page"') : ''}>${icon.grid}Récap classe</a></div>
+    <div class="pp-search"><input class="input" aria-label="Rechercher un élève" placeholder="Rechercher un élève" data-input="search" value="${st.filter}"></div>
+    <div class="panel-scroll" data-scroll="pp-pupils">${model.studentsOf(c.id).map(p => html`<a class="pp-pupil" data-pp-pupil href="#/pp/eleve/${p.id}" ${st.filter && !model.fullName(p).toLocaleLowerCase('fr').includes(st.filter.toLocaleLowerCase('fr')) ? 'hidden' : ''}>${p.prenom} <span class="upper">${p.nom}</span></a>`)}</div></section>`;
+}
+function classRecap(c) {
+  const trimester = recapPeriod;
+  const pupils = model.studentsOf(c.id), ids = new Set(pupils.map(p => p.id));
+  const rows = pp.latest({ classId: c.id }).filter(r => !r.studentId || ids.has(r.studentId));
+  const tasks = rows.filter(r => pp.enabled('actions') && r.kind === 'task' && r.status !== 'done').sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+  const documents = rows.filter(r => pp.enabled('documents') && r.kind === 'document');
+  const meetings = db.where('evenements', e => (e.classId === c.id || ids.has(e.studentId)) && !e.cancelled && e.date >= todayISO()).sort((a, b) => (a.date + a.debut).localeCompare(b.date + b.debut));
+  const collective = rows.filter(r => !r.studentId && r.kind === 'council' && r.trimester === trimester);
+  const pupilsWithAdvice = new Set(rows.filter(r => r.kind === 'council' && r.studentId && r.trimester === trimester).map(r => r.studentId)).size;
+  return html`<div class="screen pp-screen"><header class="topbar">${backLink('#/pp', 'Classes PP')}<div class="heading"><span class="title">${c.name} · Récap classe</span><span class="sub">${model.schoolYear()}</span></div><div class="spacer"></div>${saveStatus()}<a class="btn soft" href="#/admin/outils">${icon.sliders}<span class="hide-narrow">Mes outils</span></a></header>
+    <div class="pp-toolbar"><span class="chip accent">Récap classe</span><span class="muted small grow">Vue collective, puis fiches élève par élève dans la liste.</span>${pp.enabled('conseils') ? html`<select class="input pp-trimester" data-change="recapTrimester" aria-label="Trimestre du récapitulatif">${[1, 2, 3].map(t => html`<option value="${t}" ${trimester === t ? 'selected' : ''}>Trimestre ${t}</option>`)}</select>` : ''}</div>
+    <main class="content pp-detail pp-class-recap">${classSidebar(c)}
+      ${panel('Vue d’ensemble de la classe', html`<div class="pp-recap-metrics"><div><strong>${pupils.length}</strong><span>élève${pupils.length > 1 ? 's' : ''}</span></div>${pp.enabled('actions') ? html`<div><strong>${tasks.length}</strong><span>action${tasks.length > 1 ? 's' : ''} ouverte${tasks.length > 1 ? 's' : ''}</span></div>` : ''}${pp.enabled('documents') ? html`<div><strong>${documents.length}</strong><span>pièce${documents.length > 1 ? 's' : ''} jointe${documents.length > 1 ? 's' : ''}</span></div>` : ''}</div>
+      ${pp.enabled('actions') ? html`<h3 class="pp-source-title">Actions à suivre</h3>${tasks.length ? tasks.map(r => html`<a class="pp-home-row" href="${r.studentId ? '#/pp/eleve/' + r.studentId : '#/pp/classe/' + c.id}"><strong>${r.title}</strong><span class="muted small">${r.studentId ? model.fullName(db.get('students', r.studentId) || {}) : c.name}${r.due ? ' · ' + fmtDate(r.due) : ' · sans échéance'}</span>${isOverdue(r, todayISO()) ? html`<span class="chip warn">En retard</span>` : ''}</a>`) : html`<p class="muted small">Aucune action ouverte pour cette classe.</p>`}` : ''}
+      <h3 class="pp-source-title">Prochaines réunions</h3>${meetings.length ? meetings.map(e => html`<div class="pp-home-row"><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut}${e.studentId ? ' · ' + model.fullName(db.get('students', e.studentId) || {}) : ' · classe entière'}</span></div>`) : html`<p class="muted small">Aucune réunion à venir pour cette classe.</p>`}
+      <p class="muted small pp-source-title">Ces indicateurs portent sur le suivi enregistré dans le Carnet. Les cumuls et alertes Pronote seront ajoutés avec les imports.</p>`)}
+      ${pp.enabled('conseils') ? panel(`Conseil · trimestre ${trimester}`, html`<div class="info-box small-text">${pupilsWithAdvice} élève${pupilsWithAdvice > 1 ? 's' : ''} avec un avis ou une synthèse enregistré${pupilsWithAdvice > 1 ? 's' : ''} sur ${pupils.length}. Ce nombre ne mesure pas la complétude des avis.</div>
+      <h3 class="pp-source-title">Avis généraux des professeurs</h3>${collective.filter(r => r.category !== 'synthese').map(r => html`<article class="pp-record"><strong>${[r.subject, r.teacher].filter(Boolean).join(' · ') || 'Avis collectif'}</strong><div class="pp-record-text">${r.text}</div></article>`)}${collective.some(r => r.category !== 'synthese') ? '' : html`<p class="muted small">Aucun avis collectif renseigné pour ce trimestre.</p>`}
+      <h3 class="pp-source-title">Conclusion générale de la classe</h3>${collective.filter(r => r.category === 'synthese').map(r => html`<article class="pp-record"><span class="chip${r.status === 'validated' ? ' pos' : ''}">${r.status === 'validated' ? 'Validé' : 'Brouillon'}</span><div class="pp-record-text">${r.text}</div></article>`)}${collective.some(r => r.category === 'synthese') ? '' : html`<p class="muted small">La conclusion générale est à préparer.</p>`}`, html`<a class="btn accent" href="#/pp/classe/${c.id}/conseils">Préparer le conseil de la classe</a>`) : panel('Suivi collectif', html`<p class="muted">Le module Conseils est masqué. Les données collectives sont conservées.</p>`) }
+    </main></div>`;
+}
 function profile(s, c) {
   const pupils = model.studentsOf(c.id).filter(p => !st.filter || model.fullName(p).toLocaleLowerCase('fr').includes(st.filter.toLocaleLowerCase('fr')));
-  return html`<section class="panel pp-sidebar"><div class="pp-profile">${photo(s, { cls: 'big' })}<div><strong>${s.prenom}</strong><span class="upper">${s.nom}</span><span class="chip">${c.name} · PP</span></div></div>
+  return html`<section class="panel pp-sidebar"><div class="pp-class-nav"><a class="pp-pupil" href="#/pp/classe/${c.id}">${icon.grid}Récap classe</a></div><div class="pp-profile">${photo(s, { cls: 'big' })}<div><strong>${s.prenom}</strong><span class="upper">${s.nom}</span><span class="chip">${c.name} · PP</span></div></div>
     <div class="pp-profile-links"><a class="link-btn" href="#/classe/${c.id}/eleve/${s.id}">Fiche du Carnet →</a><button class="link-btn" data-click="newMeeting">+ Réunion liée</button></div>
     <div class="muted small pp-profile-links">${model.besoinsOf(s).join(' · ') || 'Aucun dispositif renseigné'}</div>
     <div class="pp-search"><input class="input" aria-label="Rechercher un élève" placeholder="Rechercher un élève" data-input="search" value="${st.filter}"></div>
-    <div class="panel-scroll" data-scroll="pp-pupils">${pupils.map(p => html`<a class="pp-pupil${p.id === s.id ? ' current' : ''}" href="#/pp/eleve/${p.id}" ${p.id === s.id ? raw('aria-current="true"') : ''}>${p.prenom} <span class="upper">${p.nom}</span></a>`)}</div></section>`;
+    <div class="panel-scroll" data-scroll="pp-pupils">${pupils.map(p => html`<a class="pp-pupil${p.id === s.id ? ' current' : ''}" data-pp-pupil href="#/pp/eleve/${p.id}" ${p.id === s.id ? raw('aria-current="true"') : ''}>${p.prenom} <span class="upper">${p.nom}</span></a>`)}</div></section>`;
 }
 export default {
   render(params) {
     if (!pp.hasPP()) return html`<div class="screen"><header class="topbar">${backLink('#/', 'Accueil')}<div class="title">Suivi PP</div></header><main class="content pp-empty"><h2>Aucune classe PP activée</h2><p>Dans Administration, ouvrez une classe et cochez « Je suis professeur principal de cette classe ».</p><p>Le suivi des classes décochées est conservé.</p><a class="btn accent" href="#/admin">Choisir une classe PP</a></main></div>`;
     const cls = pp.classes();
     if (params.classId && !pp.active(params.classId)) { go('#/pp', { replace: true }); return null; }
+    const classId = params.classId || (!params.studentId && cls.length === 1 ? cls[0].id : null);
+    if (classId && !params.section) return classRecap(db.get('classes', classId));
+    const classCouncil = params.section === 'conseils';
+    if (classCouncil && !pp.enabled('conseils')) { go(`#/pp/classe/${classId}`, { replace: true }); return null; }
     let s = params.studentId ? db.get('students', params.studentId) : null;
     if (params.studentId && (!s || !pp.active(s.classId))) { go('#/pp', { replace: true }); return null; }
-    if (params.classId && !s) s = model.studentsOf(params.classId)[0];
-    if (!s && !params.classId && cls.length === 1) s = model.studentsOf(cls[0].id)[0];
-    if (s && (s.id !== st.studentId || s.classId !== st.classId)) { keepDraft(); st.studentId = s.id; st.classId = s.classId; st.collective = false; restoreDraft(); }
-    const c = s && db.get('classes', s.classId);
+    if (classCouncil && (st.classId !== classId || st.studentId || !st.collective || st.tab !== 'conseils' || st.trimester !== recapPeriod)) { keepDraft(); st.classId = classId; st.studentId = ''; st.collective = true; st.tab = 'conseils'; st.trimester = recapPeriod; restoreDraft(); }
+    if (s && (s.id !== st.studentId || s.classId !== st.classId || st.collective)) { keepDraft(); st.studentId = s.id; st.classId = s.classId; st.collective = false; restoreDraft(); }
+    const c = db.get('classes', s?.classId || classId);
     if (!tabs().some(t => t[0] === st.tab)) st.tab = tabs()[0]?.[0] || 'none';
-    const title = s ? model.fullName(s) : 'Mon suivi PP';
-    const list = s ? currentRecords() : [];
+    const title = s ? model.fullName(s) : classCouncil ? c.name + ' · Conseil de classe' : 'Mon suivi PP';
+    const list = s || classCouncil ? currentRecords() : [];
     const builtin = s && st.tab === 'journal' && pp.enabled('notes') ? model.notesOf(s.id) : [];
     return html`<div class="screen pp-screen"><header class="topbar">${backLink('#/', 'Carnet')}
       <div class="heading"><span class="title ellipsis">${title}</span>${c ? html`<span class="sub">${c.name}</span>` : ''}</div>
       <div class="spacer"></div>${saveStatus()}<a class="btn soft" href="#/admin/outils">${icon.sliders}<span class="hide-narrow">Mes outils</span></a></header>
-      ${s ? html`<div class="pp-toolbar"><a class="btn soft small" href="#/pp">Classes PP</a><div class="segmented">${tabs().map(([key, label]) => html`<button class="seg${st.tab === key ? ' on' : ''}" data-click="tab" data-key="${key}">${label}</button>`)}</div>
-        ${st.tab === 'conseils' ? html`<select class="input pp-trimester" data-change="trimester" aria-label="Trimestre">${[1, 2, 3].map(t => html`<option value="${t}" ${t === st.trimester ? 'selected' : ''}>Trimestre ${t}</option>`)}</select><label class="check-row"><input type="checkbox" data-change="collective" ${st.collective ? 'checked' : ''}> La classe</label>` : ''}</div>
-      <main class="content pp-detail">${profile(s, c)}
+      ${s || classCouncil ? html`<div class="pp-toolbar"><a class="btn soft small" href="#/pp/classe/${c.id}">Récap classe</a>${classCouncil ? html`<span class="grow muted">Avis et synthèses collectifs</span>` : html`<div class="segmented">${tabs().map(([key, label]) => html`<button class="seg${st.tab === key ? ' on' : ''}" data-click="tab" data-key="${key}">${label}</button>`)}</div>`}
+        ${st.tab === 'conseils' ? html`<select class="input pp-trimester" data-change="trimester" aria-label="Trimestre">${[1, 2, 3].map(t => html`<option value="${t}" ${t === st.trimester ? 'selected' : ''}>Trimestre ${t}</option>`)}</select>` : ''}</div>
+      <main class="content pp-detail">${classCouncil ? classSidebar(c, 'conseil') : profile(s, c)}
       ${panel(st.collective ? `Conseil · ${c.name}` : st.tab === 'documents' ? 'Documents associés' : st.tab === 'conseils' ? `Conseil · trimestre ${st.trimester}` : st.tab === 'actions' ? 'Actions de suivi' : 'Historique personnel', html`
-        ${st.tab === 'journal' ? pp.meetingsOf(s.id).map(e => html`<article class="pp-record"><span class="chip">Réunion liée à l’agenda</span><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut} · ${e.lieu || ''}</span><button class="btn soft small" data-click="meeting" data-id="${e.id}">Ouvrir la réunion</button></article>`) : ''}
+        ${s && st.tab === 'journal' ? pp.meetingsOf(s.id).map(e => html`<article class="pp-record"><span class="chip">Réunion liée à l’agenda</span><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut} · ${e.lieu || ''}</span><button class="btn soft small" data-click="meeting" data-id="${e.id}">Ouvrir la réunion</button></article>`) : ''}
         ${list.length ? list.map(entryView) : html`<p class="muted">Aucun élément dans cette rubrique.</p>`}
         ${builtin.length ? html`<h3 class="pp-source-title">Notes du Carnet</h3>${builtin.map(n => html`<article class="pp-record"><span class="chip">Carnet · note libre</span><div class="pp-record-text">${n.text}</div><span class="muted small">${fmtDate(n.at)}</span></article>`)}` : ''}`, html`<button class="btn soft small" data-click="newEntry">${icon.plus}Nouvel élément</button>`)}
       ${panel(st.editId ? 'Modifier · nouvelle version' : 'Ajouter au suivi', editor(), html`<span class="muted small">${st.file ? 'Fichier prêt à joindre' : 'Enregistrement local, puis Drive si activé'}</span><button class="btn accent" data-click="save" ${st.busy || st.tab === 'none' ? 'disabled' : ''}>${st.busy ? 'Enregistrement…' : 'Enregistrer'}</button>`)}
@@ -128,11 +159,11 @@ export default {
       st.filter = el.value;
       // Ne pas redessiner le champ pendant la frappe (clavier Android).
       const text = st.filter.toLocaleLowerCase('fr');
-      document.querySelectorAll('.pp-pupil').forEach(a => { a.hidden = !a.textContent.toLocaleLowerCase('fr').includes(text); });
+      document.querySelectorAll('[data-pp-pupil]').forEach(a => { a.hidden = !a.textContent.toLocaleLowerCase('fr').includes(text); });
     },
     tab(el) { keepDraft(); st.tab = el.dataset.key; st.collective = false; restoreDraft(); refresh(); },
-    trimester(el) { keepDraft(); st.trimester = Number(el.value); restoreDraft(); refresh(); },
-    collective(el) { keepDraft(); st.collective = el.checked; restoreDraft(); refresh(); },
+    trimester(el, e, params) { keepDraft(); st.trimester = Number(el.value); if (params?.section === 'conseils') recapPeriod = st.trimester; restoreDraft(); refresh(); },
+    recapTrimester(el) { recapPeriod = Number(el.value); refresh(); },
     kind(el) { st.form.kind = el.value; keepDraft(); refresh(); },
     kindCouncil(el) { st.form.category = el.value; keepDraft(); refresh(); },
     file(el) { st.file = el.files?.[0] || null; keepDraft(); const msg = document.createElement('span'); msg.className = 'muted small'; msg.textContent = st.file?.name || ''; el.parentElement.querySelector('.pp-file-picked')?.remove(); msg.classList.add('pp-file-picked'); el.parentElement.append(msg); },

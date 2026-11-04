@@ -10,6 +10,13 @@
 .pp-panel-foot { flex:none;padding:10px 14px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;justify-content:space-between; }
 .pp-panel-foot .small { font-size:12px;max-width:190px; }
 .pp-sidebar { overflow:hidden; }
+.pp-class-heading { display:flex;flex-direction:column;gap:5px;padding:16px; }
+.pp-class-nav { flex:none;padding:8px 10px;border-bottom:1px solid var(--line); }
+.pp-class-nav .pp-pupil { display:flex;align-items:center;gap:8px; }
+.pp-recap-metrics { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px; }
+.pp-recap-metrics>div { display:flex;flex-direction:column;gap:4px;padding:12px 8px;border-radius:10px;background:var(--bg); }
+.pp-recap-metrics strong { font-size:28px; }
+.pp-recap-metrics span { font-size:13px;color:var(--ink2); }
 .pp-profile { padding:16px 14px 8px;display:flex;gap:12px;align-items:center; }
 .pp-profile>div { display:flex;gap:4px;flex-direction:column;min-width:0;overflow-wrap:anywhere; }
 .pp-profile strong { font-size:20px; }

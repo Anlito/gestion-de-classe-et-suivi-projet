@@ -34,6 +34,7 @@ import { initUpdates } from './update.js';
 const ROUTES = [
   [/^#\/pp$/, suiviPP, []],
   [/^#\/pp\/classe\/([^/]+)$/, suiviPP, ['classId']],
+  [/^#\/pp\/classe\/([^/]+)\/(conseils)$/, suiviPP, ['classId', 'section']],
   [/^#\/pp\/eleve\/([^/]+)$/, suiviPP, ['studentId']],
   [/^#\/admin\/outils$/, outils, []],
   [/^#?\/?$/, semaine, []],
