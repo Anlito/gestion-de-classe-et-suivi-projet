@@ -9,7 +9,8 @@ export function alreadyImported(hash, classId, { testMode = false } = {}) {
 export function buildImport(parsed, mappings, classId, hash, options = {}) {
   const testMode = options.testMode === true;
   if (!pp.enabled('imports') || !pp.active(classId)) throw new Error('Activez l’outil Imports et choisissez une classe PP.');
-  if (!['roster', 'bulletin'].includes(parsed.profile)) throw new Error('Profil d’import non pris en charge.');
+  if (!['roster', 'bulletin', 'attendance', 'discipline'].includes(parsed.profile)) throw new Error('Profil d’import non pris en charge.');
+  if (['attendance','discipline'].includes(parsed.profile) && !pp.enabled('vieScolaire')) throw new Error('Activez l’outil Vie scolaire pour importer ce relevé.');
   if (alreadyImported(hash, classId, { testMode })) throw new Error('Ce fichier a déjà été validé pour cette classe. Aucun doublon créé.');
   const c = db.get('classes', classId), pupils = model.studentsOf(classId);
   const problems = importProblems(parsed, mappings, c, model.schoolYear(), pupils, { testMode });
@@ -21,6 +22,11 @@ export function buildImport(parsed, mappings, classId, hash, options = {}) {
   parsed.rows.forEach((row, index) => {
     if (mappings[index] === 'skip') return;
     const studentId = mappings[index];
+    if (['attendance','discipline'].includes(parsed.profile)) {
+      if (!parsed.totalsChecked) throw new Error('Les totaux du relevé doivent être vérifiés avant import.');
+      const entityId = [testMode?'test-recap':'recap',classId,studentId,model.schoolYear(),parsed.profile,parsed.sourceSchool,parsed.period.join('|')].join('|');
+      records.push({...base,id:db.uid(),entityId,parents:heads.filter(r=>r.entityId===entityId).map(r=>r.id),kind:'periodReport',studentId,profile:parsed.profile,period:parsed.period,columns:parsed.columns,metrics:row.metrics,sourceRow:row.sourceRow,sourcePage:row.sourcePage,sourceClass:row.sourceClass||parsed.sourceClass,sourceSchool:parsed.sourceSchool});
+    }
     if (parsed.profile === 'bulletin') {
       const occurrences = new Map();
       for (const subject of row.subjects) {
@@ -46,14 +52,14 @@ export function buildImport(parsed, mappings, classId, hash, options = {}) {
 export async function commitImport(parsed, mappings, classId, hash, file, options = {}) {
   const plan = buildImport(parsed, mappings, classId, hash, options);
   const blobId = 'pp-file-' + db.uid(), at = new Date().toISOString(), source = { classId, year: model.schoolYear(), at, testMode: plan.testMode, sourceYear: plan.sourceYear, sourceClass: plan.sourceClass };
-  const mimeType = plan.profile === 'bulletin' ? 'application/pdf' : 'text/csv';
+  const mimeType = plan.profile === 'roster' ? 'text/csv' : 'application/pdf';
   const batch = { ...source, id: plan.batchId, kind: 'importBatch', profile: plan.profile, fingerprint: hash,
     fileName: file.name, trimester: plan.trimester, mappings: plan.mappings, conflicts: plan.conflicts,
-    matched: plan.matched, avisAdded: plan.records.filter(r => r.kind === 'council').length };
+    matched: plan.matched, avisAdded: plan.records.filter(r => r.kind === 'council').length, reportRows:plan.records.filter(r=>r.kind==='periodReport').length, period:parsed.period, title:parsed.label };
   const documents = plan.profile === 'bulletin' ? plan.mappings.filter(m => m.studentId).map(m => ({ ...source, id: db.uid(), entityId: db.uid(), parents: [],
     kind: 'document', studentId: m.studentId, category: 'Bulletin', title: `${plan.testMode ? 'TEST · ' : ''}Bulletin · trimestre ${plan.trimester}`, blobId, mimeType, fileName: file.name, size: file.size, importBatchId: plan.batchId })) : [];
   // CSV : fichier source conservé sur le lot, sans reprise des colonnes privées.
-  if (plan.profile === 'roster') { batch.blobId = blobId; batch.mimeType = mimeType; batch.size = file.size; }
+  if (plan.profile !== 'bulletin') { batch.blobId = blobId; batch.mimeType = mimeType; batch.size = file.size; }
   const undo = db.commit(w => {
     w.put('photos', { id: blobId, blob: new Blob([file], { type: mimeType }) });
     for (const row of [...plan.records, ...documents]) w.put('ppRecords', row);

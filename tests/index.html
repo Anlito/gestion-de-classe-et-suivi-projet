@@ -50,7 +50,8 @@ import { tests as sallesTests } from './salles.test.js';
 import { tests as laboBlocsTests } from './labo-blocs.test.js';
 import { tests as ppTests } from './pp.test.js';
 import { tests as importTests } from './pronote-import.test.js';
-const tests = [...icalTests, ...planningTests, ...syncTests, ...driveTests, ...pronoteTests, ...archivesTests, ...sallesTests, ...laboBlocsTests, ...ppTests, ...importTests];
+import { tests as recapTests } from './pronote-recap.test.js';
+const tests = [...icalTests, ...planningTests, ...syncTests, ...driveTests, ...pronoteTests, ...archivesTests, ...sallesTests, ...laboBlocsTests, ...ppTests, ...importTests,...recapTests];
 import { parseICS, STATUTS } from '../js/ical.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

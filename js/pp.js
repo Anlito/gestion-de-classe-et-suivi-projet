@@ -1,6 +1,6 @@
 import * as db from './db.js';
 import * as model from './model.js';
-import { isPPClass, revisionHeads, PP_TOOLS, DOCUMENT_TYPES, CARNET_TYPES, validISODate } from './pp-rules.js';
+import { isPPClass, revisionHeads, PP_TOOLS, DOCUMENT_TYPES, CARNET_TYPES, validISODate, PP_ROLES, MEASURE_TYPES } from './pp-rules.js';
 export { PP_TOOLS, DOCUMENT_TYPES, CARNET_TYPES, revisionHeads };
 
 export const classes = () => model.classes().filter(c => isPPClass(c, model.schoolYear()));
@@ -25,12 +25,26 @@ export function saveEntry(data, previous = null) {
   if (!active(classId)) throw new Error('Cette classe n’a pas de suivi PP actif.');
   if (previous && (!db.get('ppRecords', previous.id) || previous.studentId !== (s?.id || null) || previous.classId !== classId)) throw new Error('La version source a changé. Rouvrez la fiche.');
   const kind = previous?.kind || data.kind;
-  const tool = { task: 'actions', note: 'notes', progress: 'notes', carnet: 'carnet', document: 'documents', council: 'conseils' }[kind];
+  const tool = { measure:'vieScolaire', task: 'actions', note: 'notes', progress: 'notes', carnet: 'carnet', document: 'documents', council: 'conseils' }[kind];
   if (!tool || !enabled(tool)) throw new Error('Cet outil est désactivé.');
   if (data.due && !validISODate(data.due)) throw new Error('Vérifiez la date d’échéance.');
   if (data.date && !validISODate(data.date)) throw new Error('Vérifiez la date.');
   if (kind === 'carnet' && !CARNET_TYPES.includes(data.category)) throw new Error('Choisissez une catégorie du carnet scolaire.');
   if (kind === 'council' && ![1, 2, 3].includes(Number(data.trimester))) throw new Error('Choisissez un trimestre.');
+  let report=null, duration=null;
+  if(kind==='measure') {
+    if(!s)throw new Error('Choisissez un élève pour cette mesure.');
+    if(data.status&&!['prévue','effectuée','reportée','annulée'].includes(data.status))throw new Error('État de mesure inconnu.');
+    if(!MEASURE_TYPES.includes(data.category)||!String(data.reason||'').trim()) throw new Error('Choisissez le type de mesure et renseignez le motif.');
+    if(data.authorRole && !PP_ROLES.includes(data.authorRole)) throw new Error('Rôle de l’auteur inconnu.');
+    if(data.plannedDate && !validISODate(data.plannedDate)) throw new Error('Vérifiez la date prévue.');
+    if(data.durationMinutes!=null && data.durationMinutes!=='') { duration=Number(data.durationMinutes);if(!Number.isSafeInteger(duration)||duration<0)throw new Error('La durée doit être un nombre entier de minutes positif ou nul.'); }
+    if(data.reportEntityId) {
+      const reports=latest({studentId:s?.id,kind:'periodReport'}).filter(r=>r.entityId===data.reportEntityId && r.profile==='discipline');
+      if(reports.length!==1)throw new Error('Relevé absent ou versions concurrentes : vérifiez la source.'); report=reports[0];
+      if(!report.columns.some(c=>c.id===data.columnId))throw new Error('Choisissez la colonne du relevé pour ce complément.');
+    }
+  }
   if (kind !== 'council' && !(data.title || data.text || '').trim()) throw new Error('Renseignez le contenu.');
   const id = db.uid();
   // Données explicites uniquement : aucune reprise de propriétés internes reçues d’un formulaire.
@@ -40,7 +54,8 @@ export function saveEntry(data, previous = null) {
     status: data.status || (kind === 'council' ? 'draft' : 'todo'), category: data.category || '',
     trimester: kind === 'council' ? Number(data.trimester) : undefined,
     subject: data.subject || '', teacher: data.teacher || '',
-    testMode: previous?.testMode === true, sourceYear: previous?.sourceYear, sourceClass: previous?.sourceClass,
+    ...(kind==='measure'?{reason:String(data.reason||'').trim(),authorRole:data.authorRole||'',authorName:String(data.authorName||'').trim(),reportEntityId:report?.entityId||null,columnId:report?data.columnId:null,durationMinutes:duration,plannedDate:data.plannedDate||''}:{}),
+    testMode: report?.testMode === true || previous?.testMode === true, sourceYear: report?.sourceYear || previous?.sourceYear, sourceClass: report?.sourceClass || previous?.sourceClass,
     blobId: data.blobId || previous?.blobId, fileName: data.fileName || previous?.fileName,
     mimeType: data.mimeType || previous?.mimeType, size: data.size ?? previous?.size };
   const undo = db.commit(w => w.put('ppRecords', entry));

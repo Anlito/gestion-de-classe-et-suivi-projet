@@ -3,6 +3,7 @@ import * as model from '../model.js';
 import * as pp from '../pp.js';
 import { isOverdue } from '../pp-rules.js';
 import { isMasteryLayout, previousResultText, annualBulletinRows } from '../pronote-import.js';
+import { schoolHistory, measureEditor, measureExtras, classReportSummary } from '../school-life.js';
 import { html, raw, toast, todayISO, fmtDate, confirmDialog } from '../ui.js';
 import { icon, photo, backLink, saveStatus } from '../components.js';
 import { go, refresh } from '../nav.js';
@@ -17,14 +18,15 @@ function restoreDraft() { const d = drafts.get(draftKey()); st.form = { ...(d?.f
 const panel = (title, body, footer = '') => html`<section class="panel pp-panel"><div class="panel-head row"><span class="panel-title grow">${title}</span></div><div class="panel-scroll" data-scroll="${title}">${body}</div>${footer ? html`<div class="pp-panel-foot">${footer}</div>` : ''}</section>`;
 const field = (key, label, type = 'text') => html`<label class="lbl">${label}<input class="input" type="${type}" value="${st.form[key] || ''}" data-input="form" data-key="${key}" ${type === 'text' ? raw('maxlength="240"') : ''}></label>`;
 const textField = label => html`<label class="lbl pp-text-field">${label}<textarea class="field" rows="5" data-input="form" data-key="text">${st.form.text || ''}</textarea></label>`;
-const recordTool = r => ({ task: 'actions', note: 'notes', progress: 'notes', carnet: 'carnet', document: 'documents', council: 'conseils' })[r.kind];
-const kindLabel = r => ({ task: 'Action', note: 'Note PP', progress: 'Progrès', carnet: r.category, document: r.category, council: r.category === 'synthese' ? 'Synthèse' : [r.subject, r.teacher].filter(Boolean).join(' · ') || 'Avis' })[r.kind];
+const recordTool = r => ({ measure:'vieScolaire',task: 'actions', note: 'notes', progress: 'notes', carnet: 'carnet', document: 'documents', council: 'conseils' })[r.kind];
+const kindLabel = r => ({ measure:r.category,task: 'Action', note: 'Note PP', progress: 'Progrès', carnet: r.category, document: r.category, council: r.category === 'synthese' ? 'Synthèse' : [r.subject, r.teacher].filter(Boolean).join(' · ') || 'Avis' })[r.kind];
 const currentFilters = () => ({ classId: st.classId, ...(st.collective ? {} : { studentId: st.studentId }) });
 function currentRecords() {
   let list = pp.latest(currentFilters()).filter(r => !st.collective || !r.studentId);
   if (st.tab === 'documents') return list.filter(r => r.kind === 'document');
   if (st.tab === 'actions') return list.filter(r => r.kind === 'task');
   if (st.tab === 'conseils') return list.filter(r => r.kind === 'council' && r.trimester === st.trimester);
+  if (st.tab === 'vie') return list.filter(r=>r.kind==='measure');
   return list.filter(r => ['note', 'progress', 'carnet'].includes(r.kind) && pp.enabled(recordTool(r)));
 }
 function entryView(r) {
@@ -36,7 +38,8 @@ function entryView(r) {
       ${r.status === 'validated' ? html`<span class="chip pos">Validé</span>` : ''}</div>
     <strong>${r.title || (r.kind === 'council' ? `Trimestre ${r.trimester}` : '')}</strong>
     ${r.text ? html`<div class="pp-record-text">${r.text}</div>` : ''}
-    <span class="muted small">${r.date ? fmtDate(r.date) : fmtDate(r.at)}${r.due ? ' · échéance ' + fmtDate(r.due) : ''}</span>
+    ${r.kind==='measure'?measureExtras(r):''}
+    <span class="muted small">${r.date ? fmtDate(r.date) : r.kind==='measure'?'Saisie le '+fmtDate(r.at)+' · date de la mesure non renseignée':fmtDate(r.at)}${r.due ? ' · échéance ' + fmtDate(r.due) : ''}</span>
     ${r.kind === 'task' ? html`<label class="check-row"><input type="checkbox" data-change="task" data-id="${r.id}" ${r.status === 'done' ? 'checked' : ''}> ${r.status === 'done' ? 'Fait' : isOverdue(r, todayISO()) ? 'À faire · échéance dépassée' : 'À faire'}</label>` : ''}
     <div class="row-center wrap">
       ${r.kind === 'document' ? html`<button class="btn soft small" data-click="preview" data-id="${r.id}">Ouvrir</button><button class="btn danger-soft small" data-click="removeDocument" data-id="${r.id}">Retirer</button>`
@@ -73,6 +76,7 @@ function journalForm() {
     ${field('date', 'Date du fait', 'date')}${field('title', 'Titre (facultatif)')}${textField('Note personnelle / détail')}`;
 }
 function editor() {
+  if(st.tab==='vie')return measureEditor(st.form,st.studentId);
   if (st.tab === 'documents') return html`<div class="stack"><p class="muted small">Plusieurs dispositifs et documents peuvent être associés au même élève.</p>
     <label class="lbl">Catégorie<select class="input" data-change="form" data-key="category">${pp.DOCUMENT_TYPES.map(k => html`<option ${st.form.category === k ? 'selected' : ''}>${k}</option>`)}</select></label>
     ${field('title', 'Titre (facultatif)')}
@@ -84,11 +88,11 @@ function editor() {
     ${st.form.category !== 'synthese' ? html`${field('subject', 'Matière')}${field('teacher', 'Professeur (facultatif)')}` : html`<p class="muted small">Bilan du trimestre → constats nuancés → conseils concrets. Félicitations si justifiées.</p>`}
     ${textField(st.form.category === 'synthese' ? 'Votre appréciation' : 'Appréciation du professeur')}
     <label class="lbl">État<select class="input" data-change="form" data-key="status"><option value="draft" ${st.form.status !== 'validated' ? 'selected' : ''}>Brouillon</option><option value="validated" ${st.form.status === 'validated' ? 'selected' : ''}>Validé par moi</option></select></label>
-    <p class="muted small">Rédaction manuelle disponible. L’import des avis et l’aide à la rédaction seront ajoutés dans les prochaines étapes.</p></div>`;
+    <p class="muted small">Les avis des bulletins peuvent être importés. Votre synthèse reste personnelle ; l’aide à la rédaction est une prochaine étape.</p></div>`;
   return html`<div class="stack pp-editor-stack">${journalForm()}</div>`;
 }
 function tabs() {
-  return [['journal', 'Notes', pp.enabled('notes') || pp.enabled('carnet')], ['actions', 'Actions', pp.enabled('actions')], ['documents', 'Documents', pp.enabled('documents')], ['conseils', 'Conseils', pp.enabled('conseils')]].filter(t => t[2]);
+  return [['journal', 'Notes', pp.enabled('notes') || pp.enabled('carnet')], ['actions', 'Actions', pp.enabled('actions')], ['documents', 'Documents', pp.enabled('documents')], ['conseils', 'Conseils', pp.enabled('conseils')],['vie','Vie scolaire',pp.enabled('vieScolaire')]].filter(t => t[2]);
 }
 function home() {
   const cls = pp.classes();
@@ -101,7 +105,7 @@ function home() {
     ${panel('Mes classes PP', cls.map(c => html`<a class="pp-class-tile" style="--tint:${model.SECTIONS.find(sec => sec.key === model.sectionOf(c))?.tint || 'var(--accentTint)'}" href="#/pp/classe/${c.id}"><strong>${c.name}</strong><span>${model.studentsOf(c.id).length} élèves</span></a>`), html`<a class="link-btn" href="#/admin">Gérer les classes</a>`)}
     ${panel('Actions à suivre', pp.enabled('actions') ? (tasks.length ? tasks.map(r => html`<a class="pp-home-row" href="#/pp/eleve/${r.studentId}"><strong>${r.title}</strong><span class="muted small">${model.fullName(db.get('students', r.studentId) || {})}${r.due ? ' · ' + fmtDate(r.due) : ' · sans échéance'}</span>${isOverdue(r, todayISO()) ? html`<span class="chip warn">En retard</span>` : ''}</a>`) : html`<p class="muted">Aucune action ouverte. Ajoutez-en depuis une fiche élève.</p>`) : html`<p class="muted">Outil désactivé.</p>`)}
     ${panel('Réunions et suivi récent', html`${meetings.length ? meetings.map(e => html`<a class="pp-home-row" href="#/pp/eleve/${e.studentId}"><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut} · ${model.fullName(db.get('students', e.studentId) || {})}</span></a>`) : html`<p class="muted">Aucune réunion élève à venir. Associez un élève PP à un événement de l’agenda.</p>`}
-      <hr><span class="muted small">Les listes CSV et bulletins PDF s’importent depuis le récap d’une classe. Les relevés d’assiduité et de punitions, campagnes familles et audio restent à intégrer.</span>`)}
+      <hr><span class="muted small">Les listes CSV et bulletins PDF s’importent depuis le récap d’une classe. Les relevés d’assiduité et de punitions sont disponibles. Les campagnes familles et l’audio restent à intégrer.</span>`)}
   </div>`;
 }
 function classSidebar(c, current = 'recap') {
@@ -125,7 +129,7 @@ function classRecap(c) {
       ${panel('Vue d’ensemble de la classe', html`<div class="pp-recap-metrics"><div><strong>${pupils.length}</strong><span>élève${pupils.length > 1 ? 's' : ''}</span></div>${pp.enabled('actions') ? html`<div><strong>${tasks.length}</strong><span>action${tasks.length > 1 ? 's' : ''} ouverte${tasks.length > 1 ? 's' : ''}</span></div>` : ''}${pp.enabled('documents') ? html`<div><strong>${documents.length}</strong><span>pièce${documents.length > 1 ? 's' : ''} jointe${documents.length > 1 ? 's' : ''}</span></div>` : ''}</div>
       ${pp.enabled('actions') ? html`<h3 class="pp-source-title">Actions à suivre</h3>${tasks.length ? tasks.map(r => html`<a class="pp-home-row" href="${r.studentId ? '#/pp/eleve/' + r.studentId : '#/pp/classe/' + c.id}"><strong>${r.title}</strong><span class="muted small">${r.studentId ? model.fullName(db.get('students', r.studentId) || {}) : c.name}${r.due ? ' · ' + fmtDate(r.due) : ' · sans échéance'}</span>${isOverdue(r, todayISO()) ? html`<span class="chip warn">En retard</span>` : ''}</a>`) : html`<p class="muted small">Aucune action ouverte pour cette classe.</p>`}` : ''}
       <h3 class="pp-source-title">Prochaines réunions</h3>${meetings.length ? meetings.map(e => html`<div class="pp-home-row"><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut}${e.studentId ? ' · ' + model.fullName(db.get('students', e.studentId) || {}) : ' · classe entière'}</span></div>`) : html`<p class="muted small">Aucune réunion à venir pour cette classe.</p>`}
-      <p class="muted small pp-source-title">Ces indicateurs portent sur le suivi enregistré dans le Carnet. Les cumuls et alertes Pronote seront ajoutés avec les imports.</p>`)}
+      ${classReportSummary(c.id)}<p class="muted small pp-source-title">Ces relevés conservent leurs périodes. Les appels du Carnet restent distincts ; les seuils d’alerte sont une prochaine étape.</p>`)}
       ${pp.enabled('conseils') ? panel(`Conseil · trimestre ${trimester}`, html`<div class="info-box small-text">${pupilsWithAdvice} élève${pupilsWithAdvice > 1 ? 's' : ''} avec un avis ou une synthèse enregistré${pupilsWithAdvice > 1 ? 's' : ''} sur ${pupils.length}. Ce nombre ne mesure pas la complétude des avis.</div>
       <h3 class="pp-source-title">Avis généraux des professeurs</h3>${collective.filter(r => r.category !== 'synthese').map(r => html`<article class="pp-record"><strong>${[r.subject, r.teacher].filter(Boolean).join(' · ') || 'Avis collectif'}</strong><div class="pp-record-text">${r.text}</div></article>`)}${collective.some(r => r.category !== 'synthese') ? '' : html`<p class="muted small">Aucun avis collectif renseigné pour ce trimestre.</p>`}
       <h3 class="pp-source-title">Conclusion générale de la classe</h3>${collective.filter(r => r.category === 'synthese').map(r => html`<article class="pp-record"><span class="chip${r.status === 'validated' ? ' pos' : ''}">${r.status === 'validated' ? 'Validé' : 'Brouillon'}</span><div class="pp-record-text">${r.text}</div></article>`)}${collective.some(r => r.category === 'synthese') ? '' : html`<p class="muted small">La conclusion générale est à préparer.</p>`}`, html`<a class="btn accent" href="#/pp/classe/${c.id}/conseils">Préparer le conseil de la classe</a>`) : panel('Suivi collectif', html`<p class="muted">Le module Conseils est masqué. Les données collectives sont conservées.</p>`) }
@@ -163,11 +167,11 @@ export default {
       ${s || classCouncil ? html`<div class="pp-toolbar">${s ? html`<a class="btn accent pp-recap-access" href="#/pp/classe/${c.id}">${icon.grid}<span>Récap classe <strong>${c.name}</strong></span></a>` : html`<span class="grow muted">Avis et synthèses collectifs</span>`}${classCouncil ? '' : html`<div class="segmented">${tabs().map(([key, label]) => html`<button class="seg${st.tab === key ? ' on' : ''}" data-click="tab" data-key="${key}">${label}</button>`)}</div>`}
         ${st.tab === 'conseils' ? html`<select class="input pp-trimester" data-change="trimester" aria-label="Trimestre">${[1, 2, 3].map(t => html`<option value="${t}" ${t === st.trimester ? 'selected' : ''}>Trimestre ${t}</option>`)}</select>` : ''}</div>
       <main class="content pp-detail">${classCouncil ? classSidebar(c, 'conseil') : profile(s, c)}
-      ${panel(st.collective ? `Conseil · ${c.name}` : st.tab === 'documents' ? 'Documents associés' : st.tab === 'conseils' ? `Conseil · trimestre ${st.trimester}` : st.tab === 'actions' ? 'Actions de suivi' : 'Historique personnel', html`
+      ${panel(st.collective ? `Conseil · ${c.name}` : st.tab==='vie'?'Vie scolaire':st.tab === 'documents' ? 'Documents associés' : st.tab === 'conseils' ? `Conseil · trimestre ${st.trimester}` : st.tab === 'actions' ? 'Actions de suivi' : 'Historique personnel', html`
         ${s && st.tab === 'journal' ? pp.meetingsOf(s.id).map(e => html`<article class="pp-record"><span class="chip">Réunion liée à l’agenda</span><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut} · ${e.lieu || ''}</span><button class="btn soft small" data-click="meeting" data-id="${e.id}">Ouvrir la réunion</button></article>`) : ''}
-        ${bulletinEvolution()}${bulletinResults()}${list.length ? list.map(entryView) : html`<p class="muted">Aucun élément dans cette rubrique.</p>`}
+        ${st.tab==='vie'?schoolHistory(st.studentId):''}${bulletinEvolution()}${bulletinResults()}${list.length ? list.map(entryView) : html`<p class="muted">Aucun élément dans cette rubrique.</p>`}
         ${builtin.length ? html`<h3 class="pp-source-title">Notes du Carnet</h3>${builtin.map(n => html`<article class="pp-record"><span class="chip">Carnet · note libre</span><div class="pp-record-text">${n.text}</div><span class="muted small">${fmtDate(n.at)}</span></article>`)}` : ''}`, html`<button class="btn soft small" data-click="newEntry">${icon.plus}Nouvel élément</button>`)}
-      ${panel(st.editId ? 'Modifier · nouvelle version' : 'Ajouter au suivi', editor(), html`<span class="muted small">${st.file ? 'Fichier prêt à joindre' : 'Enregistrement local, puis Drive si activé'}</span><button class="btn accent" data-click="save" ${st.busy || st.tab === 'none' ? 'disabled' : ''}>${st.busy ? 'Enregistrement…' : 'Enregistrer'}</button>`)}
+      ${panel(st.editId ? 'Modifier · nouvelle version' : st.tab==='vie'?'Compléter une mesure':'Ajouter au suivi', editor(), html`<span class="muted small">${st.file ? 'Fichier prêt à joindre' : 'Enregistrement local, puis Drive si activé'}</span><button class="btn accent" data-click="save" ${st.busy || st.tab === 'none' ? 'disabled' : ''}>${st.busy ? 'Enregistrement…' : 'Enregistrer'}</button>`)}
       </main>` : html`<main class="content pp-home">${home()}</main>`}
     </div>`;
   },
@@ -177,6 +181,7 @@ export default {
   },
   leave() { keepDraft(); if (previewUrl) URL.revokeObjectURL(previewUrl); previewUrl = null; },
   actions: {
+    schoolReport(el) { st.form.reportEntityId=el.value;st.form.columnId='';keepDraft();refresh(); },
     form(el) { st.form[el.dataset.key] = el.value; keepDraft(); },
     search(el) {
       st.filter = el.value;
@@ -209,7 +214,8 @@ export default {
           if (!st.file) throw new Error('Choisissez un document ou prenez une photo.');
           result = await pp.attachDocument(st.studentId, st.file, data.category || pp.DOCUMENT_TYPES[0], data.title);
         } else {
-          data.kind = st.tab === 'actions' ? 'task' : st.tab === 'conseils' ? 'council' : data.kind || (pp.enabled('notes') ? 'note' : 'carnet');
+          data.kind = st.tab==='vie'?'measure':st.tab === 'actions' ? 'task' : st.tab === 'conseils' ? 'council' : data.kind || (pp.enabled('notes') ? 'note' : 'carnet');
+          if(data.kind==='measure'){data.category||='Retenue';data.title||=data.category;data.status||='prévue';}
           if (data.kind === 'carnet') data.category ||= pp.CARNET_TYPES[0];
           if (data.kind === 'council') { data.trimester = st.trimester; data.category ||= 'avis'; if (!data.text?.trim()) throw new Error('Renseignez l’appréciation.'); }
           result = pp.saveEntry(data, st.editId ? db.get('ppRecords', st.editId) : null);

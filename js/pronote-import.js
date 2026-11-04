@@ -213,6 +213,7 @@ export function importProblems(parsed, mappings, targetClass, year, pupils, { te
   if (mappings.length !== parsed.rows.length) problems.push('Correspondances incomplètes : vérifiez toutes les lignes.');
   mappings.forEach((id, i) => {
     if (id === 'skip') return;
+    if (testMode !== true && parsed.rows[i]?.sourceClass && !classKey(targetClass.name).includes(classKey(parsed.rows[i].sourceClass))) problems.push(`Ligne ${i+1} : la classe source ne correspond pas à la classe choisie. Ignorez cette ligne ou corrigez le contexte.`);
     if (!ids.has(id)) problems.push(`Ligne ${i + 1} : choisissez l’élève ou « Ignorer ». `);
     else if (used.has(id)) problems.push(`Ligne ${i + 1} : cet élève est déjà associé à une autre ligne du fichier.`);
     else used.add(id);
@@ -230,6 +231,7 @@ export async function parseFile(file) {
   }
   if (!/\.pdf$/i.test(file.name)) throw new Error('Choisissez un CSV Pronote ou un bulletin PDF.');
   const pages = await readPDF(file), meta = extractMeta(pages);
+  if (/Récapitulatif des (?:absences|punitions)/i.test(meta.text)) return (await import('./pronote-recap.js')).parseRecap(pages);
   if (!meta.trimester) throw new Error('Ce PDF n’est pas un bulletin reconnu. Les récapitulatifs d’assiduité et de punitions feront l’objet de profils d’import distincts ; aucune donnée n’a été enregistrée.');
   return parseBulletin(pages);
 }

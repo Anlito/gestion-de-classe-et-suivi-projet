@@ -1,6 +1,7 @@
 // Règles pures du suivi PP : réutilisables dans les tests sans navigateur.
 export const PP_TOOLS = [
-  { key: 'imports', label: 'Imports Pronote', description: 'Vérifier une liste CSV et importer les avis d’un bulletin PDF.' },
+  { key: 'imports', label: 'Imports Pronote', description: 'Listes CSV, bulletins et relevés PDF vérifiés avant enregistrement.' },
+  { key: 'vieScolaire', label: 'Vie scolaire', description: 'Relevés d’assiduité, punitions et compléments manuels.' },
   { key: 'actions', label: 'Actions à suivre', description: 'Échéances, démarches et relances.' },
   { key: 'notes', label: 'Notes et progrès', description: 'Notes personnelles et faits positifs.' },
   { key: 'carnet', label: 'Carnet scolaire', description: 'Observations, encouragements et défauts de carnet.' },
@@ -9,6 +10,8 @@ export const PP_TOOLS = [
 ];
 export const DOCUMENT_TYPES = ['PAP', 'PPRE', 'GEVA-Sco', 'PAI', 'PPS', 'Bulletin', 'Mot du carnet', 'Autre'];
 export const CARNET_TYPES = ['Observation', 'Encouragement', 'Défaut de carnet'];
+export const PP_ROLES=['Professeur','AED','CDP','Direction','Autre'];
+export const MEASURE_TYPES=['Retenue','Exclusion de cours','Travail supplémentaire','Sanction','Autre'];
 export const yearKey = value => String(value || '').replace(/\D/g, '');
 export const isPPClass = (c, year) => !!c && yearKey(c.ppYear) === yearKey(year) && !!yearKey(c.ppYear)
   && (!c.year || yearKey(c.year) === yearKey(year));
