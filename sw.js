@@ -1,9 +1,11 @@
 // sw.js — Fonctionnement hors-ligne : garde une copie des fichiers de l'app sur l'appareil.
 // À chaque nouvelle version de l'app, augmenter VERSION pour que la tablette récupère les nouveaux fichiers.
-const VERSION = 'carnet-v1.23.0-pp.13';
+const VERSION = 'carnet-v1.23.0-pp.14';
 const FONTS = 'carnet-fonts';
 const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
 const FILES = [
+  'js/pp-speech-manifest.js','js/pp-speech-model.js','js/pp-speech-store.js','js/pp-speech-worker.js','js/pp-speech.js','js/screens/pp-transcription.js',
+  'vendor/transformers/transformers.min.js','vendor/transformers/ort-wasm-simd-threaded.jsep.mjs',
   'js/pp-audio-store.js','js/pp-audio-capture.js','js/screens/pp-audio.js',
   'js/pp-family-rules.js','js/pp-family.js','js/screens/pp-families.js',
   'google-rencontres/Code.gs','google-rencontres/Formulaire.html','google-rencontres/Professeur.html','google-rencontres/INSTALLATION.md',
@@ -29,7 +31,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
-    .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== FONTS).map(k => caches.delete(k))))
+    .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== FONTS && !k.startsWith('pp-speech-')).map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 

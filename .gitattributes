@@ -1,0 +1,2 @@
+# Preserve the upstream bytes verified by the speech runtime SHA-256 manifest.
+vendor/transformers/* -text

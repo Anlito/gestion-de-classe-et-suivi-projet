@@ -5,7 +5,7 @@ import * as audio from '../pp-audio-store.js';
 import * as capture from '../pp-audio-capture.js';
 import {html,toast,confirmDialog,fmtDate} from '../ui.js';
 import {backLink,saveStatus} from '../components.js';
-import {refresh} from '../nav.js';
+import {refresh,go} from '../nav.js';
 let studentId='',selected='',title='',text='',dirty=false,busy=false,unsubscribe=null;
 const drafts=new Map();
 addEventListener('beforeunload',e=>{if(dirty||[...drafts.values()].some(d=>d.dirty)){e.preventDefault();e.returnValue='';}});
@@ -22,6 +22,7 @@ export default {
   if(!pp.enabled('audio'))return html`<div class="screen"><a href="#/pp/eleve/${studentId}">Retour à la fiche élève</a><p>L’outil Audio est masqué. Les enregistrements restent conservés.</p></div>`;
   const rows=audio.recordings(studentId),state=capture.state,ours=state.studentId===studentId,recording=ours&&state.phase==='recording',pending=ours&&state.blob;
   if(!selected&&rows.length)select(rows[0]);
+  if(selected&&!dirty&&!rows.some(r=>r.id===selected)){const entity=db.get('ppRecords',selected)?.entityId;select(rows.find(r=>r.entityId===entity)||rows[0]);}
   const row=rows.find(r=>r.id===selected),blob=row&&db.get('photos',row.blobId)?.blob;
   const player=blobURL(pending?'pending':row?.blobId,pending||blob);
   return html`<div class="screen pp-screen"><header class="topbar">${backLink('#/pp/eleve/'+studentId,'Fiche élève')}<div class="heading"><span class="title">Audio · ${student.prenom}</span><span class="sub">${db.get('classes',student.classId)?.name}</span></div><div class="spacer"></div>${saveStatus()}</header><main class="content pp-audio-grid">
@@ -33,13 +34,14 @@ export default {
   <label class="lbl">Importer un audio existant<input type="file" accept="audio/webm,audio/ogg,audio/mp4,audio/mpeg,audio/wav,.m4a,.mp3,.wav,.webm,.ogg" data-change="file" ${capture.active()||busy?'disabled':''}></label>
   <h3>Enregistrements · ${rows.length}</h3>${rows.map(r=>html`<button class="btn pp-home-row" data-click="select" data-id="${r.id}" ${capture.active()||busy?'disabled':''}><strong>${r.title}</strong><span>${fmtDate(r.date||r.at)} · ${r.durationSeconds==null?'durée non renseignée':capture.formatDuration(r.durationSeconds)}</span>${rows.some(other=>other.entityId===r.entityId&&other.id!==r.id)?html`<span class="chip warn">Versions concurrentes conservées</span>`:''}</button>`)}</div></section>
   <section class="panel"><div class="panel-head"><strong>Réécoute et transcription</strong></div><div class="panel-scroll">${player?html`<audio class="pp-audio-player" controls preload="metadata" src="${player}" aria-label="Réécouter l’enregistrement"></audio>`:row?html`<p>Le fichier audio n’est pas disponible sur cet appareil. Vérifiez la restauration ou la synchronisation des pièces.</p>`:html`<p>Enregistrez ou importez un audio, puis sélectionnez-le pour le réécouter.</p>`}
-  ${row&&!pending?html`<form id="pp-audio-text" class="stack" data-submit="save"><label class="lbl">Titre<input class="input" value="${title}" data-input="title" maxlength="240"></label><label class="lbl">Transcription / compte rendu personnel<textarea class="field" rows="8" data-input="text">${text}</textarea></label><p class="muted small">Texte saisi ou collé par vous. La transcription automatique n’est pas encore connectée. Les audios et leurs textes suivent la sauvegarde et la synchronisation Drive du Carnet si elle est activée.</p></form>`:''}</div>${row&&!pending?html`<div class="pp-panel-foot"><div class="button-group"><button class="btn accent" type="submit" form="pp-audio-text" ${busy||capture.active()?'disabled':''}>Enregistrer le texte</button>${blob?html`<a class="btn" href="${player}" download="${row.fileName}">Télécharger l’audio</a>`:''}<button class="btn danger-soft" type="button" data-click="remove" ${busy||capture.active()?'disabled':''}>Supprimer cet audio</button></div></div>`:''}</section>
+  ${row&&!pending?html`<form id="pp-audio-text" class="stack" data-submit="save"><label class="lbl">Titre<input class="input" value="${title}" data-input="title" maxlength="240"></label><label class="lbl">Transcription / compte rendu personnel<textarea class="field" rows="8" data-input="text">${text}</textarea></label><p class="muted small">Texte saisi ou collé par vous. Le bouton Transcrire sur cet appareil prépare un brouillon à relire, sans envoyer l’audio à un service de transcription. Les audios et leurs textes suivent la sauvegarde et la synchronisation Drive du Carnet si elle est activée.</p></form>`:''}</div>${row&&!pending?html`<div class="pp-panel-foot"><div class="button-group"><button class="btn accent" type="submit" form="pp-audio-text" ${busy||capture.active()?'disabled':''}>Enregistrer le texte</button>${blob?html`<button class="btn" type="button" data-click="transcribe" ${busy||capture.active()?'disabled':''}>Transcrire sur cet appareil</button><a class="btn" href="${player}" download="${row.fileName}">Télécharger l’audio</a>`:''}<button class="btn danger-soft" type="button" data-click="remove" ${busy||capture.active()?'disabled':''}>Supprimer cet audio</button></div></div>`:''}</section>
   </main></div>`;
  },
  mount(){if(!unsubscribe)unsubscribe=capture.subscribe(type=>{if(type==='tick'){const el=document.querySelector('[data-audio-time]');if(el)el.textContent=capture.formatDuration(capture.state.seconds);}else{if(!dirty&&capture.state.entry?.studentId===studentId)select(capture.state.entry);refresh();}});},
  leave(){drafts.set(studentId,{selected,title,text,dirty});unsubscribe?.();unsubscribe=null;capture.stop();releaseURL();},
  actions:{
   title(el){title=el.value;dirty=true;},text(el){text=el.value;dirty=true;},
+  transcribe(){if(dirty){toast({text:'Enregistrez votre texte avant de lancer la transcription.'});return;}go('#/pp/eleve/'+studentId+'/audio/'+selected+'/transcription');},
   async start(){if(!await mayReplace())return;select(null);try{await capture.start(studentId);}catch(e){toast({text:e.message});}},
   async stop(){await capture.stop();},async retry(){await capture.retry();},
   async select(el){if(await mayReplace()){select(db.get('ppRecords',el.dataset.id));refresh();}},

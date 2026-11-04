@@ -1,4 +1,4 @@
-# Suivi PP — Version de travail 1.23.0-pp.6
+# Suivi PP — Version de travail 1.23.0-pp.14
 
 Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil. Elle est distincte de votre application actuellement en ligne, qui n’a pas été modifiée.
 
@@ -73,6 +73,17 @@ Après confirmation d’une réponse famille, le bloc de contexte et les consign
 
 ## Notes audio d’un élève
 Depuis la fiche PP, ouvrir **Notes audio →**. Cliquer sur **Démarrer l’enregistrement**, puis autoriser le microphone dans Chrome. Un indicateur et le temps écoulé sont visibles. **Arrêter et sauvegarder** conserve l’audio sur cet appareil : attendre la confirmation avant de fermer l’onglet. Quitter cet écran ou passer l’application en arrière-plan arrête la capture et tente de la sauvegarder. La limite est de 30 minutes et 20 Mo. Un arrêt brutal du navigateur avant sauvegarde peut perdre la capture en cours.
-Sélectionner un enregistrement pour le réécouter, le télécharger, modifier son titre et écrire/coller une transcription ou un compte rendu personnel. **Enregistrer le texte** crée une nouvelle version du texte tout en conservant le son original. La transcription automatique n’est pas encore branchée.
+Sélectionner un enregistrement pour le réécouter, le télécharger, modifier son titre et écrire/coller une transcription ou un compte rendu personnel. **Enregistrer le texte** crée une nouvelle version du texte tout en conservant le son original. Une transcription automatique locale est maintenant proposée, selon les étapes ci-dessous.
 Il est aussi possible d’importer un fichier WebM, Ogg, M4A, MP3 ou WAV de 20 Mo maximum. Les audios font partie de la sauvegarde du Carnet et de la synchronisation Drive si elle est activée. Ils ne sont jamais envoyés au formulaire des familles ni à Google Agenda. Masquer Notes audio dans Mes outils conserve les fichiers. Une suppression confirmée retire l’audio de la fiche et son fichier ; les versions de texte restent dans l’historique technique de la sauvegarde.
 Le microphone nécessite HTTPS (ou localhost pour l’essai sur cet ordinateur). Sur tablette, garder l’application au premier plan. Les tests ont utilisé un microphone virtuel ; un essai avec le microphone de la Galaxy Tab S7 est nécessaire avant un entretien réel.
+
+## Transcrire sans envoyer l’audio
+1. Dans **Notes audio**, sélectionner l’enregistrement. Si le titre ou le texte a été modifié, cliquer d’abord sur **Enregistrer le texte**.
+2. Cliquer sur **Transcrire sur cet appareil**, puis **Installer le modèle sur cet appareil**. Prévoir environ 65 Mo et une connexion Internet pour cette première installation. Elle est à faire une fois sur le portable et une fois sur la tablette ; Chrome peut imposer de la refaire si son stockage a été vidé.
+3. Cliquer sur **Lancer la transcription**. Garder l’écran ouvert ; le calcul peut être long, surtout sur tablette. Commencer par une courte note. Après installation, cette étape fonctionne hors connexion et n’envoie pas l’audio à un service de transcription.
+4. Relire et corriger le **Brouillon à relire**. Vérifier les noms, les nombres et les passages incertains en retournant aux audios pour les réécouter. Le modèle léger peut commettre des erreurs ou inventer des mots.
+5. Cliquer sur **Ajouter ce texte au compte rendu** pour conserver les corrections. Le texte déjà présent est conservé et le nouveau texte est ajouté à la suite. Les transcriptions précédentes restent consultables. Un brouillon déjà utilisé ne peut pas être ajouté deux fois.
+
+**Annuler le traitement**, ou quitter l’écran, interrompt la transcription sans supprimer le son ni le compte rendu. **Retirer le modèle de cet appareil** libère son cache, sans effacer les audios et textes. Les brouillons automatiques enregistrés et les comptes rendus suivent les sauvegardes du Carnet ; le modèle se réinstalle séparément. La synchronisation Drive des audios reste celle que vous avez activée et ne sert pas au calcul de transcription.
+
+Testé dans Chrome sur ordinateur, avec un exemple français public, y compris après coupure réseau. La vitesse et la stabilité sur la Galaxy Tab S7 restent à essayer avant un entretien complet. Aucun changement du formulaire Google des familles n’est nécessaire pour cette évolution.
