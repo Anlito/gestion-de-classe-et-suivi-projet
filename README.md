@@ -1,12 +1,14 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.3 (4 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.4 (4 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
 
 ### Disponible dans ce lot
+- **Essai avec des élèves fictifs** : option par bulletin permettant les écarts de classe et d’année pour tester les exemples. L’association et la confirmation restent obligatoires. Le mode se réinitialise à chaque fichier, changement de classe ou sortie de l’écran. Les avis et documents portent TEST, gardent l’année et la classe source et utilisent des identifiants distincts des avis ordinaires. Le marquage est conservé après modification d’un avis. Ces données sont réellement enregistrées et suivent la sauvegarde et Drive si activé : ce n’est pas une simulation sans écriture.
+- Les contrôles et la confirmation sont visibles près du bouton **Valider l’import**, sans devoir descendre dans les appréciations. En mode ordinaire, les écarts de classe et année restent bloquants.
 - **Accès unique au récap depuis une fiche élève** : grand bouton coloré « Récap classe » en haut ; le lien identique du panneau d’identité est retiré.
 - **Imports Pronote avec aperçu et validation** depuis le récap : listes CSV de la famille fournie (correspondances avec les élèves existants, aucun remplacement du trombinoscope), bulletins PDF de la famille vérifiée (avis par matière/professeur vers Conseils, original vers Documents, moyennes et appréciation globale conservées comme données source). Aucun service externe d’analyse.
 - Les homonymes demandent un choix explicite ; classe, année et trimestre contrôlés ; pas de nouvel import du même fichier dans la même classe/année. Les avis retouchés manuellement ou concurrents sont conservés et comptés dans le rapport. Un nouveau bulletin ne remplace pas la synthèse PP.
@@ -30,19 +32,20 @@ IndexedDB passe de 9 à 10, sans effacer les tables existantes. Nouvelle table `
 Les sauvegardes passent au format 2 ; les sauvegardes format 1 restent importables. **Avant un essai avec Drive réel, mettre la même nouvelle version sur tous les appareils** : un ancien client n’est pas compatible avec les données PP et ne doit pas synchroniser ce nouveau format. La copie de travail n’a pas été connectée au compte réel.
 
 ### Vérifications réalisées
-- Suite navigateur existante et nouveaux tests PP/imports : **88/88**.
+- Suite navigateur existante et nouveaux tests PP/imports : **91/91**.
 - Parcours Chrome avec élèves fictifs : activation, notes persistées et protection HTML, actions, pièce jointe et restauration binaire, séparation des trimestres, réunion liée, contenu Google Agenda préparé, masquage sans suppression, versions concurrentes, saisie puis redémarrage hors connexion.
 - Migration d’une base IndexedDB version 9 : classe et élève conservés, nouvelle table vide créée.
 - Contrôle de l’absence de défilement global aux tailles utiles **1280×752** et **1024×640**. Aucun test matériel sur la Galaxy Tab S7 réelle à ce stade.
 - Compléments vérifiés : récap en première position, classe vide, classe PP unique, isolation des avis collectifs par classe/trimestre et des avis individuels, ouverture du suivi depuis un événement et protection des modifications non enregistrées.
 - Imports testés dans Chrome sur fichiers fictifs : aucun écrit avant validation, correspondance proposée, répétition du même fichier bloquée, deux matières identiques avec enseignants distincts, nouvelle version du bulletin conservant la correction personnelle, pièce et données source enregistrées. Aperçu rendu par PDF.js dans l’application, avec changement de page, sans dépendre du lecteur PDF du navigateur.
 - Transaction d’import volontairement interrompue pendant l’essai : échec signalé, faux lot retiré de la mémoire, nouvel essai possible et enregistré.
+- Deux bulletins fictifs d’une autre année/classe importés successivement vers deux élèves fictifs : réactivation et confirmation exigées pour le second fichier, provenance conservée, aucun avis ordinaire remplacé. Tests des contrôles restant obligatoires en mode TEST, conservation du marquage après édition et présence des commandes à 1024×640.
 - Lecture locale des deux bulletins fournis : respectivement 12 matières / 11 avis et 7 matières / aucun avis ; aucune identité ou appréciation réelle incluse dans ce dépôt ou cette archive.
 - Les appels Google authentifiés, la réception effective des notifications et la prise de photo réelle sur Android ne sont pas vérifiés par ces essais locaux.
 
 ### Suite du développement
 Ce lot ne réalise pas encore : imports des récapitulatifs d’assiduité et punitions, compléments de punitions liés aux relevés, seuils d’alerte, campagnes de formulaires familles, billets et présence aux campagnes, enregistrement/transcription audio, génération assistée des synthèses, comparaison des périodes et gestion détaillée des démarches documentaires. Les outils non livrés ne sont pas affichés comme fonctionnels.
-Les imports actuels sont limités aux profils vérifiés : aucun OCR de scan, aucun engagement sur tous les formats de bulletins ou de rapports multipages. Un PDF à structure inconnue est refusé sans écriture. L’exemple complet fourni est d’une autre année que l’exemple vide ; le contrôle d’année empêche son classement automatique dans le suivi actif. Limite 20 Mo par fichier et 1 000 lignes CSV. Une liste CSV garde un rapport de correspondances et le fichier source dans la sauvegarde, sans importer ses autres colonnes administratives.
+Les imports actuels sont limités aux profils vérifiés : aucun OCR de scan, aucun engagement sur tous les formats de bulletins ou de rapports multipages. Un PDF à structure inconnue est refusé sans écriture. L’exemple complet fourni est d’une autre année que l’exemple vide ; le contrôle d’année reste actif sauf essai explicite marqué TEST. Limite 20 Mo par fichier et 1 000 lignes CSV. Une liste CSV garde un rapport de correspondances et le fichier source dans la sauvegarde, sans importer ses autres colonnes administratives.
 L’activation des modules des anciens écrans du Carnet, au-delà des nouveaux modules PP, reste également à étendre.
 
 Voir `SUIVI-PP.md` pour le parcours de prise en main et les limites de cette étape.

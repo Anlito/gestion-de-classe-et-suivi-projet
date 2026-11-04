@@ -65,6 +65,12 @@
 .pp-pdf-scroll { width:100%;overflow:auto;min-height:0;background:#e7e5e2; }
 .pp-pdf-scroll img { display:block;width:100%;height:auto; }
 .pp-preview-pages { display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 12px;font-size:13px; }
+.pp-import-footer { flex-direction:column;align-items:stretch;gap:8px; }
+.pp-import-footer .check-row { font-size:13px;line-height:1.35; }
+.pp-import-test { padding:8px;border-radius:10px;background:var(--accentTint);font-size:12px; }
+.pp-import-test p { margin:5px 0 0;line-height:1.35; }
+.pp-import-blocked { margin:0;font-size:12px;line-height:1.35;color:var(--ink); }
+.pp-import-submit { display:flex;align-items:center;justify-content:space-between;gap:8px; }
 .pp-import-table { border-collapse:collapse;width:100%;font-size:14px; }
 .pp-import-table th,.pp-import-table td { padding:10px 6px;border-bottom:1px solid var(--line);text-align:left;overflow-wrap:anywhere; }
 @media(max-width:1100px) and (min-width:781px) {

@@ -30,6 +30,7 @@ function entryView(r) {
   const conflict = pp.latest(currentFilters()).filter(x => x.entityId === r.entityId).length > 1;
   return html`<article class="pp-record${st.editId === r.id ? ' selected' : ''}">
     <div class="row-center wrap"><span class="chip${r.kind === 'progress' ? ' pos' : ''}">${kindLabel(r)}</span>
+      ${r.testMode ? html`<span class="chip warn">TEST · source ${r.sourceClass || '?'} · ${r.sourceYear || '?'}</span>` : ''}
       ${conflict ? html`<span class="chip warn">Versions concurrentes conservées</span>` : ''}
       ${r.status === 'validated' ? html`<span class="chip pos">Validé</span>` : ''}</div>
     <strong>${r.title || (r.kind === 'council' ? `Trimestre ${r.trimester}` : '')}</strong>

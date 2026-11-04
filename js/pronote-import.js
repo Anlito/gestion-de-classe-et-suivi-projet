@@ -137,13 +137,13 @@ export function parseBulletin(pages) {
 }
 export async function fileHash(file) { return [...new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))].map(b => b.toString(16).padStart(2, '0')).join(''); }
 
-export function importProblems(parsed, mappings, targetClass, year, pupils) {
+export function importProblems(parsed, mappings, targetClass, year, pupils, { testMode = false } = {}) {
   const problems = [];
   if (!targetClass) return ['Choisissez une classe PP.'];
-  if (parsed.year && yearKey(parsed.year) !== yearKey(year)) problems.push(`Année du document : ${parsed.year}. Le suivi actif est ${year}. Ce document ne sera pas classé dans la mauvaise année.`);
+  if (testMode !== true && parsed.year && yearKey(parsed.year) !== yearKey(year)) problems.push(`Année du document : ${parsed.year}. Le suivi actif est ${year}. Ce document ne sera pas classé dans la mauvaise année.`);
   if (parsed.profile === 'bulletin' && (!parsed.year || ![1, 2, 3].includes(parsed.trimester))) problems.push('Année scolaire ou trimestre non reconnu : import bloqué.');
   const classKey = s => norm(s).replace(/\s/g, '').replace(/^([3456])e(?=[a-z])/, '$1');
-  if (parsed.sourceClass && !classKey(targetClass.name).includes(classKey(parsed.sourceClass))) problems.push(`Classe du bulletin : ${parsed.sourceClass}. Vérifiez la classe choisie (${targetClass.name}).`);
+  if (testMode !== true && parsed.sourceClass && !classKey(targetClass.name).includes(classKey(parsed.sourceClass))) problems.push(`Classe du bulletin : ${parsed.sourceClass}. Vérifiez la classe choisie (${targetClass.name}).`);
   const ids = new Set(pupils.map(p => p.id)), used = new Set();
   if (mappings.length !== parsed.rows.length) problems.push('Correspondances incomplètes : vérifiez toutes les lignes.');
   mappings.forEach((id, i) => {

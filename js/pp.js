@@ -40,6 +40,7 @@ export function saveEntry(data, previous = null) {
     status: data.status || (kind === 'council' ? 'draft' : 'todo'), category: data.category || '',
     trimester: kind === 'council' ? Number(data.trimester) : undefined,
     subject: data.subject || '', teacher: data.teacher || '',
+    testMode: previous?.testMode === true, sourceYear: previous?.sourceYear, sourceClass: previous?.sourceClass,
     blobId: data.blobId || previous?.blobId, fileName: data.fileName || previous?.fileName,
     mimeType: data.mimeType || previous?.mimeType, size: data.size ?? previous?.size };
   const undo = db.commit(w => w.put('ppRecords', entry));
