@@ -1,4 +1,4 @@
-import {evaluateAlerts,validateRule} from '../js/pp-alert-rules.js';
+import {evaluateAlerts,validateRule,columnSchema} from '../js/pp-alert-rules.js';
 export const tests=[];
 const test=(name,fn)=>tests.push({name,fn});
 const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw new Error(JSON.stringify([a,b]));};
@@ -12,3 +12,19 @@ test('Alertes : valeur absente ne vaut pas zéro',()=>eq(evaluateAlerts([{...rep
 test('Alertes : TEST et établissement restent séparés',()=>eq(evaluateAlerts([report,{...report,id:'test',entityId:'test',testMode:true},{...report,id:'school',entityId:'school',sourceSchool:'Autre'}],[{...rule,threshold:0}]).alerts.length,3));
 test('Alertes : suivi stable après réimport identique et rouvert si valeur change',()=>{const a=evaluateAlerts([report],[{...rule,threshold:0}]).alerts[0];const b=evaluateAlerts([{...report,id:'v2',metrics:{halfDays:5}}],[{...rule,threshold:0}]).alerts[0];eq(a.key,b.key);eq(a.signature===b.signature,false);});
 test('Alertes : seuils invalides refusés',()=>{for(const threshold of ['',-1,1.2,'abc']){let failed=false;try{validateRule({...rule,threshold});}catch{failed=true;}eq(failed,true);}});
+const columns=[{id:'c0',label:'Exclu. 1'},{id:'c1',label:'Rete. 2'}];
+const discipline={...report,profile:'discipline',columns,sourceSchool:'Collège A',metrics:{c1:2}};
+const disciplineRule={...rule,metric:'disciplineColumn',threshold:1,columnId:'c1',columnLabel:'Rete. 2',columnSchema:columnSchema(columns),sourceSchool:'Collège A'};
+const manualRule={...rule,metric:'manualMeasures',threshold:0,from:'2026-09-01',to:'2026-11-08'};
+const measure={id:'m',entityId:'m',kind:'measure',studentId:'s',category:'Retenue',date:'2026-10-01',durationMinutes:60,status:'effectuée'};
+test('Mesures : complément lié non ajouté au compteur PDF',()=>eq(evaluateAlerts([discipline,{...measure,reportEntityId:'report',columnId:'c1'}],[disciplineRule]).alerts[0].value,2));
+test('Mesures : établissement différent et schéma modifié ne sont pas confondus',()=>{eq(evaluateAlerts([{...discipline,sourceSchool:'Collège B'}],[disciplineRule]).alerts.length,0);const changed=evaluateAlerts([{...discipline,columns:columns.toReversed()}],[disciplineRule]);eq([changed.alerts.length,changed.warnings.length],[0,1]);});
+test('Mesures : saisies indépendantes séparées et annulées exclues',()=>{const r=evaluateAlerts([discipline,measure,{...measure,id:'linked',entityId:'linked',reportEntityId:'report'},{...measure,id:'cancelled',entityId:'cancelled',status:'annulée'}],[manualRule]);eq(r.alerts[0].value,1);});
+test('Retenues : durée liée comptée une fois, inconnues signalées',()=>{const r=evaluateAlerts([measure,{...measure,id:'linked',entityId:'linked',reportEntityId:'report',durationMinutes:30},{...measure,id:'unknown',entityId:'unknown',durationMinutes:null}],[{...manualRule,metric:'retentionMinutes'}]);eq([r.alerts[0].value,r.warnings.length],[90,1]);});
+test('Retenues : aucune durée connue ne vaut pas zéro',()=>eq(evaluateAlerts([{...measure,durationMinutes:null}],[{...manualRule,metric:'retentionMinutes',operator:'>=',threshold:0}]).alerts.length,0));
+test('Carnet : observations explicites uniquement, pas les encouragements ni avis',()=>{const rows=['Observation','Encouragement','Défaut de carnet'].map((category,i)=>({...measure,id:'c'+i,entityId:'c'+i,kind:'carnet',category}));rows.push({...measure,id:'avis',entityId:'avis',kind:'council',category:'Observation'});eq(evaluateAlerts(rows,[{...manualRule,metric:'observations'}]).alerts[0].value,1);eq(evaluateAlerts(rows,[{...manualRule,metric:'carnetMissing'}]).alerts[0].value,1);});
+test('Saisies : bornes incluses et date inconnue signalée',()=>{const rows=[manualRule.from,manualRule.to,'2026-11-09',''].map((date,i)=>({...measure,id:'d'+i,entityId:'d'+i,date}));const r=evaluateAlerts(rows,[manualRule]);eq([r.alerts[0].value,r.warnings.length],[2,1]);});
+test('Saisies : concurrence de date suspend le calcul',()=>{const r=evaluateAlerts([measure,{...measure,id:'fork',date:'2027-01-01'}],[manualRule]);eq([r.alerts.length,r.warnings.length],[0,1]);});
+test('Saisies : concurrence de catégorie suspend aussi le calcul',()=>{const r=evaluateAlerts([measure,{...measure,id:'fork',category:'Sanction'}],[{...manualRule,metric:'retentionMinutes'}]);eq([r.alerts.length,r.warnings.length],[0,1]);});
+test('Saisies : période invalide refusée',()=>{for(const patch of [{from:''},{to:'2026-02-30'},{from:'2027-01-01'}]){let rejected=false;try{validateRule({...manualRule,...patch});}catch{rejected=true;}eq(rejected,true);}});
+test('Compatibilité : suivi d’assiduité conserve sa signature après mise à jour',()=>eq(evaluateAlerts([report],[{...rule,threshold:0}]).alerts[0].signature,JSON.stringify([4,'halfDays','>',0])));
