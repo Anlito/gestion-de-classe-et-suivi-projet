@@ -1,5 +1,6 @@
 // Règles pures du suivi PP : réutilisables dans les tests sans navigateur.
 export const PP_TOOLS = [
+  {key:'audio',label:'Notes audio',description:'Enregistrement, réécoute et transcription personnelle par élève.'},
   {key:'rencontres',label:'Rencontres parents–PP',description:'Campagnes, créneaux et réservations manuelles liées à l’agenda.'},
   { key:'alertes', label:'Alertes PP', description:'Seuils d’assiduité, de mesures et de carnet, avec suivi des dépassements.' },
   { key: 'imports', label: 'Imports Pronote', description: 'Listes CSV, bulletins et relevés PDF vérifiés avant enregistrement.' },

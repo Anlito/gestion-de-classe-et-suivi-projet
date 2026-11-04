@@ -1,9 +1,10 @@
 // sw.js — Fonctionnement hors-ligne : garde une copie des fichiers de l'app sur l'appareil.
 // À chaque nouvelle version de l'app, augmenter VERSION pour que la tablette récupère les nouveaux fichiers.
-const VERSION = 'carnet-v1.23.0-pp.12';
+const VERSION = 'carnet-v1.23.0-pp.13';
 const FONTS = 'carnet-fonts';
 const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
 const FILES = [
+  'js/pp-audio-store.js','js/pp-audio-capture.js','js/screens/pp-audio.js',
   'js/pp-family-rules.js','js/pp-family.js','js/screens/pp-families.js',
   'google-rencontres/Code.gs','google-rencontres/Formulaire.html','google-rencontres/Professeur.html','google-rencontres/INSTALLATION.md',
   'js/pp-meeting-rules.js','js/pp-meetings.js','js/screens/pp-meetings.js',
