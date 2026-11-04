@@ -1,0 +1,67 @@
+/* Suivi PP : hauteur imposée par .screen, défilement dans les panneaux uniquement. */
+.pp-screen .topbar .heading { min-width: 0; }
+.pp-toolbar { display:flex;gap:12px;align-items:center;flex:none;padding:8px 16px;min-height:64px;border-bottom:1px solid var(--line); }
+.pp-toolbar .segmented { margin-left:auto; }
+.pp-toolbar .pp-trimester { width:155px; }
+.pp-detail { display:grid;grid-template-columns:minmax(190px,.7fr) minmax(250px,1.2fr) minmax(290px,1.25fr);gap:12px;padding:12px;overflow:hidden; }
+.pp-panel { overflow:hidden; }
+.pp-panel .panel-scroll { padding:14px 16px; }
+.pp-panel .panel-head { padding:12px 16px;min-height:52px; }
+.pp-panel-foot { flex:none;padding:10px 14px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;justify-content:space-between; }
+.pp-panel-foot .small { font-size:12px;max-width:190px; }
+.pp-sidebar { overflow:hidden; }
+.pp-profile { padding:16px 14px 8px;display:flex;gap:12px;align-items:center; }
+.pp-profile>div { display:flex;gap:4px;flex-direction:column;min-width:0;overflow-wrap:anywhere; }
+.pp-profile strong { font-size:20px; }
+.pp-profile .photo.big { width:64px;height:96px; }
+.pp-profile .upper { font-size:12px;color:var(--ink2); }
+.pp-profile-links { padding:4px 14px;display:flex;flex-wrap:wrap;gap:8px; }
+.pp-profile-links .link-btn { min-height:40px; }
+.pp-search { padding:10px; }
+.pp-sidebar .panel-scroll { padding:4px 10px 12px; }
+.pp-pupil { display:block;padding:12px 10px;border-radius:10px;min-height:46px;overflow-wrap:anywhere; }
+.pp-pupil .upper { font-size:12px; }
+.pp-pupil.current { background:var(--accentTint);font-weight:700; }
+.pp-record { display:flex;flex-direction:column;gap:9px;border-bottom:1px solid var(--line);padding:14px 0; }
+.pp-record:first-child { padding-top:0; }
+.pp-record.selected { background:var(--accentTint);border-radius:12px;padding:12px; }
+.pp-record-text { white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5; }
+.pp-record .check-row { margin:0;min-height:40px; }
+.pp-source-title { margin:18px 0 10px; }
+.pp-editor-stack { min-height:100%; }
+.pp-text-field { flex:1;min-height:150px; }
+.pp-text-field textarea { flex:1;min-height:130px;resize:vertical; }
+.pp-home { padding:16px;overflow:hidden; }
+.pp-grid-home { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;height:100%;min-height:0; }
+.pp-class-tile { display:flex;align-items:center;justify-content:space-between;padding:20px 16px;background:var(--tint);border-radius:15px;margin-bottom:12px; }
+.pp-class-tile strong { font-size:30px; }
+.pp-home-row { display:flex;flex-direction:column;gap:7px;padding:16px 0;border-bottom:1px solid var(--line); }
+.pp-empty { padding:30px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;text-align:center; }
+.pp-tools { display:grid;grid-template-columns:1.2fr 1fr;gap:16px;padding:16px;overflow:hidden; }
+.pp-tools .panel-scroll { padding:12px 20px; }
+.pp-tool-row { display:flex;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--line);min-height:72px; }
+.pp-tool-row .grow { display:flex;flex-direction:column;gap:5px; }
+.pp-tool-row input { width:24px;height:24px;accent-color:var(--accentInk); }
+.pp-preview { width:min(1100px,96vw); }
+.pp-preview-body { min-height:0;flex:1;overflow:auto;padding:12px; }
+.pp-preview-body iframe { border:0;width:100%;height:100%;min-height:350px;background:var(--bg); }
+.pp-preview-body img { max-width:100%;height:auto; }
+@media(max-width:1100px) and (min-width:781px) {
+  .pp-detail { grid-template-columns:180px minmax(230px,1fr) minmax(270px,1.1fr);gap:10px;padding:10px; }
+  .pp-screen .title { font-size:22px; }
+  .pp-screen .topbar { gap:8px; }
+  .pp-toolbar { gap:8px;padding:8px 10px; }
+  .pp-toolbar .seg { padding:0 9px;min-width:55px;font-size:14px; }
+  .pp-toolbar .check-row { font-size:13px; }
+}
+@media(max-width:780px) {
+  .pp-detail,.pp-grid-home,.pp-tools { display:flex;flex-direction:column;overflow:auto; }
+  .pp-detail>.panel,.pp-tools>.panel { flex:none;max-height:none; }
+  .pp-sidebar .panel-scroll { max-height:180px; }
+  .pp-detail .pp-panel .panel-scroll,.pp-tools .panel-scroll { max-height:450px; }
+  .pp-grid-home .panel { min-height:220px;flex:none; }
+  .pp-home { overflow:auto; }
+  .pp-toolbar { flex-wrap:wrap; }
+  .pp-toolbar .segmented { margin-left:0; }
+  .pp-screen .heading .sub { display:none; }
+}

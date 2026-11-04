@@ -3,6 +3,9 @@ import * as db from './db.js';
 import { html, raw, fmtDay } from './ui.js';
 import { isDrive } from './drive.js';
 import { statusHtml } from './autosync.js';
+import { hasPP, active as ppActive } from './pp.js';
+
+export const ppLink = () => hasPP() ? html`<a class="btn soft" href="#/pp">${icon.book}<span>Suivi PP</span></a>` : '';
 
 export const icon = {
   back: raw('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>'),
@@ -56,8 +59,10 @@ const TABS = [
   ['notes', 'Notes', icon.tabNotes],
 ];
 export function tabBar(classId, active) {
-  return html`<nav class="tabbar">${TABS.map(([k, label, ic]) =>
-    html`<a class="tab" href="#/classe/${classId}/${k}" ${k === active ? raw('aria-current="page"') : ''}>${ic}${label}</a>`)}</nav>`;
+  const has = ppActive(classId);
+  return html`<nav class="tabbar" style="grid-template-columns:repeat(${has ? 5 : 4},1fr)">${TABS.map(([k, label, ic]) =>
+    html`<a class="tab" href="#/classe/${classId}/${k}" ${k === active ? raw('aria-current="page"') : ''}>${ic}${label}</a>`)}
+    ${has ? html`<a class="tab" href="#/pp/classe/${classId}">${icon.book}Suivi PP</a>` : ''}</nav>`;
 }
 
 // Sélecteur de projet dans l'en-tête des onglets Groupes et Notes : boutons côte à côte, ou menu s'il y en a beaucoup.

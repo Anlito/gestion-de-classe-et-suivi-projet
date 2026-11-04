@@ -1,5 +1,41 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version de travail Suivi PP — 1.23.0-pp.1 (4 novembre 2026)
+
+Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
+Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
+Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
+
+### Disponible dans ce lot
+- Administration → classe : case **Je suis professeur principal de cette classe**, liée à l’année scolaire. L’espace PP n’est proposé que pour les classes actives cochées.
+- Administration → **Mes outils** : choix globaux des modules PP livrés (actions, notes/progrès, carnet scolaire, documents, conseils). Masquer un module conserve ses données. La sauvegarde reste accessible.
+- Accueil PP et fiche élève en colonnes, adaptés au paysage : identité/photo/notes reprises du Carnet, historique, éditeur, listes défilant à l’intérieur des panneaux.
+- Notes personnelles, progrès, **Observation / Encouragement / Défaut de carnet**, actions avec échéance et état fait/à faire.
+- Pièces PDF, JPEG, PNG, WebP, DOC/DOCX jusqu’à 20 Mo : plusieurs PAP, PPRE, GEVA-Sco, PAI, PPS, bulletins et autres documents par élève. Choix de fichier ou caméra compatible, aperçu PDF/image, téléchargement, retrait avec annulation.
+- Conseils T1/T2/T3 : saisie manuelle des avis par matière/professeur et des synthèses, individuellement ou pour la classe. Les textes sont versionnés : des éditions concurrentes conservent leurs deux versions, signalées dans la liste. Aucune IA de rédaction n’est branchée.
+- Événements de l’agenda associés à un élève PP, visibles dans sa fiche ; création depuis la fiche. Les rappels la veille à 16 h et H−1 sont préparés pour la synchronisation Google Agenda existante si elle est activée. Aucun envoi d’identité, de document ni de compte rendu ajouté automatiquement à Agenda. Sans Agenda configuré, aucune notification hors application n’est annoncée.
+- Données PP et pièces incluses dans les sauvegardes/restaurations et le circuit de synchronisation Drive. Enregistrement local contrôlé avant message de confirmation. Aucune connexion au Drive réel utilisée pendant les essais.
+
+### Fichiers et stockage
+Nouveaux fichiers : `js/pp-rules.js`, `js/pp.js`, `js/screens/suivi-pp.js`, `js/screens/outils.js`, `css/pp.css`, `tests/pp.test.js`.
+Points d’intégration : routes, administration/édition de classe, navigation, fiche du Carnet, agenda/planning, sauvegarde/synchronisation et cache hors ligne.
+
+IndexedDB passe de 9 à 10, sans effacer les tables existantes. Nouvelle table `ppRecords` pour le suivi et les métadonnées de pièces. Les binaires utilisent le circuit existant de `photos`, avec des identifiants `pp-file-…`, et sont envoyés sur Drive dans des fichiers `piece-….bin` (type et nom d’origine dans `ppRecords`). Ils ne remplacent pas les photos du trombinoscope.
+Les sauvegardes passent au format 2 ; les sauvegardes format 1 restent importables. **Avant un essai avec Drive réel, mettre la même nouvelle version sur tous les appareils** : un ancien client n’est pas compatible avec les données PP et ne doit pas synchroniser ce nouveau format. La copie de travail n’a pas été connectée au compte réel.
+
+### Vérifications réalisées
+- Suite navigateur existante et nouveaux tests PP : **80/80**.
+- Parcours Chrome avec élèves fictifs : activation, notes persistées et protection HTML, actions, pièce jointe et restauration binaire, séparation des trimestres, réunion liée, contenu Google Agenda préparé, masquage sans suppression, versions concurrentes, saisie puis redémarrage hors connexion.
+- Migration d’une base IndexedDB version 9 : classe et élève conservés, nouvelle table vide créée.
+- Contrôle de l’absence de défilement global aux tailles utiles **1280×752** et **1024×640**. Aucun test matériel sur la Galaxy Tab S7 réelle à ce stade.
+- Les appels Google authentifiés, la réception effective des notifications et la prise de photo réelle sur Android ne sont pas vérifiés par ces essais locaux.
+
+### Suite du développement
+Ce lot ne réalise pas encore : imports Pronote CSV/PDF dans les fiches (profils étudiés séparément), compléments de punitions liés aux relevés, seuils d’alerte, campagnes de formulaires familles, billets et présence aux campagnes, enregistrement/transcription audio, génération assistée des synthèses, comparaison des périodes et gestion détaillée des démarches documentaires. Les outils non livrés ne sont pas affichés comme fonctionnels.
+L’activation des modules des anciens écrans du Carnet, au-delà des nouveaux modules PP, reste également à étendre.
+
+Voir `SUIVI-PP.md` pour le parcours de prise en main et les limites de cette étape.
+
 Application web installable (PWA) pour un professeur de technologie au collège (6e à 3e, SEGPA),
 pensée pour une tablette Android et utilisable hors ligne. Toutes les données restent sur l'appareil.
 

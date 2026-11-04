@@ -5,6 +5,7 @@ import * as stats from '../stats.js';
 import { html, toast, fmtDay, fmtDayYear } from '../ui.js';
 import { icon, backLink, tabBar, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
+import { active as ppActive } from '../pp.js';
 
 // État de l'écran (filtres, note en cours de modification), remis à zéro quand on change d'élève.
 let st = { sid: null, period: null, filter: 'all', newNote: '', editing: null, draft: '' };
@@ -52,6 +53,7 @@ export default {
         <div class="heading"><span class="title">${s.prenom} <span class="upper">${s.nom}</span></span>
           <span class="sub">${c.name} · Trimestre ${t} en cours</span></div>
         <div class="spacer"></div>
+        ${ppActive(classId) ? html`<a class="btn accent" href="#/pp/eleve/${s.id}">${icon.book}Suivi PP</a>` : ''}
         <a class="btn soft" href="#/imprimer/eleve/${s.id}">${icon.download}<span class="hide-narrow">Fiche PDF</span></a>
       </header>
       <main class="content detail" data-scroll="detail">

@@ -28,6 +28,7 @@ export const BESOINS = [
   { key: 'PAP', label: 'Plan d’accompagnement personnalisé' },
   { key: 'PPS', label: 'Projet personnalisé de scolarisation' },
   { key: 'PPRE', label: 'Programme personnalisé de réussite éducative' },
+  { key: 'GEVA-Sco', label: 'Guide d’évaluation des besoins de compensation en matière de scolarisation' },
   { key: 'PAI', label: 'Projet d’accueil individualisé' },
   { key: 'AESH', label: 'Accompagné par un AESH' },
   { key: 'ULIS', label: 'Dispositif ULIS' },
@@ -387,6 +388,11 @@ export function deleteAssignmentIn(w, aid) {
 export function deleteStudentIn(w, sid) {
   const s = db.get('students', sid);
   if (!s) return;
+  for (const r of db.where('ppRecords', x => x.studentId === sid)) {
+    if (r.blobId) w.del('photos', r.blobId);
+    w.del('ppRecords', r.id);
+  }
+  for (const ev of db.where('evenements', x => x.studentId === sid)) w.update('evenements', ev.id, { studentId: undefined });
   for (const st of ['observations', 'notes', 'evals', 'groupChanges', 'absences', 'retards']) for (const r of db.where(st, x => x.studentId === sid)) w.del(st, r.id);
   for (const g of db.where('groups', x => x.members.includes(sid))) w.update('groups', g.id, { members: g.members.filter(m => m !== sid) });
   if (s.photoId) w.del('photos', s.photoId);
@@ -395,6 +401,7 @@ export function deleteStudentIn(w, sid) {
 
 // Suppression d'une classe : élèves (photos, observations, notes) et projets associés (séances, groupes, notes).
 export function deleteClassIn(w, classId) {
+  for (const r of db.where('ppRecords', x => x.classId === classId && !x.studentId)) w.del('ppRecords', r.id);
   for (const s of db.where('students', x => x.classId === classId)) deleteStudentIn(w, s.id);
   for (const a of db.where('assignments', x => x.classId === classId)) deleteAssignmentIn(w, a.id);
   for (const s of ['observations', 'absences', 'retards', 'appels']) for (const o of db.where(s, x => x.classId === classId)) w.del(s, o.id);

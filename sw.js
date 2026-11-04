@@ -1,9 +1,10 @@
 // sw.js — Fonctionnement hors-ligne : garde une copie des fichiers de l'app sur l'appareil.
 // À chaque nouvelle version de l'app, augmenter VERSION pour que la tablette récupère les nouveaux fichiers.
-const VERSION = 'carnet-v1.22.1';
+const VERSION = 'carnet-v1.23.0-pp.1';
 const FONTS = 'carnet-fonts';
 const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
 const FILES = [
+  'js/pp.js', 'js/pp-rules.js', 'js/screens/suivi-pp.js', 'js/screens/outils.js', 'css/pp.css',
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/pdfimport.js', 'js/photos.js', 'js/backup.js', 'js/lock.js', 'js/update.js', 'js/screens/sauvegarde.js', 'js/screens/imprimer.js', 'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs',
   'js/app.js', 'js/db.js', 'js/model.js', 'js/ui.js', 'js/nav.js', 'js/components.js', 'js/demo.js', 'js/programme.js', 'js/ical.js', 'js/planning.js', 'js/alertes.js', 'js/stats.js', 'js/sync.js', 'js/drive.js', 'js/autosync.js', 'js/pronote-lien.js', 'js/prepa.js', 'js/salles.js', 'js/plan-view.js', 'js/plan-classe.js', 'js/agenda.js', 'js/screens/salles.js', 'js/screens/emploi-du-temps.js', 'js/screens/semaine.js', 'js/screens/archives.js',

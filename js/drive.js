@@ -190,6 +190,7 @@ async function doSync(onStep, opts) {
     try { d = JSON.parse(await (await getBlob(dataId)).text()); }
     catch (e) { if (e instanceof NeedAuth) throw e; throw new Error('Fichier de données Drive illisible : ' + e.message); }
     if (d.app !== 'carnet-de-classe') throw new Error('Le fichier « ' + DATA + ' » du dossier Drive n’est pas une sauvegarde du Carnet de classe.');
+    if ((d.format || 1) > db.SNAPSHOT_FORMAT) throw new Error('Mettez le Carnet à jour : les données Drive proviennent d’une version plus récente.');
     remote = { stores: d.stores || {}, tombs: d.tombs || [] };
     idx = { ...(d.photos || {}) };
   }
@@ -222,7 +223,7 @@ async function doSync(onStep, opts) {
       onStep(`Réception des photos… ${++i} / ${puts.length}`);
       const f = idx[p.id];
       if (!f) continue;
-      try { p.blob = await getBlob(f.fileId); nPhotos++; } catch (e) { if (e instanceof NeedAuth) throw e; }
+      p.blob = await getBlob(f.fileId); nPhotos++; // Un fichier manquant doit laisser la synchronisation en erreur, pas annoncer un succès.
     }
   }
   onStep('Mise à jour de cet appareil…');
@@ -236,7 +237,8 @@ async function doSync(onStep, opts) {
   for (const p of toSend) {
     onStep(`Envoi des photos… ${++j} / ${toSend.length}`);
     const loc = db.get('photos', p.id);
-    const f = await putFile(idx[p.id] && idx[p.id].fileId, `photo-${p.id}.jpg`, folderId, loc.blob);
+    const name = p.id.startsWith('pp-file-') ? `piece-${p.id}.bin` : `photo-${p.id}.jpg`;
+    const f = await putFile(idx[p.id] && idx[p.id].fileId, name, folderId, loc.blob);
     idx[p.id] = { fileId: f.id, updatedAt: loc.updatedAt };
     idxChanged = true; nPhotos++;
   }
@@ -247,7 +249,7 @@ async function doSync(onStep, opts) {
   if (m.remoteChanged || idxChanged || !dataId) {
     if (dataId && (await versionOf(dataId)) !== version) return { retry: true };
     onStep('Envoi des données sur Drive…');
-    const payload = { app: 'carnet-de-classe', format: 1, savedAt: new Date().toISOString(), stores: m.merged.stores, tombs: m.merged.tombs, photos: idx };
+    const payload = { app: 'carnet-de-classe', format: db.SNAPSHOT_FORMAT, savedAt: new Date().toISOString(), stores: m.merged.stores, tombs: m.merged.tombs, photos: idx };
     const f = await putFile(dataId, DATA, folderId, new Blob([JSON.stringify(payload)], { type: 'application/json' }));
     dataId = f.id; newVersion = String(f.version);
   }

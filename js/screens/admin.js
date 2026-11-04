@@ -15,6 +15,7 @@ export default {
         <div class="title">Administration</div>
         <div class="spacer"></div><span class="hide-admin-status">${saveStatus()}</span>
         <nav class="admin-nav">
+          <a class="btn soft" href="#/admin/outils">${icon.book}<span class="hide-narrow">Mes outils</span></a>
           <a class="btn soft" href="#/admin/planning" title="Emploi du temps">${icon.calendar}<span class="hide-narrow">Emploi du temps</span></a>
           <a class="btn soft" href="#/admin/salles" title="Plans de salle">${icon.grid}<span class="hide-narrow">Salles</span></a>
           <a class="btn soft" href="#/admin/sauvegarde" title="Sauvegarde et exports">${icon.download}<span class="hide-narrow">Sauvegarde</span></a>

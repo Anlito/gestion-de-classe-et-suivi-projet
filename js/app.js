@@ -19,6 +19,8 @@ import imprimer from './screens/imprimer.js';
 import emploiDuTemps from './screens/emploi-du-temps.js';
 import archives from './screens/archives.js';
 import salles from './screens/salles.js';
+import suiviPP from './screens/suivi-pp.js';
+import outils from './screens/outils.js';
 import { initLock } from './lock.js';
 import { initAlertes, render as renderAlertes } from './alertes.js';
 import { lierAppels } from './planning.js';
@@ -30,6 +32,10 @@ import { initUpdates } from './update.js';
 
 // Adresse (après #) → écran. Les parties entre parenthèses deviennent des paramètres.
 const ROUTES = [
+  [/^#\/pp$/, suiviPP, []],
+  [/^#\/pp\/classe\/([^/]+)$/, suiviPP, ['classId']],
+  [/^#\/pp\/eleve\/([^/]+)$/, suiviPP, ['studentId']],
+  [/^#\/admin\/outils$/, outils, []],
   [/^#?\/?$/, semaine, []],
   [/^#\/classes$/, accueil, []],
   [/^#\/classe\/([^/]+)\/trombi$/, trombi, ['classId']],

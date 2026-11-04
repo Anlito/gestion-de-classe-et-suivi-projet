@@ -14,6 +14,7 @@
 import * as db from './db.js';
 import * as planning from './planning.js';
 import * as drive from './drive.js';
+import { meetingReminders, parisInstant } from './pp-rules.js';
 
 const CAL = 'https://www.googleapis.com/calendar/v3';
 const NOM = 'Carnet de classe';
@@ -83,6 +84,8 @@ export function souhaite() {
       start: quand(e.date, e.debut), end: quand(e.date, e.fin),
       colorId: famille(etab)[2],
       status: 'confirmed', transparency: 'opaque',
+      ...(e.studentId ? { reminders: { useDefault: false, overrides: meetingReminders(e).map(at => ({ method: 'popup', minutes: Math.round((parisInstant(e.date, e.debut) - at) / 60000) })) } }
+        : e.ppRemindersManaged ? { reminders: { useDefault: true } } : {}),
       // Invités choisis dans l'app (sinon, le champ n'est pas envoyé : ceux ajoutés dans Google Agenda sont gardés).
       ...(e.invitesGeres ? { attendees: (e.invites || []).map(email => ({ email })) } : {}),
     });

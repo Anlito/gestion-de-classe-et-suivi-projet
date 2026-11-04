@@ -8,7 +8,8 @@ import * as model from '../model.js';
 import * as planning from '../planning.js';
 import { normClasse } from '../ical.js';
 import { html, toast, todayISO, choiceDialog } from '../ui.js';
-import { icon, saveStatus } from '../components.js';
+import { icon, saveStatus, ppLink } from '../components.js';
+import * as pp from '../pp.js';
 import { go, refresh } from '../nav.js';
 import accueil from './accueil.js';
 import { demanderAppel } from './trombi.js';
@@ -173,6 +174,15 @@ function block(it, top, height, left, width, lanesN) {
 // ---------- Panneau d'un cours ; formulaires « autre horaire » et « ajouter un cours » ----------
 let sheet = null; // { mode: 'view'|'edit'|'add', id?, f: { classId, etabId, date, debut, fin, salle, role, repeat }, note }
 
+export function openStudentEvent(studentId, eventId = null) {
+  const s = pp.requireStudent(studentId);
+  const ev = eventId && db.get('evenements', eventId);
+  if (eventId && (!ev || ev.studentId !== studentId)) throw new Error('Réunion introuvable pour cet élève.');
+  sheet = ev ? { mode: 'evt', id: ev.id, f: { ...ev, invites: (ev.invites || []).join(', ') } }
+    : { mode: 'evt', f: { type: 'reunion', titre: 'Réunion de suivi', date: todayISO(), debut: '17:30', fin: '18:30', lieu: '', classId: s.classId, studentId: s.id, note: '', invites: '', repeat: false } };
+  go('#/'); refresh();
+}
+
 // « À préparer » dans le panneau d'un cours : liste de la séance du projet + ajouts sur ce cours, à cocher.
 function prepaView(c) {
   const l = prepa.listeCours(c);
@@ -215,6 +225,8 @@ function evtView() {
     <label class="lbl">Lieu (facultatif) <input class="input" value="${f.lieu}" data-input="fLieu" placeholder="Salle des professeurs, CDI…"></label>
     <label class="lbl">Classe concernée (facultatif)
       <select class="input" data-change="fClass"><option value="">—</option>${model.classes().map(k => html`<option value="${k.id}" ${f.classId === k.id ? 'selected' : ''}>${k.name}</option>`)}</select></label>
+    ${(pp.active(f.classId) || f.studentId) ? html`<label class="lbl">Élève PP associé (facultatif)<select class="input" data-change="fStudent"><option value="">— Événement de classe —</option>${model.studentsOf(f.classId).filter(s => pp.active(f.classId) || s.id === f.studentId).map(s => html`<option value="${s.id}" ${f.studentId === s.id ? 'selected' : ''}>${model.fullName(s)}</option>`)}</select></label>
+      ${f.studentId ? html`<div class="muted small">Visible dans le suivi de cet élève. Rappels préparés pour Google Agenda (si activé) : veille à 16 h et une heure avant. Sans cette connexion, aucune notification hors application. L’identité et les notes personnelles ne sont pas ajoutées au calendrier Google.</div>` : ''}` : ''}
     <label class="lbl">Note (facultatif) <textarea class="field" rows="3" data-input="fNote" placeholder="Ordre du jour, documents à apporter…">${f.note}</textarea></label>
     <label class="lbl">Inviter (facultatif) — adresses e-mail, séparées par des virgules
       <input class="input" type="email" multiple value="${f.invites}" data-input="fInvites" placeholder="collegue@exemple.fr, parent@exemple.fr" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="email">
@@ -369,7 +381,7 @@ async function deplacer(c, changes) {
 export default {
   render(params) {
     // Pas encore d'emploi du temps : l'accueil reste la liste des classes.
-    if (!db.all('cours').length) return accueil.render(params);
+    if (!db.all('cours').length && !db.all('evenements').length && !sheet) return accueil.render(params);
 
     const today = todayISO();
     if (!weekStart) weekStart = mondayOf(today);
@@ -428,6 +440,7 @@ export default {
         ${pronote.avecLien().length && pronote.relais() ? html`<button type="button" class="icon-btn${pronote.occupe() ? ' spin' : ''}" data-click="majPronote" aria-label="Mettre à jour depuis Pronote" title="Mettre à jour depuis Pronote">${icon.refresh}</button>` : ''}
         <button type="button" class="btn soft" data-click="addEvt" aria-label="Ajouter un événement (réunion, parents-profs…)">${icon.plusBig}<span class="hide-narrow">Événement</span></button>
         <a class="btn soft" href="#/classes">${icon.tabTrombi}<span class="hide-narrow">Classes</span></a>
+        ${ppLink()}
         <a class="btn soft" href="#/admin">${icon.sliders}<span class="hide-narrow">Administration</span></a>
       </header>
       ${phone ? html`<nav class="wk-days">${dates.map((d, i) => html`<button type="button" class="wk-day-tab${i === dayIdx ? ' on' : ''}${d === today ? ' today' : ''}" data-click="day" data-i="${i}">
@@ -461,7 +474,7 @@ export default {
   },
 
   mount(root, params) {
-    if (!db.all('cours').length) { if (accueil.mount) accueil.mount(root, params); return; }
+    if (!db.all('cours').length && !db.all('evenements').length && !sheet) { if (accueil.mount) accueil.mount(root, params); return; }
     // Faire défiler jusqu'à l'heure actuelle sur un petit écran.
     const now = root.querySelector('.wk-now');
     const main = root.querySelector('.wk');
@@ -593,7 +606,8 @@ export default {
       sheet = { mode: 'add', f: { classId: '', etabId: '', date: d, debut: '08:00', fin: '09:00', salle: '', role: 'suivi', repeat: false } };
       refresh();
     },
-    fClass(el) { sheet.f.classId = el.value; },
+    fClass(el) { sheet.f.classId = el.value; if (sheet.mode === 'evt') { sheet.f.studentId = ''; refresh(); } },
+    fStudent(el) { sheet.f.studentId = el.value; refresh(); },
     fEtab(el) { sheet.f.etabId = el.value; },
     fRole(el) { sheet.f.role = el.value; },
     fRepeat(el) { sheet.f.repeat = el.checked; },
@@ -638,7 +652,7 @@ export default {
       if (moving) return;
       const ev = db.get('evenements', el.dataset.id);
       if (!ev) return;
-      sheet = { mode: 'evt', id: ev.id, f: { type: ev.type, titre: ev.titre || '', date: ev.date, debut: ev.debut, fin: ev.fin, lieu: ev.lieu || '', classId: ev.classId || '', note: ev.note || '', invites: (ev.invites || []).join(', ') } };
+      sheet = { mode: 'evt', id: ev.id, f: { type: ev.type, titre: ev.titre || '', date: ev.date, debut: ev.debut, fin: ev.fin, lieu: ev.lieu || '', classId: ev.classId || '', studentId: ev.studentId || '', note: ev.note || '', invites: (ev.invites || []).join(', ') } };
       refresh();
     },
     fType(el) { sheet.f.type = el.dataset.k; refresh(); },
