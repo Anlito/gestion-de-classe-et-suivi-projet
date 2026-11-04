@@ -1,0 +1,14 @@
+import {meetingSlots,overlaps,eventMatchesBooking} from '../js/pp-meeting-rules.js';
+export const tests=[];
+const test=(name,fn)=>tests.push({name,fn});
+const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw Error(JSON.stringify([a,b]));};
+const bad=fn=>{let rejected=false;try{fn();}catch{rejected=true;}eq(rejected,true);};
+const base={date:'2026-11-17',duration:10,gap:0,ranges:'17:30-18:00'};
+test('Rencontres : créneaux complets et bornes exactes',()=>eq(meetingSlots(base).map(s=>[s.debut,s.fin]),[['17:30','17:40'],['17:40','17:50'],['17:50','18:00']]));
+test('Rencontres : pauses entre tranches et rendez-vous',()=>eq(meetingSlots({...base,gap:5,ranges:'17:30-18:00\n18:20-18:40'}).map(s=>s.debut),['17:30','17:45','18:20']));
+test('Rencontres : fin incomplète non proposée',()=>eq(meetingSlots({...base,ranges:'17:30-17:55'}).length,2));
+test('Rencontres : dates, heures et durées invalides refusées',()=>{for(const patch of [{date:'2026-02-30'},{duration:0},{duration:1.5},{gap:-1},{ranges:'24:00-25:00'},{ranges:'18:00-17:00'},{ranges:'17:30-17:35'},{ranges:''}])bad(()=>meetingSlots({...base,...patch}));});
+test('Rencontres : tranches superposées refusées',()=>bad(()=>meetingSlots({...base,ranges:'17:30-18:00\n17:50-18:20'})));
+test('Rencontres : tranches contiguës autorisées',()=>eq(meetingSlots({...base,ranges:'17:30-18:00\n18:00-18:20'}).length,5));
+test('Rencontres : chevauchement strict, pas aux extrémités',()=>{const slot=meetingSlots(base)[0];eq(overlaps(slot,{...slot,debut:'17:40',fin:'17:50'}),false);eq(overlaps(slot,{...slot,debut:'17:35',fin:'17:45'}),true);eq(overlaps(slot,{...slot,date:'2026-11-18'}),false);});
+test('Rencontres : annulation protège un événement réaffecté',()=>{const campaign={entityId:'campaign',classId:'class'},booking={eventId:'event',studentId:'student'},event={id:'event',ppCampaignId:'campaign',classId:'class',studentId:'student'};eq(eventMatchesBooking(event,booking,campaign),true);eq(eventMatchesBooking({...event,studentId:'other'},booking,campaign),false);eq(eventMatchesBooking({...event,ppCampaignId:'other'},booking,campaign),false);});

@@ -100,3 +100,8 @@
 }
 
 .pp-alert-card {padding:16px 0;border-bottom:1px solid var(--line,#ddd)}
+
+.pp-meetings-grid {display:grid;grid-template-columns:minmax(180px,.7fr) minmax(280px,1.1fr) minmax(300px,1.2fr);gap:12px;padding:12px;overflow:hidden;}
+.pp-meetings-grid .panel {overflow:hidden;}
+.pp-meetings-grid .pp-home-row {width:100%;height:auto;min-height:64px;padding:12px;margin:8px 0;text-align:left;white-space:normal;align-items:flex-start;}
+@media(max-width:780px){.pp-meetings-grid{display:flex;flex-direction:column;overflow:auto}.pp-meetings-grid>.panel{flex:none;min-height:260px}.pp-meetings-grid .panel-scroll{max-height:450px}}

@@ -1,0 +1,44 @@
+import * as pp from '../pp.js';
+import * as db from '../db.js';
+import * as model from '../model.js';
+import * as planning from '../planning.js';
+import * as meetings from '../pp-meetings.js';
+import {html,toast,confirmDialog,todayISO,fmtDate} from '../ui.js';
+import {backLink,saveStatus} from '../components.js';
+import {refresh} from '../nav.js';
+import {openStudentEvent} from './semaine.js';
+let selected='',slotIndex=0;
+const field=(name,label,value='',type='text')=>html`<label class="lbl">${label}<input class="input" type="${type}" name="${name}" value="${value}" required></label>`;
+export default {
+ render(){
+  if(!pp.hasPP()||!pp.enabled('rencontres'))return html`<div class="screen"><a href="#/pp">Retour au suivi PP</a><p>Les campagnes de rencontres sont masquées.</p></div>`;
+  const campaigns=meetings.campaigns(),chosen=campaigns.filter(c=>c.entityId===selected);
+  const c=chosen.length===1?chosen[0]:null,bookings=c?meetings.bookings(c.entityId):[];
+  return html`<div class="screen pp-screen"><header class="topbar">${backLink('#/pp','Suivi PP')}<div class="title">Rencontres parents–PP</div><div class="spacer"></div>${saveStatus()}</header><main class="content pp-meetings-grid">
+  <section class="panel"><div class="panel-head"><strong>Campagnes de l’année</strong></div><div class="panel-scroll">
+  <button class="btn accent" data-click="newCampaign">+ Nouvelle campagne</button>${campaigns.map(row=>html`<button class="pp-home-row btn" data-click="chooseCampaign" data-id="${row.entityId}"><strong>${row.title}</strong><span>${db.get('classes',row.classId)?.name} · ${fmtDate(row.date)} · ${row.status==='open'?'Ouverte':'Fermée'}</span></button>`)}
+  <p class="muted small">Les réservations de ce lot sont saisies par vous. Le formulaire public des familles n’est pas encore connecté. Vos campagnes et réservations sont conservées dans la sauvegarde du Carnet.</p></div></section>
+  ${!c?html`<section class="panel"><div class="panel-head"><strong>${chosen.length>1?'Versions concurrentes : vérifier la campagne':'Créer une campagne'}</strong></div><div class="panel-scroll"><form class="stack" data-submit="create">
+  <label class="lbl">Classe PP<select class="input" name="classId">${pp.classes().map(cl=>html`<option value="${cl.id}">${cl.name}</option>`)}</select></label>
+  ${field('title','Titre','Rencontres parents–PP')}${field('date','Date',todayISO(),'date')}${field('location','Lieu (ou visioconférence)','Au collège')}
+  <label class="lbl">Tranches horaires · une par ligne<textarea class="field" name="ranges" rows="3" required>17:30-19:00</textarea></label>
+  ${field('duration','Durée d’un rendez-vous (minutes)',10,'number')}${field('gap','Pause entre deux rendez-vous (minutes)',0,'number')}<button type="submit" class="btn accent">Créer les créneaux</button></form></div></section><section class="panel"><div class="panel-head"><strong>Organisation</strong></div><div class="panel-scroll"><p>Plusieurs tranches permettent de garder une pause, par exemple :</p><p>17:30-18:30<br>18:50-20:00</p><p>Le dernier créneau doit tenir entièrement dans sa tranche. Un cours ou un événement existant bloque toute réservation qui le chevauche.</p><p>Vous pourrez créer d’autres campagnes pendant l’année.</p></div></section>`:html`
+  <section class="panel"><div class="panel-head"><strong>${c.title} · ${fmtDate(c.date)}</strong><span class="muted small">${c.location} · ${c.slots.length} créneaux</span></div><div class="panel-scroll">
+  <button class="btn" data-click="toggleCampaign" data-id="${c.entityId}">${c.status==='open'?'Fermer les réservations':'Rouvrir les réservations'}</button>
+  ${c.slots.map((slot,index)=>{const rows=bookings.filter(b=>b.slotIndex===index&&b.status!=='cancelled'&&db.get('evenements',b.eventId));const conflicts=planning.chevauchementsTout([slot],{ignoreEvt:rows.map(b=>b.eventId)});return html`<button class="btn pp-home-row" data-click="chooseSlot" data-index="${index}"><strong>${slot.debut}–${slot.fin}</strong><span>${rows.length?rows.map(b=>model.fullName(db.get('students',b.studentId)||{})).join(' / '):conflicts.length?'Indisponible · agenda':'Libre'}</span>${rows.length>1?html`<span class="chip warn">Réservations en conflit</span>`:''}${conflicts.length&&rows.length?html`<span class="chip warn">Chevauchement avec l’agenda</span>`:''}</button>`;})}
+  </div></section><section class="panel"><div class="panel-head"><strong>Réservation · ${c.slots[slotIndex]?.debut||''}</strong></div><div class="panel-scroll">
+  ${c.status==='open'?html`<form class="stack" data-submit="reserve"><label class="lbl">Élève<select class="input" name="studentId" required><option value="">Choisir un élève</option>${model.studentsOf(c.classId).map(s=>html`<option value="${s.id}">${model.fullName(s)}</option>`)}</select></label><label class="lbl">Demande reçue par<select class="input" name="channel">${['Carnet de correspondance','Téléphone','Contact direct','Autre'].map(channel=>html`<option>${channel}</option>`)}</select></label><button class="btn accent" type="submit">Réserver ce créneau</button></form>`:html`<p>Campagne fermée : les rendez-vous existants restent conservés.</p>`}
+  <h3>Suivi des rendez-vous</h3>${bookings.map(b=>{const event=db.get('evenements',b.eventId);const changed=event&&(event.date!==b.date||event.debut!==b.debut||event.fin!==b.fin);return html`<article class="pp-alert-card"><a href="#/pp/eleve/${b.studentId}">${model.fullName(db.get('students',b.studentId)||{})}</a><p>${b.debut}–${b.fin} · ${b.channel}</p><p>${b.status==='cancelled'?'Annulé':!event?'Événement supprimé de l’agenda':changed?`Déplacé dans l’agenda : ${fmtDate(event.date)} ${event.debut}–${event.fin}`:'Réservé'}</p>${event&&b.status!=='cancelled'?html`<button class="btn" data-click="openMeeting" data-id="${b.eventId}" data-student="${b.studentId}">Détail dans l’agenda</button><button class="btn" data-click="cancel" data-id="${b.entityId}">Annuler le rendez-vous</button>`:''}</article>`;})}</div></section>`}
+  </main></div>`;
+ },
+ actions:{
+  newCampaign(){selected='';slotIndex=0;refresh();},
+  chooseCampaign(el){selected=el.dataset.id;slotIndex=0;refresh();},
+  chooseSlot(el){slotIndex=Number(el.dataset.index);refresh();},
+  async create(el,e){e.preventDefault();try{const c=await meetings.createCampaign(Object.fromEntries(new FormData(el)));selected=c.entityId;slotIndex=0;refresh();toast({text:'Campagne enregistrée'});}catch(err){toast({text:err.message});}},
+  async reserve(el,e){e.preventDefault();try{const data=Object.fromEntries(new FormData(el));await meetings.reserve(selected,slotIndex,data.studentId,data.channel);refresh();toast({text:'Rendez-vous enregistré dans l’agenda et la fiche élève'});}catch(err){toast({text:err.message});}},
+  async toggleCampaign(el){try{await meetings.toggleCampaign(el.dataset.id);refresh();}catch(err){toast({text:err.message});}},
+  async cancel(el){if(!await confirmDialog({title:'Annuler ce rendez-vous ?',text:'Le rendez-vous sera retiré de l’agenda. Sa trace restera dans la campagne.',ok:'Annuler le rendez-vous'}))return;try{await meetings.cancelBooking(el.dataset.id);refresh();toast({text:'Rendez-vous annulé, historique conservé'});}catch(err){toast({text:err.message});}},
+  openMeeting(el){try{openStudentEvent(el.dataset.student,el.dataset.id);}catch(err){toast({text:err.message});}}
+ }
+};
