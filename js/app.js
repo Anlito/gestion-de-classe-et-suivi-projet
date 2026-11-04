@@ -26,6 +26,7 @@ import ppMeetings from './screens/pp-meetings.js';
 import ppFamilies from './screens/pp-families.js';
 import ppAudio from './screens/pp-audio.js';
 import ppTranscription from './screens/pp-transcription.js';
+import ppWriting from './screens/pp-writing.js';
 import importsPP from './screens/imports-pp.js';
 import { initLock } from './lock.js';
 import { initAlertes, render as renderAlertes } from './alertes.js';
@@ -38,6 +39,8 @@ import { initUpdates } from './update.js';
 
 // Adresse (après #) → écran. Les parties entre parenthèses deviennent des paramètres.
 const ROUTES = [
+  [/^#\/pp\/eleve\/([^/]+)\/appreciation\/([123])$/, ppWriting, ['studentId','trimester']],
+  [/^#\/pp\/classe\/([^/]+)\/appreciation\/([123])$/, ppWriting, ['classId','trimester']],
   [/^#\/pp\/eleve\/([^/]+)\/audio\/([^/]+)\/transcription$/, ppTranscription, ['studentId','audioId']],
   [/^#\/pp\/eleve\/([^/]+)\/audio$/, ppAudio, ['studentId']],
   [/^#\/pp\/rencontres\/familles\/([^/]+)$/, ppFamilies, ['campaignId']],

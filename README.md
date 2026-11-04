@@ -1,10 +1,19 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.15 (5 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.16 (5 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
+
+### Préparer une appréciation · version 16
+Depuis Conseils, **Préparer une appréciation** ouvre les avis des professeurs du trimestre choisi pour l’élève ou la classe entière. Sélectionner les avis retenus, choisir son bilan, saisir ses constats, nuances et conseils ; les félicitations restent facultatives et explicites. Un bouton prépare une formulation suivant la structure demandée : bilan, constats nuancés, conseils, puis félicitations éventuelles. Le texte final est librement modifiable. Il s’agit d’une rédaction guidée déterministe locale, sans modèle de langage ni déduction automatique de jugement à partir des notes. Aucune donnée n’est envoyée.
+
+Le résultat est enregistré uniquement comme nouvelle synthèse **brouillon**, avec les identifiants exacts des avis retenus. Les synthèses préexistantes sont conservées. Une sauvegarde supplémentaire depuis cet écran crée une version du même nouveau brouillon. La validation finale reste dans Conseils. Les avis d’autres élèves, d’autres trimestres et les avis TEST ne sont pas proposés ; une source devenue obsolète ou deux versions d’un même avis bloquent la sauvegarde. Le stockage suit ppRecords, les sauvegardes et Drive existants, sans migration. Une modification ultérieure dans Conseils conserve la provenance de rédaction. L’outil dépend du module Conseils et du statut PP.
+
+Fichiers : `js/pp-writing.js`, `js/screens/pp-writing.js`, route app, accès depuis Conseils, préservation de provenance dans pp.js, cache SW et `tests/pp-writing.test.js`. Vérifications : 168 tests automatiques ; parcours navigateur élève et classe, sources limitées au périmètre, rédaction modifiée avant sauvegarde, protection d’une synthèse validée préexistante, refus d’une source d’un autre élève, rechargement et paysage 1280 × 752 / 1024 × 640 sans défilement global. Suite habituelle PP relancée (52 contrôles). Données fictives uniquement, sans compte Google réel. Les avis TEST nécessitent pour l’instant une saisie ordinaire fictive pour essayer cet écran ; ils ne sont pas mélangés aux synthèses ordinaires.
+
+Limites : les corrections du formulaire non enregistrées restent en mémoire pendant la navigation et avertissent avant fermeture ; enregistrer le brouillon pour les conserver. Ce lot ne résume pas automatiquement les textes des professeurs et ne prétend pas résoudre leurs divergences. Aucun texte n’est publié ni envoyé à Pronote. Copie locale uniquement, pas de publication GitHub.
 
 ### Correction des répétitions de transcription · version 15
 Un enregistrement de 12,54 secondes fourni par l’utilisateur reproduisait une boucle de plus de 2 000 caractères avec Whisper Tiny q8. Une simple interdiction des répétitions supprimait la boucle mais produisait encore une mauvaise fin de phrase ; cette approche de réécriture n’a pas été retenue. Le modèle de transcription est remplacé par **Whisper Small q8**, plus fidèle sur cet extrait, avec une nouvelle installation volontaire d’environ **264 Mo** (modèle et moteur). Les poids restent hors dépôt et hors archive, téléchargés depuis une révision publique figée et vérifiés par SHA-256. L’ancien cache Tiny n’est retiré qu’après installation complète du nouveau modèle. Aucun audio n’est envoyé : la sauvegarde Drive existante reste indépendante.

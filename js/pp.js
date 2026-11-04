@@ -54,6 +54,7 @@ export function saveEntry(data, previous = null) {
     status: data.status || (kind === 'council' ? 'draft' : 'todo'), category: data.category || '',
     trimester: kind === 'council' ? Number(data.trimester) : undefined,
     subject: data.subject || '', teacher: data.teacher || '',
+    ...(kind==='council'&&previous?.writingBasis?{writingBasis:previous.writingBasis}:{}),
     ...(kind==='measure'?{reason:String(data.reason||'').trim(),authorRole:data.authorRole||'',authorName:String(data.authorName||'').trim(),reportEntityId:report?.entityId||null,columnId:report?data.columnId:null,durationMinutes:duration,plannedDate:data.plannedDate||''}:{}),
     testMode: report?.testMode === true || previous?.testMode === true, sourceYear: report?.sourceYear || previous?.sourceYear, sourceClass: report?.sourceClass || previous?.sourceClass,
     blobId: data.blobId || previous?.blobId, fileName: data.fileName || previous?.fileName,

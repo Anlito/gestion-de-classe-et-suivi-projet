@@ -1,4 +1,4 @@
-# Suivi PP — Version de travail 1.23.0-pp.15
+# Suivi PP — Version de travail 1.23.0-pp.16
 
 Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil. Elle est distincte de votre application actuellement en ligne, qui n’a pas été modifiée.
 
@@ -9,7 +9,7 @@ Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil
 4. Ouvrir **Suivi PP** depuis l’accueil ou depuis la barre de navigation de cette classe. Une classe ouvre toujours son **Récap classe**, placé en premier dans la liste, avant les élèves. Avec plusieurs classes PP, l’accueil commun permet d’abord de choisir la classe ; avec une seule, son récap s’ouvre directement. Sélectionner ensuite un élève pour sa fiche.
 5. Ajouter une note, un progrès, une observation du carnet ou une action. Cliquer sur **Enregistrer** pour conserver la saisie. Une modification d’un texte crée une version et conserve son historique ; deux branches concurrentes restent visibles.
 6. Dans **Documents**, choisir la catégorie puis joindre un fichier ou une photo. Plusieurs catégories et pièces peuvent coexister. L’aperçu ouvre le document dans un panneau, le téléchargement conserve son nom d’origine.
-7. Dans la fiche d’un élève, **Conseils** concerne uniquement cet élève : sélectionner T1, T2 ou T3 pour ses avis et sa synthèse. Pour les avis collectifs et la conclusion de classe, revenir à **Récap classe** puis **Préparer le conseil de la classe**. Il n’y a plus de case « La classe ». Cette version fournit la saisie et la conservation des textes ; elle ne génère pas encore d’appréciation.
+7. Dans la fiche d’un élève, **Conseils** concerne uniquement cet élève : sélectionner T1, T2 ou T3 pour ses avis et sa synthèse. Pour les avis collectifs et la conclusion de classe, revenir à **Récap classe** puis **Préparer le conseil de la classe**. Il n’y a plus de case « La classe ». Cette version fournit la saisie et la conservation des textes ; une rédaction guidée est maintenant disponible via Préparer une appréciation.
 8. Depuis **+ Réunion liée**, remplir l’événement du Carnet et enregistrer. Le même événement apparaît dans l’agenda et le suivi individuel, sans copie indépendante. Dans son détail, **Ouvrir le suivi de l’élève** permet de revenir directement à la fiche. En cas de modifications non enregistrées de l’événement, rester pour les enregistrer ou choisir explicitement de les abandonner.
 9. Dans **Administration → Mes outils**, masquer un outil non utilisé. Il disparaît des onglets et de l’accueil, avec conservation de ses données ; le réglage vaut pour toutes les classes.
 10. Depuis une fiche élève, le grand bouton coloré **Récap classe** donne un accès unique au récapitulatif.
@@ -94,3 +94,12 @@ Le premier modèle trop léger a été remplacé par Whisper Small. Après mise 
 Les répétitions anormales sont désormais interrompues et signalées comme un échec, sans nouvel ajout au compte rendu. Un ancien brouillon répétitif ne peut plus être ajouté tel quel : le corriger ou relancer le traitement. Le texte erroné que vous avez déjà ajouté reste présent pour vous permettre de le vérifier ; il n’est pas effacé automatiquement. Supprimer manuellement ce passage dans le compte rendu, puis **Enregistrer le texte**, avant d’ajouter une nouvelle transcription relue.
 
 Le résultat est meilleur sur l’enregistrement de test, mais certains mots restent mal reconnus. Vérifier chaque brouillon à la réécoute. Le modèle plus précis est aussi plus lourd : garder l’application ouverte et commencer par une courte note sur la tablette. L’essai physique Galaxy Tab S7 reste à faire.
+
+## Préparer une appréciation · élève ou classe
+Dans **Conseils**, choisir le trimestre puis **Préparer une appréciation**. Pour la classe, partir de **Récap classe → Préparer le conseil de la classe**.
+1. Cocher les avis des professeurs à retenir, affichés à gauche.
+2. Choisir votre bilan, renseigner les constats, les nuances éventuelles et les conseils concrets. Ajouter des félicitations uniquement si vous les souhaitez.
+3. Cliquer sur **Préparer le brouillon**, puis relire et modifier librement le texte proposé. La structure suit vos exemples : bilan, nuances, conseils et félicitations facultatives.
+4. Cliquer sur **Enregistrer ce nouveau brouillon**. Le retrouver dans Conseils pour la validation finale. Vos autres synthèses restent conservées. Les sauvegardes suivantes depuis l’écran de préparation créent une nouvelle version du même brouillon.
+
+Cette aide fonctionne localement sans téléchargement supplémentaire. Elle assemble vos formulations ; elle n’analyse pas seule les avis pour juger l’élève. Les avis TEST sont exclus : pour essayer avec un élève fictif, saisir un avis ordinaire fictif dans Conseils. Ne pas fermer l’application avant d’enregistrer les modifications que vous souhaitez conserver.
