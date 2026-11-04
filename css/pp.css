@@ -107,3 +107,13 @@
 .pp-family-settings>* {flex-shrink:0;}
 .pp-family-settings .btn {flex-shrink:0;height:auto;min-height:48px;white-space:normal;padding:10px 14px;}
 @media(max-width:780px){.pp-meetings-grid{display:flex;flex-direction:column;overflow:auto}.pp-meetings-grid>.panel{flex:none;min-height:260px}.pp-meetings-grid .panel-scroll{max-height:450px}}
+
+/* Conserver de l’air entre les actions, y compris en bas et dans les aperçus. */
+.pp-panel-foot {flex-wrap:wrap;gap:12px;}
+.pp-profile-links {gap:12px;}
+.pp-profile-links .link-btn {min-height:48px;}
+.pp-import-submit {flex-wrap:wrap;gap:12px;}
+.pp-preview .drawer-head {height:auto;min-height:64px;flex-wrap:wrap;gap:12px;padding:8px 12px;}
+.pp-preview .drawer-title {min-width:0;overflow-wrap:anywhere;}
+.pp-tool-row {flex-wrap:wrap;gap:12px;}
+.pp-tool-row>.grow {flex-basis:150px;}

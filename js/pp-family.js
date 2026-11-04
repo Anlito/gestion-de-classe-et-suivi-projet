@@ -24,3 +24,5 @@ export async function publish(id){
 }
 export async function receive(id){const campaign=meetings.exportCampaign(id);const result=await call('list',{campaignId:id});return meetings.importRequests(id,result);}
 export const adminURL=()=>config().url?serviceURL(config().url)+'?admin=1':null;
+export const shortLink=id=>{const stored=db.getMeta('ppFamilyShort:'+id,null);return stored?.target===published(id)?.url?stored.url:null;};
+export async function saveShortLink(id,value){requireTool();const target=published(id)?.url;if(!target)throw new Error('Publiez d’abord cette campagne.');let url;try{url=new URL(value.trim());}catch{throw new Error('Collez une adresse courte HTTPS valide.');}if(url.protocol!=='https:'||url.username||url.password||url.hash||url.search||!['is.gd','tinyurl.com','bit.ly'].includes(url.hostname)||url.pathname.length<2)throw new Error('Collez un lien HTTPS is.gd, tinyurl.com ou bit.ly sans paramètres.');await saveMeta('ppFamilyShort:'+id,{url:url.href,target});}

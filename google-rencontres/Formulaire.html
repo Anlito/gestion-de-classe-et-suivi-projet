@@ -6,5 +6,38 @@ body{font:17px/1.5 system-ui,sans-serif;color:#253047;background:#faf7f2;margin:
 const token=document.getElementById('campaign-token').dataset.token;
 const form=document.getElementById('form'),message=document.getElementById('message'),send=document.getElementById('send');let campaign=null,requestId=null,submitted=false;
 google.script.run.withSuccessHandler(c=>{campaign=c;document.getElementById('title').textContent=c.title;document.getElementById('context').textContent=c.className+' · '+c.date+' · '+c.location;if(!c.open){message.textContent='Cette campagne ne reçoit plus de réponses. Contactez le professeur.';return;}for(const s of c.slots){const label=document.createElement('label');label.className='slot';const check=document.createElement('input');check.type='checkbox';check.value=s.index;check.name='slot';label.append(check,document.createTextNode(s.debut+'–'+s.fin));document.getElementById('slots').append(label);}form.hidden=false;}).withFailureHandler(err=>{message.textContent=err.message||'Impossible de charger cette rencontre.';}).getPublicCampaign(token);
-form.addEventListener('submit',e=>{e.preventDefault();if(submitted)return;const indices=[...form.querySelectorAll('[name=slot]:checked')].map(el=>Number(el.value));if(!indices.length){message.textContent='Choisissez au moins une disponibilité.';return;}const pupilName=form.elements.pupilName.value.trim();if(!pupilName){message.textContent='Indiquez le nom de l’élève.';return;}requestId=requestId||crypto.randomUUID();send.disabled=true;message.textContent='Envoi en cours…';google.script.run.withSuccessHandler(result=>{if(!result?.ok){send.disabled=false;message.textContent='Réponse non confirmée. Réessayez.';return;}submitted=true;form.hidden=true;message.textContent='Merci, vos disponibilités sont enregistrées. Le professeur vous confirmera l’heure précise du rendez-vous.';}).withFailureHandler(err=>{send.disabled=false;message.textContent=(err.message||'Envoi non confirmé.')+' Vous pouvez réessayer sans créer de doublon.';}).submitRequest(token,{id:requestId,pupilName,note:form.elements.note.value.trim(),slotIndices:indices,slotSignature:campaign.slotSignature});});
+function showReceipt(data){
+  const slots=data.slotIndices.map(i=>campaign.slots.find(s=>s.index===i)).filter(Boolean);
+  const date=new Date(campaign.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  message.textContent=[
+    'Merci, vos disponibilités sont enregistrées.',
+    '',
+    'Récapitulatif de votre réponse',
+    'Élève : '+data.pupilName,
+    'Date de la rencontre : '+date,
+    'Disponibilités indiquées :',
+    ...slots.map(s=>'• '+s.debut+'–'+s.fin),
+    'Précisions : '+(data.note||'Aucune précision'),
+    '',
+    'Le professeur vous confirmera l’heure précise du rendez-vous.',
+    'Pour modifier vos disponibilités ou la plage horaire souhaitée, contactez directement le professeur principal.'
+  ].join('\n');
+}
+form.addEventListener('submit',e=>{
+  e.preventDefault();if(submitted)return;
+  const indices=[...form.querySelectorAll('[name=slot]:checked')].map(el=>Number(el.value));
+  if(!indices.length){message.textContent='Choisissez au moins une disponibilité.';return;}
+  const pupilName=form.elements.pupilName.value.trim();
+  if(!pupilName){message.textContent='Indiquez le nom de l’élève.';return;}
+  requestId=requestId||crypto.randomUUID();
+  // Le récap reprend exactement les données envoyées, même si un champ change pendant l’envoi.
+  const data={id:requestId,pupilName,note:form.elements.note.value.trim(),slotIndices:indices,slotSignature:campaign.slotSignature};
+  send.disabled=true;message.textContent='Envoi en cours…';
+  google.script.run.withSuccessHandler(result=>{
+    if(!result?.ok){send.disabled=false;message.textContent='Réponse non confirmée. Réessayez.';return;}
+    submitted=true;form.hidden=true;showReceipt(data);
+  }).withFailureHandler(err=>{
+    send.disabled=false;message.textContent=(err.message||'Envoi non confirmé.')+' Vous pouvez réessayer sans créer de doublon.';
+  }).submitRequest(token,data);
+});
 </script></body></html>

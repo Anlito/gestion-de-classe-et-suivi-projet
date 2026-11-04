@@ -33,7 +33,9 @@ export async function createCampaign(data){
   const row=revision({kind:'meetingCampaign',classId:data.classId,studentId:null,title,date:data.date,ranges:data.ranges,duration:Number(data.duration),gap:Number(data.gap||0),location:String(data.location||'').trim(),status:'open',slots});
   await persist([row]);return row;
 }
-export async function toggleCampaign(id){const old=campaignOf(id);await persist([revision({...old,status:old.status==='open'?'closed':'open'},old)]);}
+export async function toggleCampaign(id){const old=campaignOf(id);if(old.status==='archived')throw new Error('Restaurez la campagne avant de rouvrir les réservations.');await persist([revision({...old,status:old.status==='open'?'closed':'open'},old)]);}
+export async function archiveCampaign(id){const old=campaignOf(id);if(old.status!=='archived')await persist([revision({...old,status:'archived'},old)]);}
+export async function restoreCampaign(id){const old=campaignOf(id);if(old.status!=='archived')throw new Error('Cette campagne n’est pas archivée.');await persist([revision({...old,status:'closed'},old)]);}
 export async function reserve(id,slotIndex,studentId,channel,requestId=null){
   const campaign=campaignOf(id);if(campaign.status!=='open')throw new Error('Cette campagne est fermée.');
   const student=pp.requireStudent(studentId);if(student.classId!==campaign.classId)throw new Error('Choisissez un élève de cette classe.');

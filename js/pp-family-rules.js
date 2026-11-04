@@ -1,7 +1,7 @@
 export const FAMILY_PROTOCOL='carnet-pp-rencontres-v1';
 export const slotSignature=slots=>JSON.stringify(slots.map(s=>[s.date,s.debut,s.fin]));
 export function campaignExport(campaign,className){
-  return {protocol:FAMILY_PROTOCOL,campaignId:campaign.entityId,title:campaign.title,className,date:campaign.date,location:campaign.location,status:campaign.status,slots:campaign.slots.map((s,i)=>({index:i,...s})),slotSignature:slotSignature(campaign.slots)};
+  return {protocol:FAMILY_PROTOCOL,campaignId:campaign.entityId,title:campaign.title,className,date:campaign.date,location:campaign.location,status:campaign.status==='open'?'open':'closed',slots:campaign.slots.map((s,i)=>({index:i,...s})),slotSignature:slotSignature(campaign.slots)};
 }
 export function familyRequests(payload,campaign){
   if(payload?.protocol!==FAMILY_PROTOCOL||payload.campaignId!==campaign.entityId||payload.slotSignature!==slotSignature(campaign.slots)||!Array.isArray(payload.requests)||payload.requests.length>2000)throw new Error('Ce fichier ne correspond pas aux créneaux de cette campagne.');
