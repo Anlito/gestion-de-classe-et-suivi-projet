@@ -68,3 +68,5 @@ La confirmation affiche le nom de l’élève, la date, les disponibilités coch
 ## Archives et liens courts
 Dans une campagne, **Archiver la campagne** la retire de la liste courante. Les rendez-vous, réponses et notes restent conservés. Utiliser **Archives** pour la retrouver ; **Restaurer la campagne** la remet dans la liste avec les réservations fermées. Vérifier la fermeture du formulaire Google si l’application signale un échec de publication ; les fichiers d’échange restent utilisables depuis la campagne archivée.
 Dans **Formulaire familles · demandes → Lien court pour les familles**, coller le lien court créé pour cette campagne puis l’enregistrer. **Copier le lien court** apparaît. Vérifier la destination avant diffusion. Chaque campagne conserve son propre lien ; changer de service ne ferme pas les anciens formulaires.
+
+Après confirmation d’une réponse famille, le bloc de contexte et les consignes précédant le formulaire sont désormais masqués. Le reçu et la consigne de contact sont conservés.

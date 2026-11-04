@@ -1,6 +1,6 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.11 (4 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.12 (4 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
@@ -10,6 +10,8 @@ Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pa
 135 tests de règles automatiques ; scénario navigateur : seuil, traitement persistant après rechargement, correction du relevé rouvrant l’alerte, désactivation/réactivation, sauvegarde et masquage global. Affichage 1024 × 640 sans défilement global. Tests réalisés sur une base isolée avec des élèves fictifs, sans connexion Google. La synchronisation Drive utilise le stockage existant mais n’a pas été testée sur le compte réel.
 
 ### Disponible dans ce lot
+- **Confirmation familles allégée** : la ligne classe/date/lieu et les consignes initiales sont masquées après un envoi confirmé. Le titre, le récapitulatif et la consigne finale de contact restent visibles. Avant envoi ou en cas d’erreur, les indications restent présentes. Parcours navigateur familles existant relancé ; aperçu du reçu vérifié. Mise à jour de Formulaire.html et nouvelle version du déploiement Google nécessaires, sans changement de lien.
+
 - **Archiver une campagne** : action confirmée qui la retire de la liste courante sans supprimer rendez-vous, demandes ni historique. Liste Archives séparée et restauration en état fermé. Aucune nouvelle réservation sur une archive. Export/publication d’une archive comme fermée, compatible avec le service Google déjà installé ; tentative de fermeture distante si la campagne a une publication connue, avec message explicite si elle reste à effectuer. Le lien court conserve sa cible. Les données archivées suivent les sauvegardes existantes.
 - **Lien court de campagne** : champ HTTPS dans l’espace familles pour conserver un lien is.gd/tinyurl.com/bit.ly puis le copier. Associé à la destination publiée exacte ; masqué si le service/la cible change. Enregistrer ce champ n’envoie rien au raccourcisseur et ne vérifie pas automatiquement la destination. Un lien court réel a été créé et sa redirection contrôlée pour la campagne fournie par l’utilisateur, après son autorisation explicite pour is.gd ; ni clé professeur ni réponses transmises. Ce lien de campagne n’est pas embarqué dans le code générique.
 - **Vérifications de cette évolution** : 151 tests de règles ; parcours familles simulé incluant récap (sélections exactes et texte HTML conservé comme texte), conservation du lien court, archivage/fermeture, refus de réservation, réponses/rendez-vous conservés et restauration fermée. Mesure des espacements (au moins 12 px) et hauteurs tactiles sur les groupes de boutons, plus absence de défilement global en 1024 × 640. Suite navigateur habituelle relancée. Le récapitulatif Google n’a pas été republié par Codex : copier le nouveau Formulaire.html puis déployer une nouvelle version du déploiement existant.
