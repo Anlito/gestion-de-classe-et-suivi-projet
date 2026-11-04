@@ -1,0 +1,14 @@
+import {evaluateAlerts,validateRule} from '../js/pp-alert-rules.js';
+export const tests=[];
+const test=(name,fn)=>tests.push({name,fn});
+const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw new Error(JSON.stringify([a,b]));};
+const rule={entityId:'rule',metric:'halfDays',operator:'>',threshold:4};
+const report={id:'v1',entityId:'report',kind:'periodReport',profile:'attendance',studentId:'s',period:['2026-09-01','2026-11-08'],metrics:{halfDays:4}};
+test('Alertes : limite stricte et inclusive distinctes',()=>{eq(evaluateAlerts([report],[rule]).alerts.length,0);eq(evaluateAlerts([report],[{...rule,operator:'>='}]).alerts.length,1);});
+test('Alertes : périodes chevauchantes jamais additionnées',()=>{eq(evaluateAlerts([report,{...report,id:'v2',entityId:'second',period:['2026-09-01','2026-11-30'],metrics:{halfDays:3}}],[{...rule,threshold:5}]).alerts.length,0);});
+test('Alertes : correction à la baisse remplace le cumul',()=>eq(evaluateAlerts([report,{...report,id:'v2',parents:['v1'],metrics:{halfDays:1}}],[{...rule,threshold:2}]).alerts.length,0));
+test('Alertes : concurrence suspend le calcul',()=>{const r=evaluateAlerts([report,{...report,id:'fork'}],[{...rule,threshold:0}]);eq([r.alerts.length,r.warnings.length],[0,1]);});
+test('Alertes : valeur absente ne vaut pas zéro',()=>eq(evaluateAlerts([{...report,metrics:{}}],[{...rule,operator:'>=',threshold:0}]).alerts.length,0));
+test('Alertes : TEST et établissement restent séparés',()=>eq(evaluateAlerts([report,{...report,id:'test',entityId:'test',testMode:true},{...report,id:'school',entityId:'school',sourceSchool:'Autre'}],[{...rule,threshold:0}]).alerts.length,3));
+test('Alertes : suivi stable après réimport identique et rouvert si valeur change',()=>{const a=evaluateAlerts([report],[{...rule,threshold:0}]).alerts[0];const b=evaluateAlerts([{...report,id:'v2',metrics:{halfDays:5}}],[{...rule,threshold:0}]).alerts[0];eq(a.key,b.key);eq(a.signature===b.signature,false);});
+test('Alertes : seuils invalides refusés',()=>{for(const threshold of ['',-1,1.2,'abc']){let failed=false;try{validateRule({...rule,threshold});}catch{failed=true;}eq(failed,true);}});

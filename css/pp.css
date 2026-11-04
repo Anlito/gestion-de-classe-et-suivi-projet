@@ -98,3 +98,5 @@
   .pp-toolbar .segmented { margin-left:0; }
   .pp-screen .heading .sub { display:none; }
 }
+
+.pp-alert-card {padding:16px 0;border-bottom:1px solid var(--line,#ddd)}

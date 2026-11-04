@@ -1,12 +1,17 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.6 (4 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.7 (4 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
 
+### Vérifications du lot alertes
+124 tests de règles automatiques ; scénario navigateur : seuil, traitement persistant après rechargement, correction du relevé rouvrant l’alerte, désactivation/réactivation, sauvegarde et masquage global. Affichage 1024 × 640 sans défilement global. Tests réalisés sur une base isolée avec des élèves fictifs, sans connexion Google. La synchronisation Drive utilise le stockage existant mais n’a pas été testée sur le compte réel.
+
 ### Disponible dans ce lot
+- **Alertes PP d’assiduité** : seuils annuels communs aux classes PP pour demi-journées d’absence, non justifiées, nombre ou minutes de retard, avec comparaison stricte ou inclusive. Aucun seuil imposé. Dernière période par élève, établissement et mode TEST, sans addition entre périodes. Les versions concurrentes ou périodes de même fin ambiguës suspendent le calcul concerné. Suivi personnel versionné, rouvert si valeur ou règle change. Accès depuis le récap classe et Mes outils ; masquage global sans effacement. Sauvegarde via ppRecords et cache hors connexion. Les alertes sur mesures et carnet, les notifications système et la résolution des versions concurrentes de réglage restent à intégrer.
+
 - **Vie scolaire** dans chaque fiche PP : relevés d’absences, demi-journées justifiées/non justifiées, taux imprimé, retards en nombre et en minutes ; relevés de punitions/sanctions par colonne source. Les périodes et sources restent distinctes des appels locaux du Carnet. Dans le récap classe, les élèves associés et les cumuls sont présentés par période et source, sans total entre périodes chevauchantes.
 - **Import des deux familles de récapitulatifs fournies** : rapprochement des élèves, aperçu PDF, contrôle de l’effectif et des sommes avant toute validation, puis fichier source conservé sur le lot d’import. Nombre variable de lignes et pages avec en-têtes répétés et total global final ; les modèles inconnus ou cellules ambiguës sont refusés. L’absence d’un élève ne le remet pas à zéro. Les colonnes administratives et d’infirmerie ne sont pas normalisées dans les fiches ; le PDF original complet est conservé.
 - **Compléments de mesures** : type, date connue, rôle Professeur/AED/CDP/Direction/Autre, auteur, motif, détail, date prévue, durée connue en minutes et état. Un complément peut être rattaché à une colonne d’un relevé (« déjà comprise ») ou rester indépendant. Aucun ajout automatique au cumul. Une correction à la baisse conserve les compléments et signale un écart si davantage de mesures sont documentées que comptées. Les abréviations identiques restent des colonnes distinctes à préciser ; les retenues ne sont pas converties en heures.

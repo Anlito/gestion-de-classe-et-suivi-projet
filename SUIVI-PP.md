@@ -38,3 +38,6 @@ Le calcul des rappels tient compte du fuseau Europe/Paris : veille à 16 h, puis
 
 ## État de livraison
 Le code est une branche locale de travail issue du dépôt GitHub. Aucune publication, aucun formulaire public et aucune synchronisation vers votre Drive n’ont été déclenchés. Les lectures des exemples fournis ont été vérifiées localement ; les essais d’enregistrement utilisent des élèves et fichiers fictifs. Les autres profils d’import et modules du cahier des charges seront intégrés aux étapes suivantes.
+
+## Alertes PP d’assiduité
+Depuis le récap classe, ouvrez « Alertes PP · seuils et suivi ». Ajoutez vos limites (strictement supérieur ou supérieur ou égal). Elles sont communes à vos classes PP pour l’année active. Chaque dépassement précise sa période et son établissement ; le bouton ouvre la fiche élève. Notez votre démarche puis marquez le dépassement traité. Une modification de valeur ou de seuil demande un nouvel examen. Désactiver un seuil conserve les notes. Les périodes ne sont pas additionnées ; sans relevé exploitable, aucune conclusion automatique. Les punitions et les observations ne déclenchent pas encore d’alerte dans ce lot.
