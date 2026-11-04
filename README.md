@@ -1,12 +1,23 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.14 (4 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.15 (5 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
 
-### Transcription locale · version 14
+### Correction des répétitions de transcription · version 15
+Un enregistrement de 12,54 secondes fourni par l’utilisateur reproduisait une boucle de plus de 2 000 caractères avec Whisper Tiny q8. Une simple interdiction des répétitions supprimait la boucle mais produisait encore une mauvaise fin de phrase ; cette approche de réécriture n’a pas été retenue. Le modèle de transcription est remplacé par **Whisper Small q8**, plus fidèle sur cet extrait, avec une nouvelle installation volontaire d’environ **264 Mo** (modèle et moteur). Les poids restent hors dépôt et hors archive, téléchargés depuis une révision publique figée et vérifiés par SHA-256. L’ancien cache Tiny n’est retiré qu’après installation complète du nouveau modèle. Aucun audio n’est envoyé : la sauvegarde Drive existante reste indépendante.
+
+Un critère d’arrêt surveille les boucles de jetons pendant la génération. Une vérification complémentaire refuse les répétitions pathologiques de mots/phrases et un volume de texte incompatible avec la durée. En cas de détection, le traitement signale l’échec sans sauver un nouveau brouillon ni ajouter de texte au compte rendu ; aucune fin de phrase n’est fabriquée. La vérification est aussi appliquée avant l’ajout d’un ancien brouillon, afin de bloquer le résultat erroné déjà généré. Le son et les comptes rendus préexistants ne sont ni effacés ni réécrits. Une limite de génération atteinte est signalée plutôt que de conserver un résultat tronqué. L’identifiant du brouillon en cours d’ajout est capturé avant la sauvegarde : un rafraîchissement pendant celle-ci ne laisse plus un faux brouillon modifié capable de bloquer le rechargement.
+
+Fichiers concernés : manifeste, moteur et stockage `pp-speech-*`, contrôles purs `pp-speech-quality.js`, écran de transcription, cache SW et tests `pp-speech.test.js`. Huit tests ajoutés : boucle de mot, de phrase, de jetons, répétitions naturelles, thèmes récurrents, densité excessive, durée inconnue et texte vide. Vérification navigateur du vrai enregistrement entièrement locale : reproduction initiale, comparaison de trois modèles et rejet de la boucle par le critère d’arrêt. Le nouvel extrait est restitué sans boucle mais comporte encore des erreurs au milieu par rapport à la phrase de référence donnée par l’utilisateur ; aucune fidélité parfaite n’est annoncée. Ne pas utiliser ce brouillon sans réécoute et correction.
+
+Autres vérifications : 163 tests de règles, 52 contrôles habituels PP ; parcours réel Small dans Chrome, installation, édition/ajout, conservation du texte, refus du double ajout, nouveau calcul hors connexion, annulation, sauvegarde/restauration et paysage 1280 × 752 / 1024 × 640. Les essais locaux du modèle Small sur 12 secondes ont demandé environ 35 secondes de calcul sur cet ordinateur ; ce temps ne prédit pas celui de la tablette. Le modèle utilise davantage de mémoire que Tiny et peut être plus lent sur Galaxy Tab S7 ; cet essai physique reste à faire. L’enregistrement privé et sa transcription de diagnostic restent dans les fichiers de travail, jamais dans le code, les aperçus ou l’archive distribuée. Rien publié en ligne.
+
+Références : [modèle ONNX compatible Transformers.js](https://huggingface.co/onnx-community/whisper-small), [modèle et licence Apache 2.0](https://huggingface.co/openai/whisper-small). Les informations de la version 14 ci-dessous décrivent l’ancien modèle, remplacé dans cette version.
+
+### Transcription locale · version 14 (historique)
 Depuis un audio enregistré, **Transcrire sur cet appareil** ouvre un écran dédié. Installation volontaire d’environ 65 Mo par appareil, puis transcription française locale par Whisper Tiny q8 dans un worker Chrome. Aucun envoi d’audio, d’identité ou de compte rendu au fournisseur du modèle ; seuls des téléchargements GET de fichiers publics à révision figée sont nécessaires à l’installation. La sauvegarde Drive existante reste indépendante et peut conserver les audios si activée. Aucun compte ni clé de service de transcription à configurer.
 
 Le résultat est un brouillon versionné distinct de l’audio et du compte rendu. Il doit être relu et corrigé, puis ajouté explicitement ; le compte rendu initial est conservé. Un brouillon déjà utilisé ne peut pas être ajouté une deuxième fois. Annulation/quitter l’écran termine le worker sans effacer l’audio. Les corrections non validées du brouillon restent en mémoire pendant la navigation et déclenchent un avertissement avant fermeture ; cliquer sur Ajouter pour les conserver durablement. Les transcriptions enregistrées suivent ppRecords et les sauvegardes existantes, sans nouvelle migration.

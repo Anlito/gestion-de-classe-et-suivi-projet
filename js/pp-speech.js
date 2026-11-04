@@ -28,7 +28,7 @@ export async function transcribe(audioId){
     const result=await new Promise((resolve,reject)=>{
       worker=new Worker(new URL('./pp-speech-worker.js',import.meta.url),{type:'module'});finish=()=>resolve(null);
       worker.onerror=()=>reject(new Error('Le moteur local n’a pas démarré. Vérifiez le modèle ou essayez un audio plus court.'));
-      worker.onmessage=({data})=>{if(run!==generation)return;if(data.type==='stage'){state.message=data.text;emit();}else if(data.type==='result')resolve(data.text);else if(data.type==='error')reject(new Error('La transcription locale n’a pas abouti. Réessayez avec un audio plus court.'));};
+      worker.onmessage=({data})=>{if(run!==generation)return;if(data.type==='stage'){state.message=data.text;emit();}else if(data.type==='result')resolve(data.text);else if(data.type==='error')reject(new Error(data.code==='quality'?data.text:'La transcription locale n’a pas abouti. Réessayez avec un audio plus court.'));};
       worker.postMessage({type:'transcribe',audio:samples},[samples.buffer]);
     });
     worker?.terminate();worker=null;finish=null;if(run!==generation||result===null)return;

@@ -22,6 +22,8 @@ export async function installModel(onProgress=()=>{},signal){
     completed+=item.bytes;onProgress({loaded:completed,total});
   }
   await cache.put(new URL('ready.json',root),new Response(JSON.stringify({revision:manifest.revision,installedAt:new Date().toISOString()}),{headers:{'Content-Type':'application/json'}}));
+  // Remove only obsolete model assets, after the replacement is fully installed.
+  for(const key of await caches.keys())if(key!==manifest.cache&&key.startsWith('pp-speech-whisper-tiny-'))await caches.delete(key);
 }
 export async function clearModel(){await caches.delete(manifest.cache);}
 export async function decodeLocalAudio(blob,knownDuration=null){

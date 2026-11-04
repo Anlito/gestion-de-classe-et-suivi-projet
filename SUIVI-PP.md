@@ -1,4 +1,4 @@
-# Suivi PP — Version de travail 1.23.0-pp.14
+# Suivi PP — Version de travail 1.23.0-pp.15
 
 Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil. Elle est distincte de votre application actuellement en ligne, qui n’a pas été modifiée.
 
@@ -79,7 +79,7 @@ Le microphone nécessite HTTPS (ou localhost pour l’essai sur cet ordinateur).
 
 ## Transcrire sans envoyer l’audio
 1. Dans **Notes audio**, sélectionner l’enregistrement. Si le titre ou le texte a été modifié, cliquer d’abord sur **Enregistrer le texte**.
-2. Cliquer sur **Transcrire sur cet appareil**, puis **Installer le modèle sur cet appareil**. Prévoir environ 65 Mo et une connexion Internet pour cette première installation. Elle est à faire une fois sur le portable et une fois sur la tablette ; Chrome peut imposer de la refaire si son stockage a été vidé.
+2. Cliquer sur **Transcrire sur cet appareil**, puis **Installer le modèle sur cet appareil**. Prévoir environ 264 Mo et une connexion Internet pour cette première installation. Elle est à faire une fois sur le portable et une fois sur la tablette ; Chrome peut imposer de la refaire si son stockage a été vidé.
 3. Cliquer sur **Lancer la transcription**. Garder l’écran ouvert ; le calcul peut être long, surtout sur tablette. Commencer par une courte note. Après installation, cette étape fonctionne hors connexion et n’envoie pas l’audio à un service de transcription.
 4. Relire et corriger le **Brouillon à relire**. Vérifier les noms, les nombres et les passages incertains en retournant aux audios pour les réécouter. Le modèle léger peut commettre des erreurs ou inventer des mots.
 5. Cliquer sur **Ajouter ce texte au compte rendu** pour conserver les corrections. Le texte déjà présent est conservé et le nouveau texte est ajouté à la suite. Les transcriptions précédentes restent consultables. Un brouillon déjà utilisé ne peut pas être ajouté deux fois.
@@ -87,3 +87,10 @@ Le microphone nécessite HTTPS (ou localhost pour l’essai sur cet ordinateur).
 **Annuler le traitement**, ou quitter l’écran, interrompt la transcription sans supprimer le son ni le compte rendu. **Retirer le modèle de cet appareil** libère son cache, sans effacer les audios et textes. Les brouillons automatiques enregistrés et les comptes rendus suivent les sauvegardes du Carnet ; le modèle se réinstalle séparément. La synchronisation Drive des audios reste celle que vous avez activée et ne sert pas au calcul de transcription.
 
 Testé dans Chrome sur ordinateur, avec un exemple français public, y compris après coupure réseau. La vitesse et la stabilité sur la Galaxy Tab S7 restent à essayer avant un entretien complet. Aucun changement du formulaire Google des familles n’est nécessaire pour cette évolution.
+
+## Correction de la transcription · version 15
+Le premier modèle trop léger a été remplacé par Whisper Small. Après mise à jour et rechargement du Carnet, ouvrir l’audio puis **Transcrire sur cet appareil → Installer le modèle sur cet appareil**. Cette nouvelle installation d’environ 264 Mo est nécessaire même si l’ancien modèle était déjà présent. Elle ne transmet pas l’audio. Une fois le nouveau modèle prêt, l’ancien cache est retiré automatiquement. Cliquer ensuite sur **Lancer la transcription**.
+
+Les répétitions anormales sont désormais interrompues et signalées comme un échec, sans nouvel ajout au compte rendu. Un ancien brouillon répétitif ne peut plus être ajouté tel quel : le corriger ou relancer le traitement. Le texte erroné que vous avez déjà ajouté reste présent pour vous permettre de le vérifier ; il n’est pas effacé automatiquement. Supprimer manuellement ce passage dans le compte rendu, puis **Enregistrer le texte**, avant d’ajouter une nouvelle transcription relue.
+
+Le résultat est meilleur sur l’enregistrement de test, mais certains mots restent mal reconnus. Vérifier chaque brouillon à la réécoute. Le modèle plus précis est aussi plus lourd : garder l’application ouverte et commencer par une courte note sur la tablette. L’essai physique Galaxy Tab S7 reste à faire.
