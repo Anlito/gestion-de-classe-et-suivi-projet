@@ -1,9 +1,10 @@
 // sw.js — Fonctionnement hors-ligne : garde une copie des fichiers de l'app sur l'appareil.
 // À chaque nouvelle version de l'app, augmenter VERSION pour que la tablette récupère les nouveaux fichiers.
-const VERSION = 'carnet-v1.23.0-pp.2';
+const VERSION = 'carnet-v1.23.0-pp.3';
 const FONTS = 'carnet-fonts';
 const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
 const FILES = [
+  'js/pronote-import.js', 'js/pp-import-store.js', 'js/screens/imports-pp.js',
   'js/pp.js', 'js/pp-rules.js', 'js/screens/suivi-pp.js', 'js/screens/outils.js', 'css/pp.css',
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/pdfimport.js', 'js/photos.js', 'js/backup.js', 'js/lock.js', 'js/update.js', 'js/screens/sauvegarde.js', 'js/screens/imprimer.js', 'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs',

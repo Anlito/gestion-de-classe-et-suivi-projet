@@ -401,7 +401,10 @@ export function deleteStudentIn(w, sid) {
 
 // Suppression d'une classe : élèves (photos, observations, notes) et projets associés (séances, groupes, notes).
 export function deleteClassIn(w, classId) {
-  for (const r of db.where('ppRecords', x => x.classId === classId && !x.studentId)) w.del('ppRecords', r.id);
+  for (const r of db.where('ppRecords', x => x.classId === classId && !x.studentId)) {
+    if (r.blobId) w.del('photos', r.blobId);
+    w.del('ppRecords', r.id);
+  }
   for (const s of db.where('students', x => x.classId === classId)) deleteStudentIn(w, s.id);
   for (const a of db.where('assignments', x => x.classId === classId)) deleteAssignmentIn(w, a.id);
   for (const s of ['observations', 'absences', 'retards', 'appels']) for (const o of db.where(s, x => x.classId === classId)) w.del(s, o.id);

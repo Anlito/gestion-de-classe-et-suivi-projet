@@ -21,6 +21,7 @@ import archives from './screens/archives.js';
 import salles from './screens/salles.js';
 import suiviPP from './screens/suivi-pp.js';
 import outils from './screens/outils.js';
+import importsPP from './screens/imports-pp.js';
 import { initLock } from './lock.js';
 import { initAlertes, render as renderAlertes } from './alertes.js';
 import { lierAppels } from './planning.js';
@@ -32,6 +33,8 @@ import { initUpdates } from './update.js';
 
 // Adresse (après #) → écran. Les parties entre parenthèses deviennent des paramètres.
 const ROUTES = [
+  [/^#\/pp\/imports$/, importsPP, []],
+  [/^#\/pp\/imports\/([^/]+)$/, importsPP, ['classId']],
   [/^#\/pp$/, suiviPP, []],
   [/^#\/pp\/classe\/([^/]+)$/, suiviPP, ['classId']],
   [/^#\/pp\/classe\/([^/]+)\/(conseils)$/, suiviPP, ['classId', 'section']],

@@ -3,6 +3,8 @@
 .pp-toolbar { display:flex;gap:12px;align-items:center;flex:none;padding:8px 16px;min-height:64px;border-bottom:1px solid var(--line); }
 .pp-toolbar .segmented { margin-left:auto; }
 .pp-toolbar .pp-trimester { width:155px; }
+.pp-recap-access { min-height:52px;box-shadow:0 2px 0 var(--line);font-weight:800; }
+.pp-recap-access strong { margin-left:6px; }
 .pp-detail { display:grid;grid-template-columns:minmax(190px,.7fr) minmax(250px,1.2fr) minmax(290px,1.25fr);gap:12px;padding:12px;overflow:hidden; }
 .pp-panel { overflow:hidden; }
 .pp-panel .panel-scroll { padding:14px 16px; }
@@ -53,6 +55,18 @@
 .pp-preview-body { min-height:0;flex:1;overflow:auto;padding:12px; }
 .pp-preview-body iframe { border:0;width:100%;height:100%;min-height:350px;background:var(--bg); }
 .pp-preview-body img { max-width:100%;height:auto; }
+.pp-import-toolbar { min-height:92px; }
+.pp-import-grid { display:grid;grid-template-columns:minmax(210px,.85fr) minmax(270px,1.2fr) minmax(280px,1.1fr);gap:12px;padding:12px;overflow:hidden; }
+.pp-import-grid>.panel { overflow:hidden; }
+.pp-import-grid .panel-scroll { padding:14px; }
+.pp-import-match { padding:12px 0;border-bottom:1px solid var(--line); }
+.pp-import-match .small { display:block; }
+.pp-import-preview { min-height:0;flex:1;display:flex;padding:12px; }
+.pp-pdf-scroll { width:100%;overflow:auto;min-height:0;background:#e7e5e2; }
+.pp-pdf-scroll img { display:block;width:100%;height:auto; }
+.pp-preview-pages { display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 12px;font-size:13px; }
+.pp-import-table { border-collapse:collapse;width:100%;font-size:14px; }
+.pp-import-table th,.pp-import-table td { padding:10px 6px;border-bottom:1px solid var(--line);text-align:left;overflow-wrap:anywhere; }
 @media(max-width:1100px) and (min-width:781px) {
   .pp-detail { grid-template-columns:180px minmax(230px,1fr) minmax(270px,1.1fr);gap:10px;padding:10px; }
   .pp-screen .title { font-size:22px; }
@@ -62,6 +76,10 @@
   .pp-toolbar .check-row { font-size:13px; }
 }
 @media(max-width:780px) {
+  .pp-import-grid { display:flex;flex-direction:column;overflow:auto; }
+  .pp-import-grid>.panel { min-height:280px;flex:none; }
+  .pp-import-grid .panel-scroll { max-height:450px; }
+  .pp-import-preview { min-height:350px; }
   .pp-detail,.pp-grid-home,.pp-tools { display:flex;flex-direction:column;overflow:auto; }
   .pp-detail>.panel,.pp-tools>.panel { flex:none;max-height:none; }
   .pp-sidebar .panel-scroll { max-height:180px; }

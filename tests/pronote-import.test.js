@@ -1,0 +1,12 @@
+import { readCSV, parseRosterCSV, suggestStudent, grade, importProblems } from '../js/pronote-import.js';
+export const tests = [];
+const test = (name, fn) => tests.push({ name, fn });
+const eq = (a, b) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`Attendu ${JSON.stringify(b)}, obtenu ${JSON.stringify(a)}`); };
+test('Import : CSV BOM, guillemets et lignes multiples', () => eq(readCSV('\uFEFFÉlèves;Note\r\n"EXEMPLE Camille";"Texte; avec ""citation""\nseconde ligne"')[1], ['EXEMPLE Camille', 'Texte; avec "citation"\nseconde ligne']));
+test('Import : homonymes source marqués ambigus', () => eq(parseRosterCSV('Élèves;\nNOM Prénom;\nNOM Prénom;').rows.map(r => r.ambiguous), [true, true]));
+test('Import : colonnes incohérentes refusées', () => { let rejected = false; try { parseRosterCSV('Élèves;Classe\nEXEMPLE Camille;4D;surplus'); } catch { rejected = true; } eq(rejected, true); });
+test('Import : correspondance accents et ordre des noms', () => eq(suggestStudent('Camille EXÉMPLE', [{ id: 'a', nom: 'EXEMPLE', prenom: 'Camille' }]), 'a'));
+test('Import : aucun choix automatique entre homonymes', () => eq(suggestStudent('EXEMPLE Camille', [{ id: 'a', nom: 'EXEMPLE', prenom: 'Camille' }, { id: 'b', nom: 'EXEMPLE', prenom: 'Camille' }]), ''));
+test('Import : zéro, non noté et absence de moyenne distincts', () => eq([grade('0').value, grade('N.Not').status, grade('').status], [0, 'not_graded', 'missing']));
+test('Import : bulletin d’une autre année bloqué', () => eq(importProblems({ profile: 'bulletin', year: '2025–2026', trimester: 1, rows: [{}] }, ['a'], { name: '4D' }, '2026–2027', [{ id: 'a' }]).length, 1));
+test('Import : association double au même élève bloquée', () => eq(importProblems({ profile: 'roster', rows: [{}, {}] }, ['a', 'a'], { name: '4D' }, '2026–2027', [{ id: 'a' }]).length, 1));

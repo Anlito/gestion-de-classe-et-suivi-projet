@@ -1,5 +1,6 @@
 // Règles pures du suivi PP : réutilisables dans les tests sans navigateur.
 export const PP_TOOLS = [
+  { key: 'imports', label: 'Imports Pronote', description: 'Vérifier une liste CSV et importer les avis d’un bulletin PDF.' },
   { key: 'actions', label: 'Actions à suivre', description: 'Échéances, démarches et relances.' },
   { key: 'notes', label: 'Notes et progrès', description: 'Notes personnelles et faits positifs.' },
   { key: 'carnet', label: 'Carnet scolaire', description: 'Observations, encouragements et défauts de carnet.' },
