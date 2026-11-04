@@ -1,4 +1,4 @@
-# Suivi PP — Version de travail 1.23.0-pp.4
+# Suivi PP — Version de travail 1.23.0-pp.5
 
 Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil. Elle est distincte de votre application actuellement en ligne, qui n’a pas été modifiée.
 
@@ -17,8 +17,10 @@ Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil
 12. Pour un bulletin, retrouver les appréciations dans **Conseils**, au trimestre détecté, et le PDF dans **Documents**. L’appréciation globale est conservée dans les données source et l’original, sans écraser votre conclusion. Un fichier déjà importé est bloqué ; une correction manuelle d’un avis est conservée lors d’un nouvel import et signalée dans son bilan.
 
 13. Pour essayer les exemples sur des élèves fictifs, sélectionner le bulletin puis l’élève fictif, cocher **Essai avec des élèves fictifs** près du bouton de validation, puis confirmer l’association et cliquer **Valider l’import**. Cette option autorise les écarts entre année/classe du document et du suivi, en conservant leur provenance. Les avis et documents sont marqués **TEST**, y compris après modification d’un avis, et sont enregistrés dans les fiches choisies. Ils sont inclus dans les sauvegardes et dans Drive si activé. Pour le deuxième bulletin, refaire ces choix : le mode d’essai ne reste pas activé automatiquement. Les avis ordinaires ne sont pas remplacés par les essais.
+14. Importer T1, T2 et T3 successivement en choisissant le même élève. Le trimestre est lu dans chaque bulletin ; ses avis rejoignent uniquement la période correspondante. Dans **Conseils**, ouvrir **Évolution sur les 3 trimestres** pour comparer les résultats, puis **Données du dernier bulletin importé** pour le détail du trimestre sélectionné. Les notes et niveaux sur 4 restent distincts ; les mentions NR et N.Not sont conservées. Les changements d’enseignants sont affichés sur des lignes distinctes.
+15. Pour un bulletin de plusieurs pages, utiliser les flèches sous **Document source**. Les matières de chaque page sont analysées avant validation. Mentions, engagements et orientation, lorsqu’ils sont présents dans les modèles vérifiés, restent des textes source distincts de votre synthèse personnelle. Les graphiques et le détail des évaluations par couleur se consultent dans le PDF.
 
-Les récapitulatifs d’assiduité et punitions ne sont pas encore acceptés. Les scans sans texte et les structures inconnues sont refusés. Les deux bulletins fournis ont des années différentes : en mode ordinaire, un bulletin d’une autre année reste bloqué. Les listes CSV servent pour l’instant à conserver les correspondances et leur rapport ; elles ne créent ni ne remplacent les élèves.
+Les récapitulatifs d’assiduité et punitions ne sont pas encore acceptés. Les scans sans texte et les structures inconnues sont refusés. Les exemples fournis couvrent plusieurs années : en mode ordinaire, un bulletin d’une autre année reste bloqué. Les listes CSV servent pour l’instant à conserver les correspondances et leur rapport ; elles ne créent ni ne remplacent les élèves. Chaque fichier doit concerner un seul élève. La compatibilité multipage est vérifiée sur la famille fournie, sans garantie pour toutes les mises en page.
 
 ## Sauvegarde et reprise
 Les données enregistrées restent disponibles sur cet appareil hors connexion ; le service worker doit avoir terminé une première installation en ligne. Un fichier doit exister localement pour être consultable sans Internet.

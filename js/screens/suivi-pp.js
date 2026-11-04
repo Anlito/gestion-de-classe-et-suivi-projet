@@ -2,6 +2,7 @@ import * as db from '../db.js';
 import * as model from '../model.js';
 import * as pp from '../pp.js';
 import { isOverdue } from '../pp-rules.js';
+import { isMasteryLayout, previousResultText, annualBulletinRows } from '../pronote-import.js';
 import { html, raw, toast, todayISO, fmtDate, confirmDialog } from '../ui.js';
 import { icon, photo, backLink, saveStatus } from '../components.js';
 import { go, refresh } from '../nav.js';
@@ -41,6 +42,27 @@ function entryView(r) {
       ${r.kind === 'document' ? html`<button class="btn soft small" data-click="preview" data-id="${r.id}">Ouvrir</button><button class="btn danger-soft small" data-click="removeDocument" data-id="${r.id}">Retirer</button>`
         : html`<button class="btn soft small" data-click="edit" data-id="${r.id}">Modifier</button>`}
     </div></article>`;
+}
+function bulletinEvolution() {
+  if (st.tab !== 'conseils' || st.collective) return '';
+  const sources = pp.records({ studentId: st.studentId, kind: 'bulletinSource' });
+  if (!sources.length) return '';
+  const available = [...new Set(sources.map(s => s.trimester))].sort();
+  return html`<details class="pp-bulletin-results pp-annual"><summary>Évolution sur les 3 trimestres</summary><p class="muted small">Bulletins importés : ${available.map(t => `T${t}`).join(' · ')}. Une case « — » correspond à une donnée absente. Les changements d’enseignants sont conservés sur des lignes distinctes.</p><table class="pp-import-table"><thead><tr><th>Matière / professeur</th><th>T1</th><th>T2</th><th>T3</th></tr></thead><tbody>${annualBulletinRows(sources).map(r => html`<tr><td><strong>${r.subject}</strong><div class="muted small">${r.teacher}</div></td>${r.periods.map(p => html`<td>${p?.text || '—'}${p?.testMode ? html`<div class="muted small">TEST</div>` : ''}</td>`)}</tr>`)}</tbody></table></details>`;
+}
+function bulletinResults() {
+  if (st.tab !== 'conseils' || st.collective) return '';
+  const source = pp.records({ studentId: st.studentId, kind: 'bulletinSource' }).filter(r => r.trimester === st.trimester).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+  if (!source) return '';
+  const document = pp.latest({ studentId: st.studentId, kind: 'document' }).find(r => r.importBatchId === source.importBatchId);
+  return html`<details class="pp-bulletin-results"><summary>Données du dernier bulletin importé${source.testMode ? ' · TEST' : ''}</summary>
+    <p class="muted small">Source : ${source.sourceClass || '?'} · ${source.sourceYear || source.year} · trimestre ${source.trimester}</p>
+    ${document && pp.enabled('documents') ? html`<button class="btn soft small" data-click="preview" data-id="${document.id}">Ouvrir le bulletin</button>` : ''}
+    ${(source.payload?.subjects || []).map(s => html`<article class="pp-record"><strong>${s.subject}</strong><span class="muted small">${s.teacher || 'Professeur non renseigné'}</span>
+      ${s.nonRepresentative ? html`<span class="chip warn">NR · moyenne non représentative</span>` : ''}
+      ${s.mastery && !isMasteryLayout(source.layout) ? html`<span class="chip">Positionnement : ${s.mastery.value}/4 · ${s.mastery.label}</span>` : ''}
+      ${isMasteryLayout(source.layout) ? html`<span class="chip">${s.mastery ? `${s.mastery.value}/4 · ${s.mastery.label}` : 'Positionnement non renseigné'}</span>${s.competenciesRaw ? html`<div class="pp-record-text muted small">${s.competenciesRaw}</div>` : ''}` : html`<span class="muted small">Élève : ${(s.studentResults || []).map(g => g.raw).join(' / ') || 'pas de moyenne'} · Classe : ${(s.classResults || []).map(g => g.raw).join(' / ') || 'pas de moyenne'}</span>`}${s.previousResults?.map(p => html`<span class="muted small">Rappel T${p.trimester} : ${previousResultText(p)}</span>`)}
+    </article>`)}${[source.payload?.mentionsRaw, source.payload?.orientationRaw, source.payload?.engagementsRaw].filter(Boolean).map(t => html`<div class="info-box pp-record-text">${t}</div>`)}<p class="muted small">Les graphiques et le détail des évaluations restent dans le PDF original.</p></details>`;
 }
 function journalForm() {
   const kinds = [...(pp.enabled('notes') ? [['note', 'Note personnelle'], ['progress', 'Réussite / progrès']] : []), ...(pp.enabled('carnet') ? [['carnet', 'Carnet scolaire numérique']] : [])];
@@ -143,7 +165,7 @@ export default {
       <main class="content pp-detail">${classCouncil ? classSidebar(c, 'conseil') : profile(s, c)}
       ${panel(st.collective ? `Conseil · ${c.name}` : st.tab === 'documents' ? 'Documents associés' : st.tab === 'conseils' ? `Conseil · trimestre ${st.trimester}` : st.tab === 'actions' ? 'Actions de suivi' : 'Historique personnel', html`
         ${s && st.tab === 'journal' ? pp.meetingsOf(s.id).map(e => html`<article class="pp-record"><span class="chip">Réunion liée à l’agenda</span><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut} · ${e.lieu || ''}</span><button class="btn soft small" data-click="meeting" data-id="${e.id}">Ouvrir la réunion</button></article>`) : ''}
-        ${list.length ? list.map(entryView) : html`<p class="muted">Aucun élément dans cette rubrique.</p>`}
+        ${bulletinEvolution()}${bulletinResults()}${list.length ? list.map(entryView) : html`<p class="muted">Aucun élément dans cette rubrique.</p>`}
         ${builtin.length ? html`<h3 class="pp-source-title">Notes du Carnet</h3>${builtin.map(n => html`<article class="pp-record"><span class="chip">Carnet · note libre</span><div class="pp-record-text">${n.text}</div><span class="muted small">${fmtDate(n.at)}</span></article>`)}` : ''}`, html`<button class="btn soft small" data-click="newEntry">${icon.plus}Nouvel élément</button>`)}
       ${panel(st.editId ? 'Modifier · nouvelle version' : 'Ajouter au suivi', editor(), html`<span class="muted small">${st.file ? 'Fichier prêt à joindre' : 'Enregistrement local, puis Drive si activé'}</span><button class="btn accent" data-click="save" ${st.busy || st.tab === 'none' ? 'disabled' : ''}>${st.busy ? 'Enregistrement…' : 'Enregistrer'}</button>`)}
       </main>` : html`<main class="content pp-home">${home()}</main>`}

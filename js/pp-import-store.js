@@ -37,7 +37,7 @@ export function buildImport(parsed, mappings, classId, hash, options = {}) {
       }
       // Moyennes et appréciation générale déjà écrite restent des données source,
       // sans remplacer une synthèse PP ni additionner les cumuls d’assiduité.
-      records.push({ ...base, id: db.uid(), kind: 'bulletinSource', studentId, trimester: parsed.trimester, payload: row });
+      records.push({ ...base, id: db.uid(), kind: 'bulletinSource', studentId, trimester: parsed.trimester, layout: parsed.layout || 'moyennes', payload: row });
     }
   });
   return { batchId, records, conflicts, mappings: parsed.rows.map((r, i) => ({ sourceRow: r.sourceRow, studentId: mappings[i] === 'skip' ? null : mappings[i] })),

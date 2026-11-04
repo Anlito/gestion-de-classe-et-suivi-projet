@@ -71,6 +71,8 @@
 .pp-import-test p { margin:5px 0 0;line-height:1.35; }
 .pp-import-blocked { margin:0;font-size:12px;line-height:1.35;color:var(--ink); }
 .pp-import-submit { display:flex;align-items:center;justify-content:space-between;gap:8px; }
+.pp-bulletin-results { padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:12px; }
+.pp-bulletin-results>summary { cursor:pointer;font-weight:800; }
 .pp-import-table { border-collapse:collapse;width:100%;font-size:14px; }
 .pp-import-table th,.pp-import-table td { padding:10px 6px;border-bottom:1px solid var(--line);text-align:left;overflow-wrap:anywhere; }
 @media(max-width:1100px) and (min-width:781px) {

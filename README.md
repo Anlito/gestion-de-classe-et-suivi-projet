@@ -1,12 +1,16 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.4 (4 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.5 (4 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
 
 ### Disponible dans ce lot
+- **Bulletins des deux collèges** : cinq présentations détectées à partir des 14 exemples fournis : moyennes, moyennes détaillées avec rappels T1/T2 et bornes, compétences avec ou sans programme, niveaux de maîtrise sous un en-tête « Moyennes ». Les matières d’un même nom et leurs enseignants restent distincts. Les moyennes, niveaux 1–4, N.Not et marqueurs NR sont conservés sans conversion entre notes et compétences.
+- **Bulletin sur plusieurs pages** : en-têtes répétés, matières de la deuxième page, appréciation globale et avis d’orientation conservés sur le modèle fourni. Les mentions et engagements sont séparés de l’appréciation globale. Une rubrique ou appréciation vide reste vide. Les graphiques colorés et les nombres d’évaluations par couleur restent dans le PDF original ; les niveaux numériques lisibles et les textes de compétences sont extraits.
+- **Conseils → Évolution sur les 3 trimestres** : tableau T1/T2/T3 fondé sur le dernier bulletin importé pour chaque trimestre, avec mention TEST si nécessaire. Les cases absentes ne valent pas zéro. Les changements de professeur créent des lignes distinctes ; aucune équivalence de matière ou d’enseignant n’est déduite arbitrairement. Les avis et synthèses restent séparés par trimestre.
+- **Données du dernier bulletin importé** : détail repliable dans la fiche, par trimestre, avec moyennes ou positionnements, compétences textuelles, rappels de trimestres et indications du conseil ; accès au PDF associé si Documents est activé.
 - **Essai avec des élèves fictifs** : option par bulletin permettant les écarts de classe et d’année pour tester les exemples. L’association et la confirmation restent obligatoires. Le mode se réinitialise à chaque fichier, changement de classe ou sortie de l’écran. Les avis et documents portent TEST, gardent l’année et la classe source et utilisent des identifiants distincts des avis ordinaires. Le marquage est conservé après modification d’un avis. Ces données sont réellement enregistrées et suivent la sauvegarde et Drive si activé : ce n’est pas une simulation sans écriture.
 - Les contrôles et la confirmation sont visibles près du bouton **Valider l’import**, sans devoir descendre dans les appréciations. En mode ordinaire, les écarts de classe et année restent bloquants.
 - **Accès unique au récap depuis une fiche élève** : grand bouton coloré « Récap classe » en haut ; le lien identique du panneau d’identité est retiré.
@@ -32,7 +36,7 @@ IndexedDB passe de 9 à 10, sans effacer les tables existantes. Nouvelle table `
 Les sauvegardes passent au format 2 ; les sauvegardes format 1 restent importables. **Avant un essai avec Drive réel, mettre la même nouvelle version sur tous les appareils** : un ancien client n’est pas compatible avec les données PP et ne doit pas synchroniser ce nouveau format. La copie de travail n’a pas été connectée au compte réel.
 
 ### Vérifications réalisées
-- Suite navigateur existante et nouveaux tests PP/imports : **91/91**.
+- Suite navigateur existante et nouveaux tests PP/imports : **106/106**.
 - Parcours Chrome avec élèves fictifs : activation, notes persistées et protection HTML, actions, pièce jointe et restauration binaire, séparation des trimestres, réunion liée, contenu Google Agenda préparé, masquage sans suppression, versions concurrentes, saisie puis redémarrage hors connexion.
 - Migration d’une base IndexedDB version 9 : classe et élève conservés, nouvelle table vide créée.
 - Contrôle de l’absence de défilement global aux tailles utiles **1280×752** et **1024×640**. Aucun test matériel sur la Galaxy Tab S7 réelle à ce stade.
@@ -40,11 +44,12 @@ Les sauvegardes passent au format 2 ; les sauvegardes format 1 restent importabl
 - Imports testés dans Chrome sur fichiers fictifs : aucun écrit avant validation, correspondance proposée, répétition du même fichier bloquée, deux matières identiques avec enseignants distincts, nouvelle version du bulletin conservant la correction personnelle, pièce et données source enregistrées. Aperçu rendu par PDF.js dans l’application, avec changement de page, sans dépendre du lecteur PDF du navigateur.
 - Transaction d’import volontairement interrompue pendant l’essai : échec signalé, faux lot retiré de la mémoire, nouvel essai possible et enregistré.
 - Deux bulletins fictifs d’une autre année/classe importés successivement vers deux élèves fictifs : réactivation et confirmation exigées pour le second fichier, provenance conservée, aucun avis ordinaire remplacé. Tests des contrôles restant obligatoires en mode TEST, conservation du marquage après édition et présence des commandes à 1024×640.
-- Lecture locale des deux bulletins fournis : respectivement 12 matières / 11 avis et 7 matières / aucun avis ; aucune identité ou appréciation réelle incluse dans ce dépôt ou cette archive.
+- Lecture locale des 14 bulletins fournis à cette étape : cinq présentations, un bulletin de deux pages et trois suivis T1/T2/T3 du même élève. Le texte des appréciations extraites a été comparé à la colonne source complète pour chacun des 14 fichiers. Les cas de moyennes non représentatives, matières répétées, enseignants multiples, rubrique « Devoirs faits », appréciation vide et absence d’appréciation globale ont été vérifiés. Aucune identité ou appréciation réelle incluse dans ce dépôt ou cette archive.
+- Parcours sur fichiers fictifs : import des présentations par compétences, consultation des résultats dans la fiche, trois imports T1/T2/T3 successifs et tableau annuel, puis bulletin détaillé de deux pages avec navigation d’aperçu, rappel T1 distinct de T2, conclusion de page 2, mention et orientation.
 - Les appels Google authentifiés, la réception effective des notifications et la prise de photo réelle sur Android ne sont pas vérifiés par ces essais locaux.
 
 ### Suite du développement
-Ce lot ne réalise pas encore : imports des récapitulatifs d’assiduité et punitions, compléments de punitions liés aux relevés, seuils d’alerte, campagnes de formulaires familles, billets et présence aux campagnes, enregistrement/transcription audio, génération assistée des synthèses, comparaison des périodes et gestion détaillée des démarches documentaires. Les outils non livrés ne sont pas affichés comme fonctionnels.
+Ce lot ne réalise pas encore : imports des récapitulatifs d’assiduité et punitions, compléments de punitions liés aux relevés, seuils d’alerte, campagnes de formulaires familles, billets et présence aux campagnes, enregistrement/transcription audio, génération assistée des synthèses, comparaison des indicateurs d’assiduité entre périodes et gestion détaillée des démarches documentaires. Les outils non livrés ne sont pas affichés comme fonctionnels.
 Les imports actuels sont limités aux profils vérifiés : aucun OCR de scan, aucun engagement sur tous les formats de bulletins ou de rapports multipages. Un PDF à structure inconnue est refusé sans écriture. L’exemple complet fourni est d’une autre année que l’exemple vide ; le contrôle d’année reste actif sauf essai explicite marqué TEST. Limite 20 Mo par fichier et 1 000 lignes CSV. Une liste CSV garde un rapport de correspondances et le fichier source dans la sauvegarde, sans importer ses autres colonnes administratives.
 L’activation des modules des anciens écrans du Carnet, au-delà des nouveaux modules PP, reste également à étendre.
 

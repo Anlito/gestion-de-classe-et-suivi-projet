@@ -1,7 +1,7 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import * as pp from '../pp.js';
-import { parseFile, fileHash, suggestStudent, importProblems, renderPDFPage } from '../pronote-import.js';
+import { parseFile, fileHash, suggestStudent, importProblems, renderPDFPage, isMasteryLayout, previousResultText } from '../pronote-import.js';
 import { alreadyImported, buildImport, commitImport } from '../pp-import-store.js';
 import { html, toast, fmtDate } from '../ui.js';
 import { backLink, saveStatus } from '../components.js';
@@ -34,9 +34,12 @@ function details() {
   const row = st.parsed.rows[0];
   return html`<div class="stack-tight"><span class="chip">Trimestre ${st.parsed.trimester || '?'} · ${st.parsed.year || 'année inconnue'}</span>
     ${row.subjects.map(s => html`<article class="pp-record"><strong>${s.subject}</strong><span class="muted small">${s.teacher || 'Professeur non reconnu'} · page ${s.sourcePage}</span>
-      <div class="muted small">Élève : ${s.studentResults.map(g => g.raw).join(' / ') || 'pas de moyenne'} · Classe : ${s.classResults.map(g => g.raw).join(' / ') || 'pas de moyenne'}</div>
+      ${isMasteryLayout(st.parsed.layout) ? html`<div class="chip">${s.mastery ? `${s.mastery.value}/4 · ${s.mastery.label}` : 'Positionnement non renseigné ou à vérifier'}</div>${s.competenciesRaw ? html`<details><summary>Compétences évaluées</summary><div class="pp-record-text muted small">${s.competenciesRaw}</div></details>` : ''}<p class="muted small">Le détail coloré des évaluations reste consultable dans le PDF.</p>` : html`<div class="muted small">Élève : ${s.studentResults.map(g => g.raw).join(' / ') || 'pas de moyenne'} · Classe : ${s.classResults.map(g => g.raw).join(' / ') || 'pas de moyenne'}</div>${s.noteCountRaw ? html`<div class="muted small">Nombre de notes : ${s.noteCountRaw}</div>` : ''}${s.rangeRaw ? html`<div class="muted small">Bornes de la classe : ${s.rangeRaw}</div>` : ''}`}
+      ${s.previousResults?.map(p => html`<div class="muted small">Rappel T${p.trimester} : ${previousResultText(p)}</div>`)}
+      ${s.mastery && !isMasteryLayout(st.parsed.layout) ? html`<span class="chip">Positionnement : ${s.mastery.value}/4 · ${s.mastery.label}</span>` : ''}
+      ${s.nonRepresentative ? html`<span class="chip warn">NR · moyenne non représentative</span>` : ''}
       <div class="pp-record-text">${s.appreciation || 'Appréciation non renseignée'}</div></article>`)}
-    <h3>Appréciation globale du bulletin</h3><div class="pp-record-text">${row.generalAppreciation || 'Non renseignée'}</div><p class="muted small">Conservée comme texte source, sans remplacer votre synthèse personnelle.</p></div>`;
+    <h3>Appréciation globale du bulletin</h3><div class="pp-record-text">${row.generalAppreciation || 'Non renseignée'}</div><p class="muted small">Conservée comme texte source, sans remplacer votre synthèse personnelle.</p>${[row.mentionsRaw, row.orientationRaw, row.engagementsRaw].filter(Boolean).map(t => html`<div class="pp-record-text info-box">${t}</div>`)}</div>`;
 }
 export default {
   render(params) {
