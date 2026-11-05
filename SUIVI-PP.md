@@ -1,4 +1,4 @@
-# Suivi PP — Version de travail 1.23.0-pp.18
+# Suivi PP — Version de travail 1.23.0-pp.19
 
 Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil. Elle est distincte de votre application actuellement en ligne, qui n’a pas été modifiée.
 
@@ -125,3 +125,12 @@ Dans **Avancement du conseil**, cliquer sur **Relire** pour l’élève concern�
 4. Choisir **Garder en brouillon** ou **Valider le texte retenu**. Attendre la confirmation. Les anciennes versions restent consultables dans les deux volets d’historique.
 
 Une arrivée ou correction d’avis après cette relecture fera réapparaître **À relire**. Une nouvelle branche concurrente fera réapparaître **À vérifier**. Si les données changent pendant la saisie, la sauvegarde est bloquée : **Recharger la relecture** propose de repartir des versions actuelles et vous demande confirmation avant d’abandonner un texte non enregistré. Les avis TEST ne sont pas inclus. Rien n’est envoyé à Pronote.
+
+## Dossier du conseil : aperçu, conservation et PDF
+Depuis **Avancement du conseil**, cliquer sur **Dossier / PDF**. Le même lien est disponible dans Conseils.
+1. Choisir le trimestre, puis cocher les élèves souhaités. **Toute la classe** et **Aucun élève** s’appliquent à toute la liste, même si une recherche est active.
+2. Choisir le récapitulatif de classe et, si nécessaire, les avis détaillés ou les brouillons/textes à vérifier. Les synthèses validées sont seules reproduites par défaut. Les états et conflits restent indiqués.
+3. Vérifier l’aperçu. **Une nouvelle page par élève** permet d’obtenir des fiches séparées à l’impression ; sinon le dossier est compact.
+4. **Imprimer / PDF** ouvre l’impression de Chrome : choisir **Enregistrer au format PDF** pour conserver un PDF. **Conserver le dossier** télécharge un fichier HTML autonome, à ouvrir dans un navigateur, y compris sans connexion.
+
+Les notes personnelles PP, documents joints, audios et données TEST ne sont pas inclus. Les avis et synthèses choisis restent des textes à relire avant utilisation du dossier. Le fichier téléchargé ne se met pas à jour automatiquement. Il n’est ni envoyé aux familles ni ajouté automatiquement au Drive. Les écrans restent utilisables en paysage avec un défilement dans les panneaux ; l’impression sur la Galaxy Tab S7 reste à essayer physiquement.

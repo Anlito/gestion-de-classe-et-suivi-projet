@@ -139,3 +139,11 @@
 .pp-council-board .stack>.row{display:flex;align-items:center;gap:12px;}
 
 .pp-council-row>.button-group{flex-direction:column;margin:0;gap:12px;}
+
+.pp-council-export{display:grid;grid-template-columns:310px minmax(0,1fr);gap:16px;padding:16px;overflow:hidden;}
+.pp-council-export>.panel{overflow:hidden;min-width:0;}
+.pp-council-export .check-row{min-height:44px;align-items:center;}
+.pp-council-export .pp-panel-foot p{margin:0;}
+.pp-export-preview{background:white;color:#202434;padding:24px;}
+.pp-council-export .pp-export-pupil[hidden]{display:none!important;}
+@media(max-width:780px){.pp-council-export{display:flex;flex-direction:column;overflow:auto}.pp-council-export>.panel{flex:none;min-height:300px}.pp-council-export .panel-scroll{max-height:500px}}

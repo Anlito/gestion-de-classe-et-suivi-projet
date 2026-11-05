@@ -1,10 +1,21 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.18 (5 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.19 (5 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
+
+### Dossier de préparation du conseil · version 19
+Depuis **Avancement du conseil → Dossier / PDF**, choisir le trimestre, les élèves et les rubriques. Le récapitulatif collectif précède les élèves, dans l’ordre de la liste du Carnet. Aperçu en paysage, impression/PDF via Chrome, téléchargement d’un fichier HTML autonome consultable hors connexion. Format compact par défaut, nouvelle page par élève en option. Aucun téléchargement supplémentaire de moteur ou modèle pour cet outil.
+
+Par défaut, seuls les textes des synthèses actuellement validées, sans conflit ni source périmée, sont reproduits. Les autres états sont indiqués sans leur contenu. L’inclusion des brouillons/textes à vérifier et celle des avis détaillés sont deux choix explicites ; les conflits et validations devenues périmées ne sont pas présentés comme des validations actuelles. Les TEST, notes PP, aménagements de la fiche, documents joints et audios ne sont jamais récupérés par cette vue. Le contenu des avis ou synthèses eux-mêmes est reproduit tel que sélectionné ; vérifier l’aperçu avant toute utilisation du dossier.
+
+Le modèle de document est construit à partir d’une liste blanche de champs et du périmètre année/classe/trimestre/élèves. Aucun accès aux binaires ni aucune écriture de données. Le HTML autonome n’a ni script, ressource distante, synchronisation ni formulaire, et les textes sont échappés. Un téléchargement est un instantané : les modifications ultérieures du Carnet ne changent pas le fichier. L’impression recalcule les données avant d’ouvrir la fenêtre de Chrome. La numérotation A4 a été vérifiée dans le Chrome installé ; l’impression physique sur Android reste à essayer.
+
+Fichiers : `js/pp-council-export-rules.js`, `js/pp-council-export.js`, `js/screens/pp-council-export.js`, route, liens depuis Conseils/Avancement, CSS et cache SW. Vérifications : 194 tests automatiques, suite PP habituelle (52 contrôles), sélection/désélection et changement de trimestre, options, exclusion des élèves non choisis et des données personnelles hors conseil, HTML autonome sans requête réseau, texte HTML littéral non exécuté, bouton d’impression, paysage 1280 × 752 / 1024 × 640. PDF fictif de cinq pages créé dans Chrome puis extrait et rendu : dernier paragraphe présent, aucune commande de l’interface ni marqueur de données exclues, pagination et rendu contrôlés. Aucun fichier d’élève réel exporté pendant ces essais.
+
+Le passage en production reste conditionné à la recette physique tablette/portable, à la synchronisation/restauration Drive réelle et à la reprise d’une copie des données actuelles. Les CSV non fournis et les compléments de suivi approfondi restent à compléter selon le périmètre de première version. L’aide à la rédaction demeure guidée, sans synthèse automatique des avis. Aucune publication GitHub du nouveau Carnet.
 
 ### Relecture et choix des synthèses · version 18
 Depuis Avancement du conseil, **Relire** ouvre les avis actuels à gauche et les synthèses à départager à droite. Accès également dans Conseils via **Relire les synthèses**, pour un élève ou la conclusion collective. Choisir explicitement une version de chaque avis concurrent et la synthèse de départ, corriger le texte, puis confirmer la relecture. **Garder en brouillon** et **Valider le texte retenu** sont deux actions distinctes. Une première synthèse peut aussi être rédigée s’il n’en existe pas.
