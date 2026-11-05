@@ -132,7 +132,7 @@ function classRecap(c) {
       <div class="button-group">${pp.enabled('rencontres') ? html`<a class="btn accent" href="#/pp/rencontres">Rencontres parents–PP</a>` : ''}${pp.enabled('alertes') ? html`<a class="btn accent" href="#/pp/alertes">Alertes PP · seuils et suivi</a>` : ''}</div>${classReportSummary(c.id)}<p class="muted small pp-source-title">Ces relevés conservent leurs périodes. Les appels du Carnet restent distincts. Les alertes PP utilisent la dernière période d’assiduité disponible.</p>`)}
       ${pp.enabled('conseils') ? panel(`Conseil · trimestre ${trimester}`, html`<div class="info-box small-text">${pupilsWithAdvice} élève${pupilsWithAdvice > 1 ? 's' : ''} avec un avis ou une synthèse enregistré${pupilsWithAdvice > 1 ? 's' : ''} sur ${pupils.length}. Ce nombre ne mesure pas la complétude des avis.</div>
       <h3 class="pp-source-title">Avis généraux des professeurs</h3>${collective.filter(r => r.category !== 'synthese').map(r => html`<article class="pp-record"><strong>${[r.subject, r.teacher].filter(Boolean).join(' · ') || 'Avis collectif'}</strong><div class="pp-record-text">${r.text}</div></article>`)}${collective.some(r => r.category !== 'synthese') ? '' : html`<p class="muted small">Aucun avis collectif renseigné pour ce trimestre.</p>`}
-      <h3 class="pp-source-title">Conclusion générale de la classe</h3>${collective.filter(r => r.category === 'synthese').map(r => html`<article class="pp-record"><span class="chip${r.status === 'validated' ? ' pos' : ''}">${r.status === 'validated' ? 'Validé' : 'Brouillon'}</span><div class="pp-record-text">${r.text}</div></article>`)}${collective.some(r => r.category === 'synthese') ? '' : html`<p class="muted small">La conclusion générale est à préparer.</p>`}`, html`<a class="btn accent" href="#/pp/classe/${c.id}/conseils">Préparer le conseil de la classe</a>`) : panel('Suivi collectif', html`<p class="muted">Le module Conseils est masqué. Les données collectives sont conservées.</p>`) }
+      <h3 class="pp-source-title">Conclusion générale de la classe</h3>${collective.filter(r => r.category === 'synthese').map(r => html`<article class="pp-record"><span class="chip${r.status === 'validated' ? ' pos' : ''}">${r.status === 'validated' ? 'Validé' : 'Brouillon'}</span><div class="pp-record-text">${r.text}</div></article>`)}${collective.some(r => r.category === 'synthese') ? '' : html`<p class="muted small">La conclusion générale est à préparer.</p>`}`, html`<div class="button-group"><a class="btn accent" href="#/pp/classe/${c.id}/avancement/${trimester}">Avancement du conseil</a><a class="btn" href="#/pp/classe/${c.id}/conseils">Préparer le conseil de la classe</a></div>`) : panel('Suivi collectif', html`<p class="muted">Le module Conseils est masqué. Les données collectives sont conservées.</p>`) }
     </main></div>`;
 }
 function profile(s, c) {
@@ -150,12 +150,14 @@ export default {
     if (params.classId && !pp.active(params.classId)) { go('#/pp', { replace: true }); return null; }
     const classId = params.classId || (!params.studentId && cls.length === 1 ? cls[0].id : null);
     if (classId && !params.section) return classRecap(db.get('classes', classId));
-    const classCouncil = params.section === 'conseils';
+    const classCouncil = !params.studentId && params.section === 'conseils';
+    const requestedPeriod=Number(params.trimester);if(classCouncil&&[1,2,3].includes(requestedPeriod))recapPeriod=requestedPeriod;
     if (classCouncil && !pp.enabled('conseils')) { go(`#/pp/classe/${classId}`, { replace: true }); return null; }
     let s = params.studentId ? db.get('students', params.studentId) : null;
     if (params.studentId && (!s || !pp.active(s.classId))) { go('#/pp', { replace: true }); return null; }
     if (classCouncil && (st.classId !== classId || st.studentId || !st.collective || st.tab !== 'conseils' || st.trimester !== recapPeriod)) { keepDraft(); st.classId = classId; st.studentId = ''; st.collective = true; st.tab = 'conseils'; st.trimester = recapPeriod; restoreDraft(); }
     if (s && (s.id !== st.studentId || s.classId !== st.classId || st.collective)) { keepDraft(); st.studentId = s.id; st.classId = s.classId; st.collective = false; restoreDraft(); }
+    if(s&&params.section==='conseils'&&pp.enabled('conseils')&&(st.tab!=='conseils'||st.trimester!==requestedPeriod)){keepDraft();st.tab='conseils';st.trimester=[1,2,3].includes(requestedPeriod)?requestedPeriod:1;restoreDraft();}
     const c = db.get('classes', s?.classId || classId);
     if (!tabs().some(t => t[0] === st.tab)) st.tab = tabs()[0]?.[0] || 'none';
     const title = s ? model.fullName(s) : classCouncil ? c.name + ' · Conseil de classe' : 'Mon suivi PP';
@@ -168,7 +170,7 @@ export default {
         ${st.tab === 'conseils' ? html`<select class="input pp-trimester" data-change="trimester" aria-label="Trimestre">${[1, 2, 3].map(t => html`<option value="${t}" ${t === st.trimester ? 'selected' : ''}>Trimestre ${t}</option>`)}</select>` : ''}</div>
       <main class="content pp-detail">${classCouncil ? classSidebar(c, 'conseil') : profile(s, c)}
       ${panel(st.collective ? `Conseil · ${c.name}` : st.tab==='vie'?'Vie scolaire':st.tab === 'documents' ? 'Documents associés' : st.tab === 'conseils' ? `Conseil · trimestre ${st.trimester}` : st.tab === 'actions' ? 'Actions de suivi' : 'Historique personnel', html`
-        ${st.tab==='conseils'?html`<div class="button-group"><a class="btn accent" href="#/pp/${st.collective?'classe/'+st.classId:'eleve/'+st.studentId}/appreciation/${st.trimester}">Préparer une appréciation</a></div>`:''}${s && st.tab === 'journal' ? pp.meetingsOf(s.id).map(e => html`<article class="pp-record"><span class="chip">Réunion liée à l’agenda</span><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut} · ${e.lieu || ''}</span><button class="btn soft small" data-click="meeting" data-id="${e.id}">Ouvrir la réunion</button></article>`) : ''}
+        ${st.tab==='conseils'?html`<div class="button-group"><a class="btn" href="#/pp/classe/${st.classId}/avancement/${st.trimester}">Avancement du conseil</a><a class="btn accent" href="#/pp/${st.collective?'classe/'+st.classId:'eleve/'+st.studentId}/appreciation/${st.trimester}">Préparer une appréciation</a></div>`:''}${s && st.tab === 'journal' ? pp.meetingsOf(s.id).map(e => html`<article class="pp-record"><span class="chip">Réunion liée à l’agenda</span><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut} · ${e.lieu || ''}</span><button class="btn soft small" data-click="meeting" data-id="${e.id}">Ouvrir la réunion</button></article>`) : ''}
         ${st.tab==='vie'?schoolHistory(st.studentId):''}${bulletinEvolution()}${bulletinResults()}${list.length ? list.map(entryView) : html`<p class="muted">Aucun élément dans cette rubrique.</p>`}
         ${builtin.length ? html`<h3 class="pp-source-title">Notes du Carnet</h3>${builtin.map(n => html`<article class="pp-record"><span class="chip">Carnet · note libre</span><div class="pp-record-text">${n.text}</div><span class="muted small">${fmtDate(n.at)}</span></article>`)}` : ''}`, html`<button class="btn soft small" data-click="newEntry">${icon.plus}Nouvel élément</button>`)}
       ${panel(st.editId ? 'Modifier · nouvelle version' : st.tab==='vie'?'Compléter une mesure':'Ajouter au suivi', editor(), html`<span class="muted small">${st.file ? 'Fichier prêt à joindre' : 'Enregistrement local, puis Drive si activé'}</span><button class="btn accent" data-click="save" ${st.busy || st.tab === 'none' ? 'disabled' : ''}>${st.busy ? 'Enregistrement…' : 'Enregistrer'}</button>`)}
@@ -189,8 +191,8 @@ export default {
       const text = st.filter.toLocaleLowerCase('fr');
       document.querySelectorAll('[data-pp-pupil]').forEach(a => { a.hidden = !a.textContent.toLocaleLowerCase('fr').includes(text); });
     },
-    tab(el) { keepDraft(); st.tab = el.dataset.key; st.collective = false; restoreDraft(); refresh(); },
-    trimester(el, e, params) { keepDraft(); st.trimester = Number(el.value); if (params?.section === 'conseils') recapPeriod = st.trimester; restoreDraft(); refresh(); },
+    tab(el,e,params) { keepDraft(); st.tab = el.dataset.key; st.collective = false; restoreDraft(); if(params?.studentId&&params.section==='conseils'){go('#/pp/eleve/'+params.studentId);return;}refresh(); },
+    trimester(el, e, params) { keepDraft(); if(params?.trimester){go('#/pp/'+(params.studentId?'eleve/'+params.studentId:'classe/'+params.classId)+'/conseils/'+el.value);return;}st.trimester = Number(el.value); if (params?.section === 'conseils') recapPeriod = st.trimester; restoreDraft(); refresh(); },
     recapTrimester(el) { recapPeriod = Number(el.value); refresh(); },
     kind(el) { st.form.kind = el.value; keepDraft(); refresh(); },
     kindCouncil(el) { st.form.category = el.value; keepDraft(); refresh(); },

@@ -1,0 +1,13 @@
+import {councilProgress} from '../js/pp-council-progress.js';
+export const tests=[];const test=(name,fn)=>tests.push({name,fn});const eq=(a,b)=>{if(a!==b)throw Error(`${a} ≠ ${b}`);};
+const student={id:'p',classId:'c'},base={kind:'council',year:'2026–2027',classId:'c',studentId:'p',trimester:1,text:'Contenu'};
+const row=(id,data={})=>({...base,id,entityId:id,category:'avis',...data});
+const board=records=>councilProgress({students:[student],records,classId:'c',year:base.year,trimester:1});
+test('Conseil : absence de synthèse à préparer malgré un avis',()=>{const b=board([row('a')]);eq(b.pupils[0].state,'missing');eq(b.pupils[0].adviceCount,1);});
+test('Conseil : brouillon et validation distincts',()=>{eq(board([row('s',{category:'synthese',status:'draft'})]).pupils[0].state,'draft');eq(board([row('s',{category:'synthese',status:'validated'})]).pupils[0].state,'validated');});
+test('Conseil : nouvelle version de source impose relecture',()=>{const b=board([row('a2'),row('s',{category:'synthese',status:'validated',writingBasis:{sourceIds:['a1']}})]);eq(b.pupils[0].state,'stale');eq(b.counts.validated,0);});
+test('Conseil : source inchangée conserve la validation',()=>{eq(board([row('a'),row('s',{category:'synthese',status:'validated',writingBasis:{sourceIds:['a']}})]).pupils[0].state,'validated');});
+test('Conseil : synthèses indépendantes multiples à vérifier',()=>{eq(board([row('s1',{category:'synthese',status:'validated'}),row('s2',{category:'synthese',status:'draft'})]).pupils[0].state,'review');});
+test('Conseil : branches concurrentes comptent un avis et signalent un conflit',()=>{const b=board([row('a1',{entityId:'a'}),row('a2',{entityId:'a'})]);eq(b.pupils[0].adviceCount,1);eq(b.pupils[0].state,'review');});
+test('Conseil : autres trimestres, années, classes et TEST exclus',()=>{const b=board([row('t2',{trimester:2}),row('y',{year:'2025–2026'}),row('c',{classId:'other'}),row('test',{testMode:true,category:'synthese',status:'validated'})]);eq(b.pupils[0].state,'missing');eq(b.pupils[0].adviceCount,0);eq(b.testCount,1);});
+test('Conseil : collectif séparé des élèves et effectif réel',()=>{const b=board([row('s',{studentId:null,category:'synthese',status:'validated'}),row('other',{studentId:'absent'})]);eq(b.collective.state,'validated');eq(b.pupils[0].state,'missing');eq(Object.values(b.counts).reduce((n,v)=>n+v,0),1);});

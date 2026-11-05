@@ -1,4 +1,4 @@
-# Suivi PP — Version de travail 1.23.0-pp.16
+# Suivi PP — Version de travail 1.23.0-pp.17
 
 Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil. Elle est distincte de votre application actuellement en ligne, qui n’a pas été modifiée.
 
@@ -103,3 +103,16 @@ Dans **Conseils**, choisir le trimestre puis **Préparer une appréciation**. Po
 4. Cliquer sur **Enregistrer ce nouveau brouillon**. Le retrouver dans Conseils pour la validation finale. Vos autres synthèses restent conservées. Les sauvegardes suivantes depuis l’écran de préparation créent une nouvelle version du même brouillon.
 
 Cette aide fonctionne localement sans téléchargement supplémentaire. Elle assemble vos formulations ; elle n’analyse pas seule les avis pour juger l’élève. Les avis TEST sont exclus : pour essayer avec un élève fictif, saisir un avis ordinaire fictif dans Conseils. Ne pas fermer l’application avant d’enregistrer les modifications que vous souhaitez conserver.
+
+## Avancement du conseil
+Dans **Récap classe**, choisir le trimestre puis **Avancement du conseil**. Le même accès est disponible dans la rubrique Conseils de chaque élève et dans le conseil collectif.
+
+- **À préparer** : aucune synthèse non vide enregistrée.
+- **Brouillon** : une synthèse existe et reste à valider dans Conseils.
+- **Validée** : une synthèse validée, sans conflit ni changement connu d’un avis utilisé pour sa rédaction.
+- **À vérifier** : plusieurs versions d’un avis ou plusieurs synthèses à départager.
+- **À relire** : un avis utilisé pour préparer le texte a changé ou n’est plus disponible.
+
+Utiliser le filtre d’état et la recherche, puis **Ouvrir** pour accéder directement aux Conseils du bon élève et trimestre. La conclusion de classe figure séparément à gauche. Le nombre d’avis indique seulement les éléments enregistrés : il ne mesure pas la participation de toutes les matières. Les avis TEST sont exclus.
+
+Cette vue ne valide, ne remplace et n’efface aucun texte. Les relectures et conflits restent des indications à examiner dans Conseils ; cette version n’ajoute pas d’acquittement ou de fusion automatique.

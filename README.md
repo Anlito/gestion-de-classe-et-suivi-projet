@@ -1,10 +1,19 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.16 (5 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.17 (5 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
+
+### Avancement du conseil · version 17
+Depuis le récap classe ou la rubrique Conseils, **Avancement du conseil** ouvre une vue par trimestre, avec une ligne par élève, le nombre d’avis enregistrés et l’état de la synthèse : À préparer, Brouillon, Validée, À vérifier ou À relire. Recherche et filtre d’état, compteurs des élèves et état séparé de la conclusion de classe. Le bouton Ouvrir conduit directement aux Conseils du bon élève et du bon trimestre ; une route dédiée permet également d’ouvrir le conseil collectif au trimestre voulu. Le changement de trimestre et les autres onglets de la fiche restent utilisables depuis ces liens.
+
+Le calcul utilise uniquement les versions courantes de l’année, classe et trimestre choisis. Les TEST sont exclus et leur nombre est indiqué. Plusieurs branches d’un même avis ne comptent qu’un avis et déclenchent À vérifier ; plusieurs synthèses indépendantes également, même si l’une est validée. Un avis source changé ou absent pour une synthèse préparée avec provenance impose À relire et retire l’élève du compteur Validée, sans modifier l’état enregistré de son texte. Une validation manuelle sans provenance connue reste comptée comme telle : ce suivi ne prétend pas garantir la complétude des avis ni que toutes les matières ont répondu.
+
+Vue en lecture seule : aucune migration, sauvegarde supplémentaire, notification ou modification automatique des textes. Les conflits et relectures sont signalés, sans résolution ni acquittement automatique dans cette vue. Les avis et synthèses se consultent/modifient dans Conseils ; les versions concurrentes restent conservées. Fichiers : `js/pp-council-progress.js`, `js/screens/pp-council-progress.js`, routes app, liens et contexte trimestre dans suivi-pp, CSS paysage et cache SW.
+
+Vérifications : 176 tests automatiques, dont huit sur les états, les périmètres, les conflits, les sources changées, les TEST et le collectif ; suite navigateur PP habituelle (52 contrôles) ; parcours dédié avec cinq élèves fictifs couvrant les cinq états, accès depuis le récap, filtres/recherche, liens élève et classe, changement de trimestre, retour aux autres onglets et rechargement. Affichage 1280 × 752 et 1024 × 640 sans défilement global. Aucun compte réel ou service externe sollicité pour ces essais. Copie locale, rien publié sur GitHub.
 
 ### Préparer une appréciation · version 16
 Depuis Conseils, **Préparer une appréciation** ouvre les avis des professeurs du trimestre choisi pour l’élève ou la classe entière. Sélectionner les avis retenus, choisir son bilan, saisir ses constats, nuances et conseils ; les félicitations restent facultatives et explicites. Un bouton prépare une formulation suivant la structure demandée : bilan, constats nuancés, conseils, puis félicitations éventuelles. Le texte final est librement modifiable. Il s’agit d’une rédaction guidée déterministe locale, sans modèle de langage ni déduction automatique de jugement à partir des notes. Aucune donnée n’est envoyée.

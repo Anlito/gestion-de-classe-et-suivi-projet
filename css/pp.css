@@ -126,3 +126,14 @@
 @media(max-width:780px){.pp-audio-grid{display:flex;flex-direction:column;overflow:auto}.pp-audio-grid>.panel{flex:none;min-height:280px}.pp-audio-grid .panel-scroll{max-height:450px}}
 
 .pp-audio-grid .pp-panel-foot .button-group {margin:0;}
+
+.pp-council-board{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;padding:16px;overflow:hidden;}
+.pp-council-board .panel{min-width:0;overflow:hidden;}
+.pp-council-board .pp-toolbar{flex-wrap:wrap;flex-shrink:0;}
+.pp-council-board .pp-toolbar>.input{min-width:130px;max-width:100%;}
+.pp-council-row{display:grid;grid-template-columns:minmax(0,1fr) 120px auto;gap:16px;align-items:center;border-bottom:1px solid var(--line);padding:16px 0;}
+.pp-council-row p{margin:6px 0;overflow-wrap:anywhere;}
+.pp-council-row .btn{min-height:48px;}
+@media(max-width:780px){.pp-council-board{grid-template-columns:1fr;overflow:auto}.pp-council-board .panel{min-height:280px}.pp-council-board .panel-scroll{max-height:450px}.pp-council-row{grid-template-columns:minmax(0,1fr) auto}.pp-council-row>a{grid-column:1/-1}}
+
+.pp-council-board .stack>.row{display:flex;align-items:center;gap:12px;}
