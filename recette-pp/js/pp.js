@@ -1,0 +1,104 @@
+import * as db from './db.js';
+import * as model from './model.js';
+import {taskDetails} from './pp-task-rules.js';
+import { isPPClass, revisionHeads, PP_TOOLS, DOCUMENT_TYPES, CARNET_TYPES, validISODate, PP_ROLES, MEASURE_TYPES } from './pp-rules.js';
+export { PP_TOOLS, DOCUMENT_TYPES, CARNET_TYPES, revisionHeads };
+
+export const classes = () => model.classes().filter(c => isPPClass(c, model.schoolYear()));
+export const active = classId => isPPClass(db.get('classes', classId), model.schoolYear());
+export const hasPP = () => classes().length > 0;
+export const toolVersions=key=>revisionHeads(db.where('ppRecords',r=>r.kind==='toolSetting'&&r.tool===key));
+export const toolConflict=key=>new Set(toolVersions(key).map(r=>r.value)).size>1;
+export const enabled = key => PP_TOOLS.some(t => t.key === key) && (toolVersions(key).length?toolVersions(key).every(r=>r.value===true):db.getMeta('ppTool:' + key, true) !== false);
+export function setEnabled(key, value) {
+  if (!PP_TOOLS.some(t => t.key === key)) throw new Error('Outil inconnu.');
+  const id=db.uid(),row={id,entityId:'pp-tool-'+key,parents:toolVersions(key).map(r=>r.id),kind:'toolSetting',tool:key,value:!!value,year:'*',at:new Date().toISOString()};
+  const undo=db.commit(w=>{w.put('ppRecords',row);w.meta('ppTool:'+key,!!value);});
+  return {entry:row,undo};
+}
+export const records = ({ studentId, classId, kind } = {}) => db.where('ppRecords', r =>
+  r.year === model.schoolYear() && (!studentId || r.studentId === studentId) && (!classId || r.classId === classId) && (!kind || r.kind === kind));
+export const latest = filters => revisionHeads(records(filters));
+export function requireStudent(studentId) {
+  const s = db.get('students', studentId);
+  if (!s || !active(s.classId)) throw new Error('Choisissez un élève d’une classe dont vous êtes PP.');
+  return s;
+}
+export function buildEntry(data, previous = null) {
+  const s = data.studentId ? requireStudent(data.studentId) : null;
+  const classId = s ? s.classId : data.classId;
+  if (!active(classId)) throw new Error('Cette classe n’a pas de suivi PP actif.');
+  if (previous && (!db.get('ppRecords', previous.id) || previous.year!==model.schoolYear() || previous.studentId !== (s?.id || null) || previous.classId !== classId)) throw new Error('La version source a changé. Rouvrez la fiche.');
+  const kind = previous?.kind || data.kind;
+  if(kind==='task'&&data.related&&data.related!==previous?.related){
+    const separator=String(data.related).indexOf(':'),type=String(data.related).slice(0,separator),ref=String(data.related).slice(separator+1);
+    const target=type==='event'?db.get('evenements',ref):type==='record'?latest({studentId:s?.id}).find(r=>r.entityId===ref&&r.entityId!==previous?.entityId&&['council','document','note','progress','measure','procedure','meetingPreparation','alertState'].includes(r.kind)):null;
+    if(!s||!target||target.studentId!==s.id||(target.classId&&target.classId!==classId)||target.cancelled)throw Error('Choisissez un élément lié au même élève.');
+  }
+  const tool = { measure:'vieScolaire', task: 'actions', note: 'notes', progress: 'notes', carnet: 'carnet', document: 'documents', council: 'conseils' }[kind];
+  if (!tool || !enabled(tool)) throw new Error('Cet outil est désactivé.');
+  if (data.due && !validISODate(data.due)) throw new Error('Vérifiez la date d’échéance.');
+  if (data.date && !validISODate(data.date)) throw new Error('Vérifiez la date.');
+  if (kind === 'carnet' && !CARNET_TYPES.includes(data.category)) throw new Error('Choisissez une catégorie du carnet scolaire.');
+  if (kind === 'council' && ![1, 2, 3].includes(Number(data.trimester))) throw new Error('Choisissez un trimestre.');
+  let report=null, duration=null;
+  if(kind==='measure') {
+    if(!s)throw new Error('Choisissez un élève pour cette mesure.');
+    if(data.status&&!['prévue','effectuée','reportée','annulée'].includes(data.status))throw new Error('État de mesure inconnu.');
+    if(!MEASURE_TYPES.includes(data.category)||!String(data.reason||'').trim()) throw new Error('Choisissez le type de mesure et renseignez le motif.');
+    if(data.authorRole && !PP_ROLES.includes(data.authorRole)) throw new Error('Rôle de l’auteur inconnu.');
+    if(data.plannedDate && !validISODate(data.plannedDate)) throw new Error('Vérifiez la date prévue.');
+    if(data.durationMinutes!=null && data.durationMinutes!=='') { duration=Number(data.durationMinutes);if(!Number.isSafeInteger(duration)||duration<0)throw new Error('La durée doit être un nombre entier de minutes positif ou nul.'); }
+    if(data.reportEntityId) {
+      const reports=latest({studentId:s?.id,kind:'periodReport'}).filter(r=>r.entityId===data.reportEntityId && r.profile==='discipline');
+      if(reports.length!==1)throw new Error('Relevé absent ou versions concurrentes : vérifiez la source.'); report=reports[0];
+      if(!report.columns.some(c=>c.id===data.columnId))throw new Error('Choisissez la colonne du relevé pour ce complément.');
+    }
+  }
+  if (kind !== 'council' && !(data.title || data.text || '').trim()) throw new Error('Renseignez le contenu.');
+  const id = db.uid();
+  let parents=previous?[previous.id]:[];
+  if(kind==='task'&&previous&&data.resolveConcurrent===true){const ids=latest({studentId:s?.id,kind:'task'}).filter(r=>r.entityId===previous.entityId).map(r=>r.id);if(!Array.isArray(data.expectedHeads)||data.expectedHeads.length!==ids.length||new Set(data.expectedHeads).size!==ids.length||!data.expectedHeads.every(id=>ids.includes(id)))throw Error('Les versions de l’action ont changé. Rechargez-la.');parents=ids;}
+  // Données explicites uniquement : aucune reprise de propriétés internes reçues d’un formulaire.
+  const entry = { id, entityId: previous?.entityId || id, parents, kind,
+    classId, studentId: s?.id || null, year: model.schoolYear(), at: new Date().toISOString(),
+    title: (data.title || '').trim(), text: (data.text || '').trim(), date: data.date || '', due: data.due || '',
+    status: data.status || (kind === 'council' ? 'draft' : 'todo'), category: data.category || '',
+    trimester: kind === 'council' ? Number(data.trimester) : undefined,
+    subject: data.subject || '', teacher: data.teacher || '',
+    ...(kind==='council'&&previous?.writingBasis?{writingBasis:previous.writingBasis}:{}),
+    ...(kind==='task'?taskDetails(data,previous):{}),
+    ...(kind==='measure'?{reason:String(data.reason||'').trim(),authorRole:data.authorRole||'',authorName:String(data.authorName||'').trim(),reportEntityId:report?.entityId||null,columnId:report?data.columnId:null,durationMinutes:duration,plannedDate:data.plannedDate||''}:{}),
+    testMode: report?.testMode === true || previous?.testMode === true, sourceYear: report?.sourceYear || previous?.sourceYear, sourceClass: report?.sourceClass || previous?.sourceClass,
+    blobId: data.blobId || previous?.blobId, fileName: data.fileName || previous?.fileName,
+    mimeType: data.mimeType || previous?.mimeType, size: data.size ?? previous?.size };
+  return entry;
+}
+export function saveEntry(data,previous=null){
+  const entry=buildEntry(data,previous),undo=db.commit(w=>w.put('ppRecords',entry));return {entry,undo};
+}
+export async function attachDocument(studentId, file, category, title) {
+  const s = requireStudent(studentId);
+  if (!enabled('documents')) throw new Error('L’outil Documents est désactivé.');
+  if (!DOCUMENT_TYPES.includes(category)) throw new Error('Catégorie de document inconnue.');
+  if (!file?.size || file.size > 20 * 1048576) throw new Error('Choisissez un fichier non vide de 20 Mo maximum.');
+  const allowed = /^(application\/pdf|image\/(jpeg|png|webp)|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|application\/msword)$/;
+  const inferred = /\.pdf$/i.test(file.name) ? 'application/pdf' : '';
+  const mimeType = file.type || inferred;
+  if (!allowed.test(mimeType)) throw new Error('Formats acceptés : PDF, JPEG, PNG, WebP, DOC et DOCX.');
+  const blobId = 'pp-file-' + db.uid();
+  const entry = { id: db.uid(), entityId: db.uid(), parents: [], kind: 'document', studentId: s.id, classId: s.classId,
+    year: model.schoolYear(), at: new Date().toISOString(), title: (title || file.name).trim(), category,
+    blobId, fileName: file.name, mimeType, size: file.size };
+  const blob = new Blob([file], { type: mimeType });
+  const undo = db.commit(w => { w.put('photos', { id: blobId, blob }); w.put('ppRecords', entry); });
+  try{await db.flush();await db.verifyStored('ppRecords', entry.id, entry.updatedAt);await db.verifyStored('photos', blobId);}catch(e){await undo();await db.flush();throw e;}
+  return { entry, undo };
+}
+export function removeEntry(id) {
+  const row = db.get('ppRecords', id); if (!row) return;
+  requireStudent(row.studentId);
+  if (row.kind !== 'document') throw new Error('L’historique de ce contenu est conservé.');
+  return db.commit(w => { w.del('ppRecords', id); if (row.blobId) w.del('photos', row.blobId); });
+}
+export const meetingsOf = studentId => db.where('evenements', e => e.studentId === studentId).sort((a, b) => (a.date + a.debut).localeCompare(b.date + b.debut));

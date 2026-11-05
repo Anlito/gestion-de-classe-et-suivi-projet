@@ -1,0 +1,851 @@
+# Carnet de classe — gestion de classe et suivi de projet
+
+## Version de travail Suivi PP — 1.23.0-pp.20 (5 novembre 2026)
+
+Évolutions développées sur une branche de travail, **non publié sur GitHub Pages**.
+Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
+Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
+
+### Compléments de suivi et recette de reprise · version 20
+
+Actions : responsable, état À faire / En cours / Fait, échéance, date de bilan, résultat observé, suite à donner et lien vers un rendez-vous ou un élément du même élève. Les changements créent des versions ; les branches concurrentes peuvent être départagées explicitement avec contrôle des identifiants affichés. Les réalisations sont datées, la réouverture conserve l’historique. Aucun message au responsable indiqué.
+
+Démarches : demande/en attente/reçu/à compléter/clôturé, interlocuteur, dates des échanges, validité et renouvellement distincts, association de plusieurs pièces. Joindre une pièce reçue enregistre ensemble le binaire, le document et la nouvelle version de la démarche. Une relance actualise une seule action liée ; deux créations hors ligne ont une identité commune et restent des branches à départager. Une démarche close doit être rouverte avant ajout de pièce ou relance. La réception ne prolonge jamais automatiquement la validité.
+
+Rencontres : préparation depuis la fiche ou le détail de l’événement, sélection de versions exactes des faits sur une période, notes/questions, compte rendu personnel, décisions, prochain point et suite à donner. Les versions précédemment retenues restent référencées si les faits changent. Les périodes importées sont proposées quand elles croisent la période choisie, sans découpage de leurs cumuls. Une action de suite peut être créée/actualisée explicitement. Pas de compte rendu automatiquement envoyé aux familles.
+
+Qualité et évolution : derniers imports, bulletin et présence d’avis par élève/trimestre, versions concurrentes et démarches attendues/échues. Deux relevés du même élève/type/établissement peuvent être affichés côte à côte. Écart calculé seulement pour périodes sans chevauchement de même durée calendaire et schéma identique ; absence de donnée distincte de zéro. Aucune soustraction de cumuls chevauchants, comparaison de taux inventée, ni attribution d’un changement à une action. La présence d’un avis ne prouve pas que toutes les matières ont répondu.
+
+CSV supplémentaires : **Configurer un autre CSV** permet d’indiquer séparateur, identité (ensemble ou nom/prénom séparés), classe, établissement, période et colonnes de cumuls d’assiduité ou de mesures. Aperçu par élève et deux confirmations obligatoires. Cellules vides, décimales, unités textuelles et en-têtes ambigus refusés. Aucune valeur manquante transformée en zéro. Source CSV conservée avec son bon type, doublon du fichier bloqué. Cette configuration ne devine pas un export inconnu et n’importe pas encore des lignes d’événements détaillés ou des coordonnées administratives ; ces adaptations nécessitent leurs exemples. Les profils PDF et la liste d’élèves CSV restent inchangés.
+
+Mes outils : réglages PP versionnés et communs à toutes les classes/années. Deux choix opposés issus de synchronisation sont signalés ; outil masqué jusqu’au choix explicite « Retenir activé / masqué ». Les anciens réglages meta sont repris en l’absence de version. Les écritures PP sensibles contrôlent le stockage et annulent leurs ajouts après échec. Une exception synchrone IndexedDB n’empêche plus les écritures suivantes. Les données ne sont pas migrées dans un nouveau schéma : ppRecords et le format de sauvegarde 2 existants accueillent ces ajouts.
+
+Fichiers : pp-task-rules/ui, pp-followup-core, pp-procedures, pp-meeting-preparation, pp-comparison-rules, pp-csv-adapter et écrans associés ; routes, intégrations agenda/fiches/récap, stockage, réglages et cache hors ligne. Guide SUIVI-PP à jour. Vérifications : 208 tests de règles ; parcours dédiés actions/démarches/rencontres, réception et restauration de pièce, liens par élève, relances uniques, résolution des branches et des réglages, interruption de transaction avec retour à l’état initial, comparaison et CSV paramétré ; paysages 1280 × 752 et 1024 × 640 sans défilement global. Régression PP habituelle : 52 contrôles réussis. Relecture des conseils relancée après les changements de stockage.
+
+Sauvegarde réelle du 5 novembre fournie par l’utilisatrice restaurée en navigateur isolé, réseau externe bloqué : 13 classes, 331 élèves, 305 photos, 8 événements et tous les autres contenus conservés exactement, sauf réglages propres à l’appareil volontairement non repris. Réexport en format 2 et rechargement vérifiés ; aucune référence de photo/classe manquante. Le fichier privé original est intact, hors dépôt et hors archive. Cette vérification ne remplace pas la synchronisation réelle tablette/portable. L’utilisatrice a confirmé disposer des deux appareils et choisi de conserver l’aide à la rédaction guidée pour cette publication. Production toujours non remplacée à ce stade ; recette physique/Drive et publication restent à accomplir.
+
+### Dossier de préparation du conseil · version 19
+Depuis **Avancement du conseil → Dossier / PDF**, choisir le trimestre, les élèves et les rubriques. Le récapitulatif collectif précède les élèves, dans l’ordre de la liste du Carnet. Aperçu en paysage, impression/PDF via Chrome, téléchargement d’un fichier HTML autonome consultable hors connexion. Format compact par défaut, nouvelle page par élève en option. Aucun téléchargement supplémentaire de moteur ou modèle pour cet outil.
+
+Par défaut, seuls les textes des synthèses actuellement validées, sans conflit ni source périmée, sont reproduits. Les autres états sont indiqués sans leur contenu. L’inclusion des brouillons/textes à vérifier et celle des avis détaillés sont deux choix explicites ; les conflits et validations devenues périmées ne sont pas présentés comme des validations actuelles. Les TEST, notes PP, aménagements de la fiche, documents joints et audios ne sont jamais récupérés par cette vue. Le contenu des avis ou synthèses eux-mêmes est reproduit tel que sélectionné ; vérifier l’aperçu avant toute utilisation du dossier.
+
+Le modèle de document est construit à partir d’une liste blanche de champs et du périmètre année/classe/trimestre/élèves. Aucun accès aux binaires ni aucune écriture de données. Le HTML autonome n’a ni script, ressource distante, synchronisation ni formulaire, et les textes sont échappés. Un téléchargement est un instantané : les modifications ultérieures du Carnet ne changent pas le fichier. L’impression recalcule les données avant d’ouvrir la fenêtre de Chrome. La numérotation A4 a été vérifiée dans le Chrome installé ; l’impression physique sur Android reste à essayer.
+
+Fichiers : `js/pp-council-export-rules.js`, `js/pp-council-export.js`, `js/screens/pp-council-export.js`, route, liens depuis Conseils/Avancement, CSS et cache SW. Vérifications : 194 tests automatiques, suite PP habituelle (52 contrôles), sélection/désélection et changement de trimestre, options, exclusion des élèves non choisis et des données personnelles hors conseil, HTML autonome sans requête réseau, texte HTML littéral non exécuté, bouton d’impression, paysage 1280 × 752 / 1024 × 640. PDF fictif de cinq pages créé dans Chrome puis extrait et rendu : dernier paragraphe présent, aucune commande de l’interface ni marqueur de données exclues, pagination et rendu contrôlés. Aucun fichier d’élève réel exporté pendant ces essais.
+
+Le passage en production reste conditionné à la recette physique tablette/portable, à la synchronisation/restauration Drive réelle et à la reprise d’une copie des données actuelles. Les CSV non fournis et les compléments de suivi approfondi restent à compléter selon le périmètre de première version. L’aide à la rédaction demeure guidée, sans synthèse automatique des avis. Aucune publication GitHub du nouveau Carnet.
+
+### Relecture et choix des synthèses · version 18
+Depuis Avancement du conseil, **Relire** ouvre les avis actuels à gauche et les synthèses à départager à droite. Accès également dans Conseils via **Relire les synthèses**, pour un élève ou la conclusion collective. Choisir explicitement une version de chaque avis concurrent et la synthèse de départ, corriger le texte, puis confirmer la relecture. **Garder en brouillon** et **Valider le texte retenu** sont deux actions distinctes. Une première synthèse peut aussi être rédigée s’il n’en existe pas.
+
+La sauvegarde crée une nouvelle version du texte retenu avec toutes les synthèses courantes de ce seul périmètre comme parents. Chaque avis concurrent choisi crée une version avec ses branches comme parents. Ces écritures sont réunies dans une transaction contrôlée, sans supprimer les anciennes lignes ; elles restent consultables dans les volets **Versions anciennes des avis** et **Synthèses antérieures conservées**. La synthèse retient les identifiants exacts de tous les avis relus. Une modification, suppression ou arrivée d’avis ultérieure rouvre À relire. Une branche tardive issue d’un autre appareil rouvre À vérifier : aucune résolution automatique de conflit futur.
+
+Les TEST, autres élèves, autres classes, années et trimestres restent exclus. Une empreinte du contexte et la liste exacte des versions affichées sont vérifiées avant écriture. Toute évolution pendant la saisie bloque l’enregistrement et demande de recharger la relecture, avec confirmation si le texte non enregistré doit être abandonné. L’échec de confirmation du stockage annule la nouvelle transaction en mémoire et conserve les têtes précédentes. Aucun avis n’est réécrit en place ni texte validé sans clic explicite.
+
+Fichiers : `pp-council-review-rules.js`, `pp-council-review.js`, écran `pp-council-review.js`, routes app, liens depuis Conseils et Avancement, fraîcheur des avis dans pp-council-progress et cache SW. Métadonnées de provenance/résolution dans ppRecords : compatibles avec sauvegarde et synchronisation existantes, sans migration. Vérifications : 186 tests automatiques ; suite PP habituelle (52 contrôles) ; parcours dédié fusionnant deux branches d’avis et deux synthèses, validation et brouillon, rechargement, sauvegarde/restauration et consultation de l’historique, TEST exclus, nouvel avis rouvrant la relecture, arrivée pendant la saisie refusée, collectif séparé, branche tardive simulée et nouvelle résolution. Un abandon de transaction IndexedDB a été simulé : les têtes initiales ont été restaurées, sans fausse annonce de sauvegarde. Géométrie 1280 × 752 et 1024 × 640 vérifiée sans défilement global.
+
+Essais fictifs isolés, aucun compte Google réel. Le fonctionnement entre deux appareils physiques et le comportement des longues listes sur Galaxy Tab S7 restent à vérifier ; les règles de fusion ont été simulées localement. Aucun envoi à Pronote, ni publication GitHub. Les indications de lecture seule de la version 17 ci-dessous concernent la vue d’avancement, enrichie ici d’un accès séparé à la relecture.
+
+### Avancement du conseil · version 17
+Depuis le récap classe ou la rubrique Conseils, **Avancement du conseil** ouvre une vue par trimestre, avec une ligne par élève, le nombre d’avis enregistrés et l’état de la synthèse : À préparer, Brouillon, Validée, À vérifier ou À relire. Recherche et filtre d’état, compteurs des élèves et état séparé de la conclusion de classe. Le bouton Ouvrir conduit directement aux Conseils du bon élève et du bon trimestre ; une route dédiée permet également d’ouvrir le conseil collectif au trimestre voulu. Le changement de trimestre et les autres onglets de la fiche restent utilisables depuis ces liens.
+
+Le calcul utilise uniquement les versions courantes de l’année, classe et trimestre choisis. Les TEST sont exclus et leur nombre est indiqué. Plusieurs branches d’un même avis ne comptent qu’un avis et déclenchent À vérifier ; plusieurs synthèses indépendantes également, même si l’une est validée. Un avis source changé ou absent pour une synthèse préparée avec provenance impose À relire et retire l’élève du compteur Validée, sans modifier l’état enregistré de son texte. Une validation manuelle sans provenance connue reste comptée comme telle : ce suivi ne prétend pas garantir la complétude des avis ni que toutes les matières ont répondu.
+
+Vue en lecture seule : aucune migration, sauvegarde supplémentaire, notification ou modification automatique des textes. Les conflits et relectures sont signalés, sans résolution ni acquittement automatique dans cette vue. Les avis et synthèses se consultent/modifient dans Conseils ; les versions concurrentes restent conservées. Fichiers : `js/pp-council-progress.js`, `js/screens/pp-council-progress.js`, routes app, liens et contexte trimestre dans suivi-pp, CSS paysage et cache SW.
+
+Vérifications : 176 tests automatiques, dont huit sur les états, les périmètres, les conflits, les sources changées, les TEST et le collectif ; suite navigateur PP habituelle (52 contrôles) ; parcours dédié avec cinq élèves fictifs couvrant les cinq états, accès depuis le récap, filtres/recherche, liens élève et classe, changement de trimestre, retour aux autres onglets et rechargement. Affichage 1280 × 752 et 1024 × 640 sans défilement global. Aucun compte réel ou service externe sollicité pour ces essais. Copie locale, rien publié sur GitHub.
+
+### Préparer une appréciation · version 16
+Depuis Conseils, **Préparer une appréciation** ouvre les avis des professeurs du trimestre choisi pour l’élève ou la classe entière. Sélectionner les avis retenus, choisir son bilan, saisir ses constats, nuances et conseils ; les félicitations restent facultatives et explicites. Un bouton prépare une formulation suivant la structure demandée : bilan, constats nuancés, conseils, puis félicitations éventuelles. Le texte final est librement modifiable. Il s’agit d’une rédaction guidée déterministe locale, sans modèle de langage ni déduction automatique de jugement à partir des notes. Aucune donnée n’est envoyée.
+
+Le résultat est enregistré uniquement comme nouvelle synthèse **brouillon**, avec les identifiants exacts des avis retenus. Les synthèses préexistantes sont conservées. Une sauvegarde supplémentaire depuis cet écran crée une version du même nouveau brouillon. La validation finale reste dans Conseils. Les avis d’autres élèves, d’autres trimestres et les avis TEST ne sont pas proposés ; une source devenue obsolète ou deux versions d’un même avis bloquent la sauvegarde. Le stockage suit ppRecords, les sauvegardes et Drive existants, sans migration. Une modification ultérieure dans Conseils conserve la provenance de rédaction. L’outil dépend du module Conseils et du statut PP.
+
+Fichiers : `js/pp-writing.js`, `js/screens/pp-writing.js`, route app, accès depuis Conseils, préservation de provenance dans pp.js, cache SW et `tests/pp-writing.test.js`. Vérifications : 168 tests automatiques ; parcours navigateur élève et classe, sources limitées au périmètre, rédaction modifiée avant sauvegarde, protection d’une synthèse validée préexistante, refus d’une source d’un autre élève, rechargement et paysage 1280 × 752 / 1024 × 640 sans défilement global. Suite habituelle PP relancée (52 contrôles). Données fictives uniquement, sans compte Google réel. Les avis TEST nécessitent pour l’instant une saisie ordinaire fictive pour essayer cet écran ; ils ne sont pas mélangés aux synthèses ordinaires.
+
+Limites : les corrections du formulaire non enregistrées restent en mémoire pendant la navigation et avertissent avant fermeture ; enregistrer le brouillon pour les conserver. Ce lot ne résume pas automatiquement les textes des professeurs et ne prétend pas résoudre leurs divergences. Aucun texte n’est publié ni envoyé à Pronote. Copie locale uniquement, pas de publication GitHub.
+
+### Correction des répétitions de transcription · version 15
+Un enregistrement de 12,54 secondes fourni par l’utilisateur reproduisait une boucle de plus de 2 000 caractères avec Whisper Tiny q8. Une simple interdiction des répétitions supprimait la boucle mais produisait encore une mauvaise fin de phrase ; cette approche de réécriture n’a pas été retenue. Le modèle de transcription est remplacé par **Whisper Small q8**, plus fidèle sur cet extrait, avec une nouvelle installation volontaire d’environ **264 Mo** (modèle et moteur). Les poids restent hors dépôt et hors archive, téléchargés depuis une révision publique figée et vérifiés par SHA-256. L’ancien cache Tiny n’est retiré qu’après installation complète du nouveau modèle. Aucun audio n’est envoyé : la sauvegarde Drive existante reste indépendante.
+
+Un critère d’arrêt surveille les boucles de jetons pendant la génération. Une vérification complémentaire refuse les répétitions pathologiques de mots/phrases et un volume de texte incompatible avec la durée. En cas de détection, le traitement signale l’échec sans sauver un nouveau brouillon ni ajouter de texte au compte rendu ; aucune fin de phrase n’est fabriquée. La vérification est aussi appliquée avant l’ajout d’un ancien brouillon, afin de bloquer le résultat erroné déjà généré. Le son et les comptes rendus préexistants ne sont ni effacés ni réécrits. Une limite de génération atteinte est signalée plutôt que de conserver un résultat tronqué. L’identifiant du brouillon en cours d’ajout est capturé avant la sauvegarde : un rafraîchissement pendant celle-ci ne laisse plus un faux brouillon modifié capable de bloquer le rechargement.
+
+Fichiers concernés : manifeste, moteur et stockage `pp-speech-*`, contrôles purs `pp-speech-quality.js`, écran de transcription, cache SW et tests `pp-speech.test.js`. Huit tests ajoutés : boucle de mot, de phrase, de jetons, répétitions naturelles, thèmes récurrents, densité excessive, durée inconnue et texte vide. Vérification navigateur du vrai enregistrement entièrement locale : reproduction initiale, comparaison de trois modèles et rejet de la boucle par le critère d’arrêt. Le nouvel extrait est restitué sans boucle mais comporte encore des erreurs au milieu par rapport à la phrase de référence donnée par l’utilisateur ; aucune fidélité parfaite n’est annoncée. Ne pas utiliser ce brouillon sans réécoute et correction.
+
+Autres vérifications : 163 tests de règles, 52 contrôles habituels PP ; parcours réel Small dans Chrome, installation, édition/ajout, conservation du texte, refus du double ajout, nouveau calcul hors connexion, annulation, sauvegarde/restauration et paysage 1280 × 752 / 1024 × 640. Les essais locaux du modèle Small sur 12 secondes ont demandé environ 35 secondes de calcul sur cet ordinateur ; ce temps ne prédit pas celui de la tablette. Le modèle utilise davantage de mémoire que Tiny et peut être plus lent sur Galaxy Tab S7 ; cet essai physique reste à faire. L’enregistrement privé et sa transcription de diagnostic restent dans les fichiers de travail, jamais dans le code, les aperçus ou l’archive distribuée. Rien publié en ligne.
+
+Références : [modèle ONNX compatible Transformers.js](https://huggingface.co/onnx-community/whisper-small), [modèle et licence Apache 2.0](https://huggingface.co/openai/whisper-small). Les informations de la version 14 ci-dessous décrivent l’ancien modèle, remplacé dans cette version.
+
+### Transcription locale · version 14 (historique)
+Depuis un audio enregistré, **Transcrire sur cet appareil** ouvre un écran dédié. Installation volontaire d’environ 65 Mo par appareil, puis transcription française locale par Whisper Tiny q8 dans un worker Chrome. Aucun envoi d’audio, d’identité ou de compte rendu au fournisseur du modèle ; seuls des téléchargements GET de fichiers publics à révision figée sont nécessaires à l’installation. La sauvegarde Drive existante reste indépendante et peut conserver les audios si activée. Aucun compte ni clé de service de transcription à configurer.
+
+Le résultat est un brouillon versionné distinct de l’audio et du compte rendu. Il doit être relu et corrigé, puis ajouté explicitement ; le compte rendu initial est conservé. Un brouillon déjà utilisé ne peut pas être ajouté une deuxième fois. Annulation/quitter l’écran termine le worker sans effacer l’audio. Les corrections non validées du brouillon restent en mémoire pendant la navigation et déclenchent un avertissement avant fermeture ; cliquer sur Ajouter pour les conserver durablement. Les transcriptions enregistrées suivent ppRecords et les sauvegardes existantes, sans nouvelle migration.
+
+Fichiers : `js/pp-speech-*`, `js/pp-speech.js`, `js/screens/pp-transcription.js`, route app, accès depuis pp-audio et cache SW. Distribution Transformers.js 3.8.1 et runtime ONNX livrés dans `vendor/transformers` avec licences ; les poids sont téléchargés uniquement sur demande, avec contrôle taille/SHA-256 de tous les fichiers. Le cache du modèle est conservé lors d’une mise à jour de l’application. Retirer le modèle n’efface pas les notes ; un navigateur vidant son stockage exigera une réinstallation. Environ 65 Mo installés, avec besoin de mémoire supplémentaire pendant le calcul. Le cache du modèle n’est pas une pièce de sauvegarde Drive.
+
+Vérifications : 155 tests de règles et 52 contrôles du parcours PP habituel réussis. Parcours dédié dans Chrome avec vraie inférence ONNX sur un court exemple français public : installation, transcription, relecture/ajout conservant le texte initial, refus du double ajout, rechargement puis nouvelle transcription réseau coupé, annulation, restauration des brouillons et affichage paysage 1280 × 752 / 1024 × 640. Aucun audio personnel ni compte Google réel utilisé. Exemple restitué : « J’adore, j’aime, je n’aime pas, je déteste. » Le modèle peut mal reconnaître noms/nombres ou inventer du texte sur bruit/silence. Essai physique Galaxy Tab S7 et durée d’un entretien complet restant à faire ; commencer par une note courte. Limites existantes : 30 minutes / 20 Mo. Rien publié en ligne.
+
+Références : [configuration locale Transformers.js](https://huggingface.co/docs/transformers.js/v3.8.1/api/env), [pipeline audio](https://huggingface.co/docs/transformers.js/v3.8.1/api/pipelines), [conversion ONNX du modèle](https://huggingface.co/onnx-community/whisper-tiny), [modèle et licence](https://huggingface.co/openai/whisper-tiny).
+
+### Vérifications du lot alertes
+135 tests de règles automatiques ; scénario navigateur : seuil, traitement persistant après rechargement, correction du relevé rouvrant l’alerte, désactivation/réactivation, sauvegarde et masquage global. Affichage 1024 × 640 sans défilement global. Tests réalisés sur une base isolée avec des élèves fictifs, sans connexion Google. La synchronisation Drive utilise le stockage existant mais n’a pas été testée sur le compte réel.
+
+### Disponible dans ce lot
+- **Notes audio par élève PP** : accès depuis la fiche élève, module global dans Mes outils. Démarrage explicite du microphone, autorisation Chrome, indicateur et durée, arrêt avec sauvegarde locale contrôlée. Arrêt automatique en quittant l’écran ou en arrière-plan, annulation d’une demande d’autorisation en attente sans laisser un flux tardif ouvert. Limites : 30 minutes / 20 Mo. Après échec de sauvegarde, l’audio reste en mémoire pour réessayer ou télécharger une copie. Ne pas fermer l’onglet avant confirmation ; un arrêt brutal du navigateur peut perdre la capture en cours.
+- **Réécoute, texte et import audio** : lecteur natif, téléchargement, titre et transcription/compte rendu saisis ou collés manuellement et versionnés sans réécrire le binaire. Import WebM/Ogg/M4A/MP3/WAV jusqu’à 20 Mo. Brouillons de texte en mémoire par élève, avertissement avant fermeture si non enregistrés, pause du lecteur en quittant/changement d’audio. Suppression confirmée avec marqueur de version retirée pour empêcher la réapparition du même audio ; refus de suppression si des versions concurrentes sont connues. La transcription locale est disponible séparément, avec validation du brouillon avant ajout.
+- **Stockage et vérification audio** : kind audio dans ppRecords ; binaire pp-file dans le magasin existant photos et le circuit de pièces jointes Drive, sauvegarde/restauration sans changement de schéma. Audios et textes suivent le Drive privé si sa synchronisation est activée. 155 tests de règles automatiques, suite navigateur habituelle, et parcours audio avec microphone virtuel Chrome : enregistrement réel de données synthétiques, arrêt/libération des pistes, binaire restauré, versions du texte, rechargement, téléchargement, brouillon par élève, sortie sauvegardant sur l’élève initial, suppression sans réapparition, refus microphone, import WAV réécoutable et permission tardive annulée. Affichage 1280 × 752 et 1024 × 640 sans défilement global. Aucun son réel ni Drive réel utilisé ; essai physique Galaxy Tab S7 restant à faire. Le microphone requiert un contexte sécurisé HTTPS ou localhost. Références : [MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder), [getUserMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
+
+- **Confirmation familles allégée** : la ligne classe/date/lieu et les consignes initiales sont masquées après un envoi confirmé. Le titre, le récapitulatif et la consigne finale de contact restent visibles. Avant envoi ou en cas d’erreur, les indications restent présentes. Parcours navigateur familles existant relancé ; aperçu du reçu vérifié. Mise à jour de Formulaire.html et nouvelle version du déploiement Google nécessaires, sans changement de lien.
+
+- **Archiver une campagne** : action confirmée qui la retire de la liste courante sans supprimer rendez-vous, demandes ni historique. Liste Archives séparée et restauration en état fermé. Aucune nouvelle réservation sur une archive. Export/publication d’une archive comme fermée, compatible avec le service Google déjà installé ; tentative de fermeture distante si la campagne a une publication connue, avec message explicite si elle reste à effectuer. Le lien court conserve sa cible. Les données archivées suivent les sauvegardes existantes.
+- **Lien court de campagne** : champ HTTPS dans l’espace familles pour conserver un lien is.gd/tinyurl.com/bit.ly puis le copier. Associé à la destination publiée exacte ; masqué si le service/la cible change. Enregistrer ce champ n’envoie rien au raccourcisseur et ne vérifie pas automatiquement la destination. Un lien court réel a été créé et sa redirection contrôlée pour la campagne fournie par l’utilisateur, après son autorisation explicite pour is.gd ; ni clé professeur ni réponses transmises. Ce lien de campagne n’est pas embarqué dans le code générique.
+- **Vérifications de cette évolution** : 151 tests de règles ; parcours familles simulé incluant récap (sélections exactes et texte HTML conservé comme texte), conservation du lien court, archivage/fermeture, refus de réservation, réponses/rendez-vous conservés et restauration fermée. Mesure des espacements (au moins 12 px) et hauteurs tactiles sur les groupes de boutons, plus absence de défilement global en 1024 × 640. Suite navigateur habituelle relancée. Le récapitulatif Google n’a pas été republié par Codex : copier le nouveau Formulaire.html puis déployer une nouvelle version du déploiement existant.
+
+- **Espacement des actions PP** : groupes de boutons communs avec 12 px d’espace, retour à la ligne lorsque le panneau est étroit, hauteur tactile minimale de 48 px. Application aux campagnes, demandes familles, récap classe, pièces, outils, pieds de panneaux et aperçu des documents. Défilement conservé dans les panneaux en paysage.
+
+- **Confirmation familles avec récapitulatif** : après succès confirmé, affichage du nom saisi, de la date de rencontre, des seules disponibilités cochées et des précisions (ou « Aucune précision »). Le texte affiché provient du même objet que la requête envoyée, et reste du texte échappé même s’il contient des balises. L’horaire précis reste à confirmer par le professeur ; la famille est invitée à le contacter directement pour changer ses disponibilités ou la plage souhaitée. Aucun bouton de modification autonome. Modification du seul formulaire Google ; remplacer Formulaire.html puis déployer une nouvelle version du déploiement existant pour garder le lien. L’utilisateur a confirmé l’affichage réel de la version précédente ; ce nouveau récap n’est pas encore déployé dans son compte Google.
+
+- **Formulaire familles, raccordement prêt à installer** : service Apps Script fourni dans `google-rencontres/` avec formulaire public et espace professeur. Installation dans un nouveau projet et création d’un nouveau tableau privé, sans modification de l’ancien outil. Publication d’une campagne sans roster, dossier élève ni notes PP ; seul le titre, la classe, la date, le lieu et les créneaux proposés sont transmis. Lien public à jeton, clé professeur réservée aux opérations de publication/lecture des réponses et conservée dans la sauvegarde privée. Le lien familles ne contient jamais cette clé.
+- **Disponibilités → rendez-vous** : réception directe dans le Carnet ou échange par fichiers JSON depuis l’espace Google. Les réponses ne créent pas automatiquement d’événement : confirmation manuelle de l’élève, y compris pour les homonymes, et choix parmi les disponibilités de la famille, avec les contrôles de chevauchement existants. Attribution et événement enregistrés ensemble. Demandes écartées/réouvertes versionnées ; une demande attribuée ne peut être rouverte tant que son rendez-vous est actif. Réimport identique sans doublon et sans remise à zéro du traitement ; réponse modifiée ou incohérente refusée avant toute écriture. Identifiant initial stable pour l’import d’une même réponse depuis plusieurs appareils.
+- **Fermeture et contrôles Google** : publication stable d’une campagne sans changement de lien ; fermeture locale d’une campagne déjà publiée tente aussi sa fermeture distante. État de publication confirmé affiché ; échec réseau signalé et circuit par fichiers disponible. Masquer le module ne ferme pas les formulaires distants : fermer/publier les campagnes avant de le masquer. Le serveur refuse les campagnes fermées et les réponses après le jour de rencontre, protège la lecture par clé, limite les volumes et encode les textes pour éviter des formules Sheets. Une nouvelle tentative d’envoi avec le même identifiant ne crée pas de doublon. Aucune modification/annulation en libre-service ni message automatique aux familles.
+- **Vérifications et limite de livraison du formulaire** : 150 tests de règles automatiques réussis et suite de non-régression navigateur. Service Apps Script exécuté localement avec doublures Sheets/Properties/Lock, tests d’authentification, jetons, textes, idempotence, fermeture et réinstallation non destructive. Parcours navigateur complet avec ce service simulé : publication, formulaire parent, récupération, homonymes, attribution, doublons, fichiers, sauvegarde/restauration, réouverture, fermeture distante et affichage 1024 × 640. Aucun déploiement Google réel, aucun accès aux réponses réelles et aucun lien public actif créé. L’installation et l’essai réel avec une réponse fictive restent nécessaires avant diffusion. Guide : `google-rencontres/INSTALLATION.md`. Test du serveur sans compte Google : `node tests/family-server.test.cjs`. Les outils Drive connectés ne permettent pas de déployer Apps Script.
+
+- **Rencontres parents–PP, gestion locale** : plusieurs campagnes dans l’année, une classe PP et une date par campagne, titre/lieu, plusieurs tranches horaires, durée et pause entre rendez-vous. Créneaux complets uniquement. Réservation manuelle avec origine (carnet, téléphone, contact direct, autre), liée à l’élève et à un événement de l’agenda dans une transaction vérifiée. Un cours ou événement chevauchant bloque une nouvelle réservation, y compris pour une autre campagne. Un élève ne peut pas réserver deux fois la même campagne sur un appareil. Fermeture/réouverture sans effacement ; annulation retirant l’événement et conservant l’historique. Un événement déplacé ou supprimé depuis l’agenda est signalé. Des réservations concurrentes sont affichées en conflit après fusion ; la synchronisation hors connexion ne constitue pas un verrou partagé entre appareils.
+- **Intégration et limites rencontres** : accès depuis le récap classe, module global dans Mes outils, trois colonnes adaptées au paysage. Les campagnes/réservations utilisent ppRecords et les événements existants ; sauvegarde/Drive et rappels Agenda existants, sans nouvelle connexion réelle pendant les essais. L’ancien outil local « rdv parents - prof » a été lu uniquement : son formulaire collecte des préférences via Apps Script/Sheets, et n’est pas encore raccordé. Aucun lien public ni déploiement Google créé dans ce lot. Les familles ne modifient ni n’annulent elles-mêmes une réservation. Les modifications d’horaire passent par annulation/réservation ou l’agenda ; la campagne ne réécrit pas silencieusement l’agenda.
+- **Vérifications rencontres** : 143 tests automatiques au total. Scénario navigateur dédié : création de tranches avec pauses, réservation carnet, doublon élève/créneau refusé, événement lié, titre Google sans identité, deux rappels préparés, fermeture/réouverture, conflit agenda refusé, seconde réservation, rechargement et sauvegarde, annulation conservant l’historique, masquage du module. Affichage vérifié à 1024 × 640. Données fictives uniquement.
+
+- **Alertes de mesures et carnet** : seuil sur une colonne précise d’un relevé de mesures (établissement et schéma exacts, dernière période, sans ajout des compléments), sur les seules mesures indépendantes datées, sur les minutes de retenue documentées connues (liées ou indépendantes, chaque mesure une fois), ou sur les catégories Observation et Défaut de carnet. Période de saisie configurable et bornes incluses. Encouragements et avis de bulletins exclus. Annulations exclues des saisies ; les compteurs PDF restent les chiffres du document. Dates et durées manquantes signalées et exclues ; absence de données ne vaut pas zéro. Concurrences de catégorie, date ou durée suspendent le calcul concerné. Aucun total mélangeant PDF et saisies. L’interface affiche les limites de couverture et les sources. Les nouvelles règles et notes suivent la sauvegarde existante ; pas de nouvelle structure de stockage.
+- Vérification navigateur supplémentaire : cinq indicateurs actifs avec valeurs attendues (absence 5, colonne mesures 3, mesures indépendantes 1, retenue 60 minutes, observation 1), persistance après rechargement, masquage et format 1024 × 640. Données fictives uniquement.
+
+- **Alertes PP d’assiduité** : seuils annuels communs aux classes PP pour demi-journées d’absence, non justifiées, nombre ou minutes de retard, avec comparaison stricte ou inclusive. Aucun seuil imposé. Dernière période par élève, établissement et mode TEST, sans addition entre périodes. Les versions concurrentes ou périodes de même fin ambiguës suspendent le calcul concerné. Suivi personnel versionné, rouvert si valeur ou règle change. Accès depuis le récap classe et Mes outils ; masquage global sans effacement. Sauvegarde via ppRecords et cache hors connexion. Les notifications système et la résolution des versions concurrentes de réglage restent à intégrer.
+
+- **Vie scolaire** dans chaque fiche PP : relevés d’absences, demi-journées justifiées/non justifiées, taux imprimé, retards en nombre et en minutes ; relevés de punitions/sanctions par colonne source. Les périodes et sources restent distinctes des appels locaux du Carnet. Dans le récap classe, les élèves associés et les cumuls sont présentés par période et source, sans total entre périodes chevauchantes.
+- **Import des deux familles de récapitulatifs fournies** : rapprochement des élèves, aperçu PDF, contrôle de l’effectif et des sommes avant toute validation, puis fichier source conservé sur le lot d’import. Nombre variable de lignes et pages avec en-têtes répétés et total global final ; les modèles inconnus ou cellules ambiguës sont refusés. L’absence d’un élève ne le remet pas à zéro. Les colonnes administratives et d’infirmerie ne sont pas normalisées dans les fiches ; le PDF original complet est conservé.
+- **Compléments de mesures** : type, date connue, rôle Professeur/AED/CDP/Direction/Autre, auteur, motif, détail, date prévue, durée connue en minutes et état. Un complément peut être rattaché à une colonne d’un relevé (« déjà comprise ») ou rester indépendant. Aucun ajout automatique au cumul. Une correction à la baisse conserve les compléments et signale un écart si davantage de mesures sont documentées que comptées. Les abréviations identiques restent des colonnes distinctes à préciser ; les retenues ne sont pas converties en heures.
+- Les deux nouveaux types d’enregistrements (`periodReport`, `measure`) utilisent `ppRecords`, leurs versions et la sauvegarde existante. La correction d’une même période crée une version du relevé ; une autre période reste indépendante. Les PDF de classe sont conservés une fois par lot, sans attache partagée supprimable depuis la fiche d’un seul élève. Le module Vie scolaire se masque globalement sans effacement.
+- **Bulletins des deux collèges** : cinq présentations détectées à partir des 14 exemples fournis : moyennes, moyennes détaillées avec rappels T1/T2 et bornes, compétences avec ou sans programme, niveaux de maîtrise sous un en-tête « Moyennes ». Les matières d’un même nom et leurs enseignants restent distincts. Les moyennes, niveaux 1–4, N.Not et marqueurs NR sont conservés sans conversion entre notes et compétences.
+- **Bulletin sur plusieurs pages** : en-têtes répétés, matières de la deuxième page, appréciation globale et avis d’orientation conservés sur le modèle fourni. Les mentions et engagements sont séparés de l’appréciation globale. Une rubrique ou appréciation vide reste vide. Les graphiques colorés et les nombres d’évaluations par couleur restent dans le PDF original ; les niveaux numériques lisibles et les textes de compétences sont extraits.
+- **Conseils → Évolution sur les 3 trimestres** : tableau T1/T2/T3 fondé sur le dernier bulletin importé pour chaque trimestre, avec mention TEST si nécessaire. Les cases absentes ne valent pas zéro. Les changements de professeur créent des lignes distinctes ; aucune équivalence de matière ou d’enseignant n’est déduite arbitrairement. Les avis et synthèses restent séparés par trimestre.
+- **Données du dernier bulletin importé** : détail repliable dans la fiche, par trimestre, avec moyennes ou positionnements, compétences textuelles, rappels de trimestres et indications du conseil ; accès au PDF associé si Documents est activé.
+- **Essai avec des élèves fictifs** : option par bulletin permettant les écarts de classe et d’année pour tester les exemples. L’association et la confirmation restent obligatoires. Le mode se réinitialise à chaque fichier, changement de classe ou sortie de l’écran. Les avis et documents portent TEST, gardent l’année et la classe source et utilisent des identifiants distincts des avis ordinaires. Le marquage est conservé après modification d’un avis. Ces données sont réellement enregistrées et suivent la sauvegarde et Drive si activé : ce n’est pas une simulation sans écriture.
+- Les contrôles et la confirmation sont visibles près du bouton **Valider l’import**, sans devoir descendre dans les appréciations. En mode ordinaire, les écarts de classe et année restent bloquants.
+- **Accès unique au récap depuis une fiche élève** : grand bouton coloré « Récap classe » en haut ; le lien identique du panneau d’identité est retiré.
+- **Imports Pronote avec aperçu et validation** depuis le récap : listes CSV de la famille fournie (correspondances avec les élèves existants, aucun remplacement du trombinoscope), bulletins PDF de la famille vérifiée (avis par matière/professeur vers Conseils, original vers Documents, moyennes et appréciation globale conservées comme données source). Aucun service externe d’analyse.
+- Les homonymes demandent un choix explicite ; classe, année et trimestre contrôlés ; pas de nouvel import du même fichier dans la même classe/année. Les avis retouchés manuellement ou concurrents sont conservés et comptés dans le rapport. Un nouveau bulletin ne remplace pas la synthèse PP.
+- **Récap classe en premier**, puis élèves dans la liste : l’ouverture du Suivi PP d’une classe présente l’effectif, les actions, pièces, réunions et la préparation des conseils collectifs. Une seule classe PP ouvre directement ce récapitulatif, même si elle ne contient pas encore d’élève.
+- **Conseils collectifs depuis le récap** : avis généraux des professeurs et conclusion de classe séparés des dossiers individuels, par trimestre. La case « La classe » a été retirée des fiches élèves.
+- **Événement → fiche élève** : le détail d’une réunion enregistrée liée à un élève propose l’ouverture directe du suivi PP (ou de la fiche du Carnet si le rôle PP a été désactivé). Si l’événement a des modifications non enregistrées, le choix de rester ou de les abandonner est explicite.
+- Administration → classe : case **Je suis professeur principal de cette classe**, liée à l’année scolaire. L’espace PP n’est proposé que pour les classes actives cochées.
+- Administration → **Mes outils** : choix globaux des modules PP livrés (actions, notes/progrès, carnet scolaire, documents, conseils). Masquer un module conserve ses données. La sauvegarde reste accessible.
+- Accueil PP et fiche élève en colonnes, adaptés au paysage : identité/photo/notes reprises du Carnet, historique, éditeur, listes défilant à l’intérieur des panneaux.
+- Notes personnelles, progrès, **Observation / Encouragement / Défaut de carnet**, actions avec échéance et état fait/à faire.
+- Pièces PDF, JPEG, PNG, WebP, DOC/DOCX jusqu’à 20 Mo : plusieurs PAP, PPRE, GEVA-Sco, PAI, PPS, bulletins et autres documents par élève. Choix de fichier ou caméra compatible, aperçu PDF/image, téléchargement, retrait avec annulation.
+- Conseils T1/T2/T3 : saisie manuelle des avis par matière/professeur et des synthèses, individuellement ou pour la classe. Les textes sont versionnés : des éditions concurrentes conservent leurs deux versions, signalées dans la liste. Aucune IA de rédaction n’est branchée.
+- Événements de l’agenda associés à un élève PP, visibles dans sa fiche ; création depuis la fiche. Les rappels la veille à 16 h et H−1 sont préparés pour la synchronisation Google Agenda existante si elle est activée. Aucun envoi d’identité, de document ni de compte rendu ajouté automatiquement à Agenda. Sans Agenda configuré, aucune notification hors application n’est annoncée.
+- Données PP et pièces incluses dans les sauvegardes/restaurations et le circuit de synchronisation Drive. Enregistrement local contrôlé avant message de confirmation. Aucune connexion au Drive réel utilisée pendant les essais.
+
+### Fichiers et stockage
+Nouveaux fichiers : `js/pp-rules.js`, `js/pp.js`, `js/pronote-import.js` (lectures et contrôles), `js/pp-import-store.js` (proposition et transaction), `js/screens/imports-pp.js`, `js/screens/suivi-pp.js`, `js/screens/outils.js`, `css/pp.css`, `tests/pp.test.js`, `tests/pronote-import.test.js`.
+Points d’intégration : routes, administration/édition de classe, navigation, fiche du Carnet, agenda/planning, sauvegarde/synchronisation et cache hors ligne.
+
+IndexedDB passe de 9 à 10, sans effacer les tables existantes. Nouvelle table `ppRecords` pour le suivi et les métadonnées de pièces. Les binaires utilisent le circuit existant de `photos`, avec des identifiants `pp-file-…`, et sont envoyés sur Drive dans des fichiers `piece-….bin` (type et nom d’origine dans `ppRecords`). Ils ne remplacent pas les photos du trombinoscope.
+Les sauvegardes passent au format 2 ; les sauvegardes format 1 restent importables. **Avant un essai avec Drive réel, mettre la même nouvelle version sur tous les appareils** : un ancien client n’est pas compatible avec les données PP et ne doit pas synchroniser ce nouveau format. La copie de travail n’a pas été connectée au compte réel.
+
+### Vérifications réalisées
+- Suite navigateur existante et nouveaux tests PP/imports : **116/116**.
+- Parcours Chrome avec élèves fictifs : activation, notes persistées et protection HTML, actions, pièce jointe et restauration binaire, séparation des trimestres, réunion liée, contenu Google Agenda préparé, masquage sans suppression, versions concurrentes, saisie puis redémarrage hors connexion.
+- Migration d’une base IndexedDB version 9 : classe et élève conservés, nouvelle table vide créée.
+- Contrôle de l’absence de défilement global aux tailles utiles **1280×752** et **1024×640**. Aucun test matériel sur la Galaxy Tab S7 réelle à ce stade.
+- Compléments vérifiés : récap en première position, classe vide, classe PP unique, isolation des avis collectifs par classe/trimestre et des avis individuels, ouverture du suivi depuis un événement et protection des modifications non enregistrées.
+- Imports testés dans Chrome sur fichiers fictifs : aucun écrit avant validation, correspondance proposée, répétition du même fichier bloquée, deux matières identiques avec enseignants distincts, nouvelle version du bulletin conservant la correction personnelle, pièce et données source enregistrées. Aperçu rendu par PDF.js dans l’application, avec changement de page, sans dépendre du lecteur PDF du navigateur.
+- Transaction d’import volontairement interrompue pendant l’essai : échec signalé, faux lot retiré de la mémoire, nouvel essai possible et enregistré.
+- Deux bulletins fictifs d’une autre année/classe importés successivement vers deux élèves fictifs : réactivation et confirmation exigées pour le second fichier, provenance conservée, aucun avis ordinaire remplacé. Tests des contrôles restant obligatoires en mode TEST, conservation du marquage après édition et présence des commandes à 1024×640.
+- Lecture locale des 14 bulletins fournis à cette étape : cinq présentations, un bulletin de deux pages et trois suivis T1/T2/T3 du même élève. Le texte des appréciations extraites a été comparé à la colonne source complète pour chacun des 14 fichiers. Les cas de moyennes non représentatives, matières répétées, enseignants multiples, rubrique « Devoirs faits », appréciation vide et absence d’appréciation globale ont été vérifiés. Aucune identité ou appréciation réelle incluse dans ce dépôt ou cette archive.
+- Parcours sur fichiers fictifs : import des présentations par compétences, consultation des résultats dans la fiche, trois imports T1/T2/T3 successifs et tableau annuel, puis bulletin détaillé de deux pages avec navigation d’aperçu, rappel T1 distinct de T2, conclusion de page 2, mention et orientation.
+- Relevés fournis : 29 lignes d’assiduité et 8 lignes de mesures, sommes conformes aux totaux imprimés. Essais fictifs sur plusieurs pages, effectif variable et total global, doublon bloqué, deux compléments sans gonfler le compteur, correction à la baisse avec alerte d’écart, nouvelle période chevauchante séparée, mesure indépendante, restauration des PDF sources et masquage du module sans perte. Nouvelle vue vérifiée à 1024×640 sans défilement global.
+- Les appels Google authentifiés, la réception effective des notifications et la prise de photo réelle sur Android ne sont pas vérifiés par ces essais locaux.
+
+### Suite du développement
+Ce lot ne réalise pas encore : seuils d’alerte paramétrables, campagnes de formulaires familles, billets et présence aux campagnes, enregistrement/transcription audio, génération assistée des synthèses, comparaison automatisée des indicateurs d’assiduité entre périodes et gestion détaillée des démarches documentaires. Le signalement d’un écart entre compléments et compteur n’est pas encore le moteur de seuils. Les cumuls ne permettent pas de calculer une fenêtre de 30 jours, ni des heures de retenue sans durées connues.
+L’import des récapitulatifs conserve le modèle à 11 colonnes numériques d’assiduité et 18 colonnes de mesures des fichiers fournis. Les sous-totaux par page sans total global final et les autres modèles restent à valider. Les mesures indépendantes ne sont pas automatiquement rapprochées des relevés suivants. Les compléments sont versionnés, modifiables et peuvent être marqués annulés ; il n’existe pas encore de suppression dédiée d’un complément. Les pièces supplémentaires se joignent dans Documents, sans lien direct à une mesure à ce stade.
+Les imports actuels sont limités aux profils vérifiés : aucun OCR de scan, aucun engagement sur tous les formats de bulletins ou de rapports multipages. Un PDF à structure inconnue est refusé sans écriture. L’exemple complet fourni est d’une autre année que l’exemple vide ; le contrôle d’année reste actif sauf essai explicite marqué TEST. Limite 20 Mo par fichier et 1 000 lignes CSV. Une liste CSV garde un rapport de correspondances et le fichier source dans la sauvegarde, sans importer ses autres colonnes administratives.
+L’activation des modules des anciens écrans du Carnet, au-delà des nouveaux modules PP, reste également à étendre.
+
+Voir `SUIVI-PP.md` pour le parcours de prise en main et les limites de cette étape.
+
+Application web installable (PWA) pour un professeur de technologie au collège (6e à 3e, SEGPA),
+pensée pour une tablette Android et utilisable hors ligne. Toutes les données restent sur l'appareil.
+
+**Adresse de l'app :** https://anlito.github.io/gestion-de-classe-et-suivi-projet/
+(publiée par GitHub Pages depuis la branche `main` : chaque envoi sur `main` met l'app à jour sur la tablette).
+
+## Fonctionnalités
+
+- **Trombinoscope** : un toucher = une observation « Comportement » (−) ou « Aide / soutien / rangement » (+) ;
+  appui long = choix d'un motif. **Appel** (présent / absent / retard) et **tirage au sort** parmi les présents.
+- **Fiche élève** : compteurs par trimestre, absences, retards, besoins particuliers (PAP, PPS…), aménagements,
+  historique, notes libres, fiche PDF.
+- **Projets** : un projet (séances, critères) est associé à des classes ; journal de chaque séance.
+  Critères choisis librement ou **dans le programme de technologie du cycle 4** (BO n° 9 du 29 février 2024).
+- **Groupes** et **Notes** : évaluation des groupes par niveaux 1 à 4 par critère, note /20, mention,
+  ajustements individuels.
+- **Administration** : classes, élèves, import des photos depuis un trombinoscope PDF, sauvegarde / restauration
+  (fichier JSON), exports CSV (récapitulatif, compétences à recopier dans Pronote), code d'accès, réglages.
+
+## Organisation du code
+
+Aucun outil de compilation : HTML, CSS et JavaScript (modules ES) servis tels quels.
+
+| Fichier | Rôle |
+|---|---|
+| `index.html`, `manifest.webmanifest`, `sw.js` | page, installation, fonctionnement hors ligne (liste des fichiers en cache) |
+| `js/app.js` | démarrage, routes (`#/...`) → écrans |
+| `js/db.js` | stockage IndexedDB + copie en mémoire, `commit()` avec annulation, instantané de sauvegarde |
+| `js/model.js` | règles métier : trimestres, observations, motifs, appel/absences/retards, besoins, projets, groupes, notes |
+| `js/programme.js` | programme de technologie cycle 4 : 3 thèmes, 9 compétences, repères par niveau |
+| `js/ical.js` | lecture des emplois du temps exportés de Pronote (.ics) : cours, statuts, vacances, heure de Paris |
+| `js/planning.js` | emploi du temps : établissements, cours, vacances, rôle des matières, correspondance des classes, import |
+| `js/screens/emploi-du-temps.js` | Administration → Emploi du temps : import, correspondance des classes, aperçu, rôles |
+| `js/stats.js` | statistiques de présence (élève, classe, projet ; retard = présent) |
+| `js/sync.js` | fusion des données entre appareils (synchronisation Google Drive) |
+| `js/drive.js` | connexion Google (identifiant client propre à chaque professeur) et échanges avec son Drive |
+| `js/autosync.js` | synchronisation automatique et indicateur « Synchronisé à … » dans l'en-tête |
+| `js/salles.js`, `js/plan-view.js`, `js/screens/salles.js` | plans de salle (îlots ou rangées) : modèle, dessin, éditeur |
+| `js/agenda.js` | copie du planning dans l'agenda Google « Carnet de classe » (sens unique, couleurs par collège) |
+| `js/plan-classe.js` | plan de classe : élèves placés par salle (vue « Plan » du trombinoscope) |
+| `js/prepa.js` | matériel à préparer : séance prévue d'un cours, liste (projet + cours), coches, rappel la veille |
+| `js/screens/archives.js` | Administration → Archives : archiver l'année, consulter une année passée en lecture seule |
+| `js/pronote-lien.js` | emploi du temps mis à jour par lien Pronote (via le relais Google du professeur), chaque soir ou sur demande |
+| `js/alertes.js` | alertes dans l'app (appel non fait, séances à remplir), coin de l'écran, tous les écrans |
+| `js/screens/semaine.js` | accueil `#/` : planning de la semaine (sans emploi du temps : affiche la liste des classes) |
+| `js/screens/accueil.js` | liste des classes en tuiles (`#/classes`) |
+| `tests/index.html` | page de tests automatiques (+ vérification locale de ses propres fichiers .ics) |
+| `js/backup.js` | fichiers produits : sauvegarde JSON, CSV |
+| `js/labo-blocs.js` | import des résultats Labo Blocs (onglet Notes) : équipes → élèves et groupes, compétences → critères, niveaux posés |
+| `js/screens/*.js` | un fichier par écran (`render`, `mount`, `actions`) |
+| `css/app.css` | styles (thèmes clair / sombre) |
+
+### Règles à respecter à chaque nouvelle version
+
+1. Augmenter la version **aux deux endroits** : `VERSION` dans `sw.js` et `APP_VERSION` dans `js/nav.js`
+   (sinon la tablette garde l'ancienne version en cache).
+2. Tout nouveau fichier JS doit être ajouté à la liste `FILES` de `sw.js`.
+3. Nouvelle table de données : l'ajouter à `STORES` dans `js/db.js` **et** augmenter `DB_VERSION`.
+   Penser aux suppressions en cascade dans `model.js` (`deleteStudentIn`, `deleteClassIn`, `deleteAssignmentIn`).
+4. Ajouter une entrée dans l'historique ci-dessous.
+5. **Confidentialité : le dépôt est public.** Ne jamais y mettre de vraies données : emplois du temps Pronote
+   (`*.ics`, bloqués par `.gitignore`), noms d'élèves ou de collègues, sauvegardes. Les tests et la démonstration
+   utilisent uniquement des données fictives.
+6. Lancer la page de tests (`tests/index.html`) : tout doit être vert.
+
+### Tester sur l'ordinateur
+
+Servir le dossier avec n'importe quel serveur web local (par exemple `python -m http.server 8765`)
+puis ouvrir http://localhost:8765. Sur `localhost`, le service worker charge toujours les fichiers frais.
+Réglages → « Remplacer par les données de démonstration » donne des classes fictives pour essayer.
+
+## Installer l'application pour un autre professeur
+
+L'application est autonome : il suffit de donner l'adresse. Chaque professeur garde ses données sur ses appareils,
+et, s'il le souhaite, dans **son** Google Drive — personne d'autre n'y a accès.
+
+1. Ouvrir https://anlito.github.io/gestion-de-classe-et-suivi-projet/ dans Chrome (tablette, téléphone ou ordinateur),
+   puis menu ⋮ → « Installer l'application » (ou « Ajouter à l'écran d'accueil »).
+2. Créer ses classes (Administration), éventuellement importer son emploi du temps Pronote (Administration → Emploi du temps).
+3. Pour utiliser plusieurs appareils : Administration → Sauvegarde et exports → **Google Drive**, puis suivre le guide
+   « Comment obtenir mon identifiant ? » (projet Google Cloud à son nom, API Google Drive, écran de consentement en mode
+   Test avec sa propre adresse comme utilisateur test, portée ``drive.file``, client « Application Web » avec l'origine
+   ``https://anlito.github.io``). Coller l'identifiant, « Se connecter à Google » : ensuite tout est automatique.
+   Sur chaque autre appareil : même identifiant, même compte Google, « Se connecter à Google ».
+4. Si un professeur héberge sa propre copie du projet (autre adresse), l'origine à autoriser est la sienne : le guide
+   affiche automatiquement l'adresse exacte à copier.
+## Chantier : plan de classe et matériel à préparer (décisions prises, 1er oct.)
+
+Étapes : **1** matériel à préparer + rappel la veille (1.18.0) · **2** plans de salle (1.19.0, îlots libres 1.19.1) ·
+**3** plan de classe : placer les élèves, appel et observations + / − depuis le plan (1.20.0). Toutes faites.
+- Matériel : rattaché à la **séance du projet** (réutilisée par toutes les classes, toutes les années) **et** au cours
+  (ajouts ponctuels). Rappel dans l'app uniquement (pas de notification app fermée).
+- Plans de salle : **un plan par salle** (Techno 1, salle de cours…), réutilisé par toutes les classes qui y ont cours ;
+  chaque salle est soit en **îlots** (groupes de 2 à 6 places placés librement), soit en **rangées** (grille).
+- Plan de classe : depuis le plan, **faire l'appel** et mettre des **+ / −** (pas de placement automatique par groupes,
+  pas d'impression demandés).
+
+## Chantier terminé : emploi du temps par lien Pronote (décisions prises)
+
+Demande du professeur (1er oct.) : utiliser le **lien d'abonnement iCal** de Pronote (un par collège) pour que le
+planning reste toujours à jour avec Pronote, sans import de fichier. Étapes : **1** lien + relais + mise à jour auto
+(1.15.0, validé avec un vrai compte) · **2** « événements » hors Pronote (1.16.0).
+
+- Les **cours viennent de Pronote** : le bouton « + » du planning ajoute désormais un **événement** (réunion entre
+  professeurs, rencontre parents-professeurs, conseil de classe, portes ouvertes, formation, autre). Un événement n'a
+  ni appel, ni séance, ni alerte ; il a un intitulé, un lieu, une classe concernée et une note facultatifs, et peut se
+  répéter chaque semaine. L'ajout d'un cours à la main reste possible (lien discret dans le formulaire), pour un
+  rattrapage ou un professeur sans lien Pronote.
+
+- **Pronote n'autorise pas la lecture du calendrier par une page web** (pas d'en-tête CORS, vérifié le 1er oct.) :
+  passage par un **relais Google Apps Script créé par chaque professeur dans son propre compte** (choix du professeur,
+  plutôt qu'un relais public qui verrait le lien secret et les noms des collègues). Code et guide dans l'app
+  (`pronote.RELAIS_CODE`) ; déploiement « Application Web », exécuté en tant que soi, accès « Tout le monde ». Le relais
+  n'accepte que des liens `https://…/pronote/ical/…`. L'app lui envoie le lien dans le **corps** d'un POST `text/plain`.
+- Le **lien Pronote est secret** (équivaut à un mot de passe en lecture de l'emploi du temps) : jamais dans le dépôt, ni
+  dans les tests (liens fictifs). Il est enregistré sur l'établissement et **synchronisé via Drive** (choix du
+  professeur) ; l'adresse du relais aussi (`meta.relaisPronote`).
+- Mise à jour **automatique chaque soir à partir de 18 h** si l'app est ouverte, sinon à l'ouverture suivante
+  (`aFaire` : dernière mise à jour avant le dernier « 18 h ») ; bouton **« Mettre à jour maintenant »** (admin) et bouton
+  ⟳ dans l'en-tête du planning (ex. cours déplacé par la direction).
+- En automatique : conflits réglés par les choix par défaut (les modifications du professeur l'emportent, ses cours
+  avec appel / séance / note sont gardés) ; **aucune nouvelle classe reliée d'office** (signalée dans l'admin).
+- **Identifiants stables** pour les cours et vacances importés (`planning.stableId`) : si deux appareils mettent à jour
+  le même emploi du temps, la synchronisation Drive ne crée pas de doublons.
+
+## Chantier terminé : synchronisation Google Drive (décisions prises)
+
+Même méthode que le chantier Planning : une étape = une version, tests sur la tablette, retour du professeur.
+Étapes : **A** fondations de la fusion (1.12.0) · **B** connexion Google Drive et choix du mode (1.13.0) ·
+**C** synchronisation automatique et indicateur « Synchronisé à … » (1.14.0).
+
+- Dans Administration → Sauvegarde : choix du mode **« Sauvegarde manuelle »** (fichier, comme avant) ou
+  **« Synchronisation Google Drive »**.
+- **Plusieurs appareils en alternance** (tablette, téléphone, ordinateur) : fusion **enregistrement par
+  enregistrement**, la version la plus récente (`updatedAt`) gagne ; les suppressions laissent une trace
+  (table `effacements`) pour être répercutées ; traces oubliées après 180 jours.
+- **Pas de chiffrement** (choix du professeur) : les données sont lisibles dans son Drive → ne jamais partager le
+  dossier. Dossier **visible « Carnet de classe »** dans Drive, portée OAuth `drive.file` (l'app ne voit que les
+  fichiers qu'elle a créés).
+- Réglages propres à l'appareil, jamais synchronisés : `lastBackupAt`, `lastModified`, `sync` (`db.LOCAL_META`).
+- Photos : envoyées à part (un fichier par photo, seulement quand elle change).
+- **Application autonome** (décision du professeur) : aucun identifiant du développeur dans l'app. **Chaque professeur**
+  crée son propre identifiant client OAuth « Application Web » (guide intégré dans Administration → Sauvegarde) et le
+  saisit sur **chacun de ses appareils** (réglage local `meta.sync.clientId`). Ses données vont dans **son** Drive.
+  Jeton d'accès valable 1 h (Google Identity Services) : reconnexion d'un toucher si besoin.
+- Synchronisation **automatique** (1.14.0, rythme revu en 1.14.1) : à l'ouverture, 5 s après des modifications,
+  au retour dans l'app (après 10 s), vérification de Drive toutes les 30 s tant que l'app est affichée ; indicateur dans l'en-tête (toucher = synchroniser / reconnecter / choisir).
+  **Jamais de fusion automatique** pour la 1re synchronisation d'un appareil qui a des classes, ni après un
+  remplacement complet des données (restauration, démonstration, tout effacer) : l'app demande quoi faire.
+- Guide « Comment obtenir mon identifiant ? » réécrit en 5 parties (1.14.0), d'après les retours sur tablette.
+- État des étapes : A, B et C faites. Reste à valider avec un vrai compte Google sur tablette et ordinateur.
+## Chantier Planning (terminé en 1.11.0) : décisions prises
+
+Méthode suivie : après chaque étape, nouvelle version, liste de tests à faire sur la tablette, attente du retour du professeur. Les 7 étapes sont faites (1.5.0 → 1.11.0).
+
+- Deux établissements (initiales PR et RB), un fichier .ics chacun.
+- **Une classe de l'app par groupe Pronote** (ex. `[3C2D1]` → classe « 3C2D1 »). Les noms de classes sont rendus
+  uniques par les initiales du collège (PR, RB) : pas de champ « établissement » sur les classes. La
+  correspondance classe Pronote → classe de l'app est propre à chaque établissement, proposée automatiquement
+  (comparaison sans espaces, crochets ni initiales) puis validée, mémorisée et modifiable dans l'admin.
+- **Le planning ne montre que les cours** (+ vacances et fériés, discrets). Pas d'événements Agenda : le professeur
+  ajoute une **note sur un cours** quand un événement le concerne (photo, élection…) ; notes conservées à la
+  réimportation.
+- Rôle des matières (réglable) : TECHNOLOGIE, SCIENCES TECHNOLOGIE = cours suivi (appel + séance) ; VIE DE CLASSE =
+  appel seulement ; tout le reste = **masqué** par défaut (autre choix : affiché en grisé).
+- « Cours déplacé » = cours qui a lieu (alertes) ; pas d'alerte pour annulé, classe absente, sortie pédagogique,
+  absence personnelle, vacances, fériés.
+- Alertes dans l'app : appel non fait 15 min après le début ; séances non remplies à partir de 18h.
+- Statistiques : un élève en retard compte comme présent ; taux = appels sans absence / appels.
+- Durées de cours variables (1 h, 1 h 30…) : aucun calcul ne suppose une durée fixe ; **1 créneau (cours) = 1 appel + 1 séance de projet**, quelle que soit sa durée, même si deux créneaux de la même classe se suivent (décision du professeur, 30 sept.).
+
+## Historique des versions
+
+### 1.22.1 — Planning : statut de cours « Autre »
+- Demande du professeur : il manquait un choix « Autre » dans « Statut du cours ». Nouveau statut `autre`
+  (`STATUT_CHOIX`) avec une **précision** écrite par le professeur (`statutTexte`, ex. « Brevet blanc ») qui sert
+  d'étiquette sur le cours, dans le panneau et dans Google Agenda (titre). Comme une sortie : le cours reste au
+  planning, l'appel reste possible, **pas d'alerte** (`NO_ALERT`). Revenir à un autre statut efface la précision.
+
+### 1.22.0 — 20 octobre 2026 · Importer des résultats Labo Blocs
+- Demande du professeur : récupérer dans le Carnet les niveaux par compétence calculés par Labo Blocs (outil de
+  programmation par blocs) et par l'atelier du distributeur de céréales, sans relier Labo Blocs à Pronote.
+- Onglet **Notes** → **« Importer des résultats Labo Blocs »** (fichier `…labo-resultats.json` exporté par l'outil du
+  professeur de Labo Blocs). Nouveau `js/labo-blocs.js`. Le panneau propose :
+  - chaque **compétence** → un **critère** du projet (retrouvé automatiquement s'il a le même libellé du programme,
+    sinon à choisir, ou « Ne pas importer ») ;
+  - chaque **équipe** → ses **élèves** (prénoms comparés sans accents ni majuscules ; deux élèves du même prénom ou un
+    prénom introuvable : « ⚠ à choisir ») et un **groupe** (le groupe où ils sont déjà, sinon « Nouveau groupe avec ces
+    élèves », ou « Ne pas importer » ; une équipe d'une autre classe n'est pas importée par défaut).
+- « Importer » pose les niveaux sur les groupes (une seule action, **annulable**), ajoute le commentaire de Labo Blocs
+  au commentaire du groupe ; ajustements individuels, mention et export Pronote comme d'habitude.
+- Tests : lecture du fichier, prénoms, correspondance proposée (homonymes, autre classe, groupe existant, critère par
+  libellé), contrôles avant import (`tests/labo-blocs.test.js`). Vérifié sur les données de démonstration.
+
+### 1.21.1 — 2 octobre 2026 · Google Agenda : partager un événement
+- Demande du professeur : partager certains événements avec une personne. Formulaire d'un événement → champ
+  **« Inviter »** (adresses e-mail, vérifiées) : `evenements.invites` ; envoyé comme invités de l'événement Google, avec
+  `sendUpdates=all` (Google envoie l'invitation, les modifications, et prévient les personnes retirées de la liste).
+- Les mises à jour vers Google Agenda sont désormais **partielles** (PATCH au lieu de remplacer l'événement) : ce qui
+  est ajouté directement dans Google Agenda (invités sur un cours, rappels…) **n'est plus effacé**. Si des invités ont
+  été choisis dans l'app (`invitesGeres`), c'est l'app qui gère la liste de cet événement.
+- Vérifié avec le Google Agenda simulé : adresse invalide refusée ; invitation envoyée à 2 personnes ; invité ajouté
+  dans Google sur un cours gardé quand le cours est déplacé dans l'app ; invités retirés dans l'app retirés dans Google.
+
+### 1.21.0 — 2 octobre 2026 · Planning copié dans Google Agenda
+- Demande du professeur : retrouver le planning du collège dans Google Agenda, avec une couleur par collège et une
+  différence entre cours, vie de classe et rendez-vous. Choix : **une famille de couleurs par collège, nuance selon le
+  type** (foncée = cours, moyenne = vie de classe, claire = rendez-vous ; gris = rendez-vous sans classe) ; **toute
+  l'année** ; seulement les cours et les événements (pas de vacances, notes ni matériel) ; cours annulés **retirés**.
+- Nouveau `js/agenda.js` : agenda à part **« Carnet de classe »** créé par l'app (portée OAuth
+  `calendar.app.created` : l'app ne voit que cet agenda), **sens unique** app → Google Agenda, automatique quelques
+  secondes après un changement du planning (import Pronote, cours déplacé, événement) et à l'ouverture.
+  Identifiants d'événements Google **stables** (dérivés des identifiants de l'app) : plusieurs appareils sans doublons ;
+  empreinte de chaque événement envoyé (`meta.agendaEtat`, synchronisé) : seuls les changements partent ; 3 envois en
+  parallèle avec nouvel essai si Google demande de ralentir. Titre « 5e A · Vie de classe · PR », lieu = salle.
+- `drive.js` : l'autorisation Google Agenda est demandée en plus seulement quand l'agenda est activé ; `api` exportée,
+  erreurs avec leur code.
+- Administration → Emploi du temps : partie **Google Agenda** (activer, mettre à jour, désactiver, avancement, légende
+  des couleurs par collège) et guide : activer « Google Calendar API », ajouter le champ `calendar.app.created`.
+- Vérifié avec un Google Agenda simulé : 960 cours et événements envoyés, 2e passage sans aucun envoi ; cours déplacé
+  → 1 modification, cours annulé → 1 retrait, rendez-vous ajouté → 1 ajout ; « autre appareil » sans mémoire → aucun
+  doublon. À valider avec un vrai compte Google. Tests : 67 / 67.
+
+### 1.20.1 — 1er octobre 2026 · Plan de classe : plus grand, salle du collège
+- Retours du professeur : le bloc « Tableau » prenait de la place → **supprimé** (plan de classe et éditeur des salles).
+- Une salle appartient à un **collège** (`salles.etabId`, champ « Collège » dans l'éditeur ; deviné d'après l'emploi du
+  temps pour les plans existants, proposé par « Créer le plan ») : deux collèges peuvent avoir chacun leur « Techno 1 ».
+  Quand l'emploi du temps donne la salle du cours, **seule cette salle** est affichée (aucun choix) ; sinon, choix parmi
+  les salles du collège de la classe (`planClasse.etabDe`).
+- **Plan agrandi** : « Placer les élèves » et, pendant le placement, « Compléter A → Z / Au hasard / Tout retirer /
+  Terminé » passent dans la **barre du haut** ; élèves à placer dans une **colonne à gauche** ; plan **recadré sur les
+  îlots** (`salles.cadre`, `planHtml({ zoom })`) et dimensionné à la hauteur de l'écran (places ≈ 45 → 69 px à 1280 × 800).
+
+### 1.20.0 — 1er octobre 2026 · Plan de classe et matériel, étape 3 : plan de classe
+- Trombinoscope : bascule **« Photos | Plan »** (choix mémorisé sur l'appareil). Le plan affiche la salle du cours en
+  contexte (salle de l'emploi du temps), sinon la dernière utilisée par la classe ; choix de la salle au-dessus du plan.
+- Nouveau `js/plan-classe.js` : placement enregistré sur la classe (`classes.plans = { [salleId]: { [idPlace]:
+  studentId } }`, `classes.planSalle`), un plan par salle ; placer / déplacer / **échanger** (place prise), retirer,
+  **compléter** les places libres (A → Z ou au hasard), tout retirer.
+- **« Placer les élèves »** : bande des élèves non placés, toucher un élève puis sa place ; toucher un élève du plan pour
+  le déplacer. Places libres numérotées pendant le placement.
+- Sur le plan : photo, prénom, compteurs − / + du trimestre ; **toucher un élève** = menu Comportement / Aide (sans
+  motif ou avec un motif) / Fiche de l'élève, avec « Annuler ». **Appel depuis le plan** (même bouton « Appel » : 1 toucher
+  absent, 2 touchers retard), absents grisés.
+- Correctif (retour du professeur) : l'en-tête de l'**Administration** débordait à droite avec les nouveaux boutons et
+  décalait la page ; libellés raccourcis (Emploi du temps, Salles, Sauvegarde, Archives, Réglages), tout tient sur une
+  ligne à 1280 px ; en dessous, l'état de sauvegarde puis les libellés se masquent.
+- Vérifié à la taille de la tablette : placement manuel, « Compléter (A → Z) » (27 places, 1 élève non placé signalé),
+  échange de deux élèves, menu + / − (compteur mis à jour), appel absent puis retard. Tests : 67 / 67.
+
+### 1.19.1 — 1er octobre 2026 · Plans de salle : îlots libres, tournés dans tous les sens
+- Retour du professeur : « Pivoter » (horizontal / vertical) et la grille ne permettaient pas de reproduire la salle.
+- Îlots **glissés au doigt** n'importe où (position au quart d'unité, toujours dans la salle) ; **rotation de 15° en 15°**
+  (↺ ↻, + 90°, « Remettre droit ») ; disposition **face à face** ou **en ligne** (ex. postes le long d'un mur) ; les
+  numéros (et plus tard les photos) restent à l'endroit. Plus de contrôle de chevauchement (le professeur place à l'œil).
+- Format : `tables: [{ id, cx, cy, angle, places, ligne }]` (centre en unités) ; les plans 1.19.0 (grille, `vertical`)
+  sont convertis à l'ouverture (`salles.normTable`), identifiants des places inchangés. Tests : 67 / 67.
+
+### 1.19.0 — 1er octobre 2026 · Plan de classe et matériel, étape 2 : plans de salle
+- Nouvelle table `salles` (`DB_VERSION` 9), synchronisée, gardée d'une année sur l'autre : `{ name, type: 'ilots'|'rangees',
+  tables: [{ id, x, y, places, vertical }], rangs, colonnes, parTable }`.
+- Nouveau `js/salles.js` : grille de 12 × 9 cases ; taille d'un îlot selon ses places (1 = poste individuel … 8),
+  pivoté ou non ; chevauchements et bords interdits ; **places à identifiant stable** (« idÎlot-n », « r-rang-col-n »)
+  numérotées en lecture ; salle d'un cours = plan qui porte le **nom de la salle de l'emploi du temps** (`salleDuCours`).
+- Nouveau `js/plan-view.js` (dessin d'un plan, réutilisé à l'étape 3) et écran **Administration → Plans de salle**
+  (`js/screens/salles.js`) : liste, « Salles de votre emploi du temps sans plan » (Créer le plan), éditeur : nom (avec
+  propositions), Îlots / Rangées ; îlots : toucher un îlot puis une case vide pour le déplacer, places − / +, pivoter,
+  supprimer, ajouter ; rangées : rangs, tables par rang, places par table. Tableau en haut du plan.
+- Vérifié à la taille de la tablette (1280 × 800) : plan de départ en 6 îlots de 4, îlot de 6 pivoté, déplacement
+  refusé sur un autre îlot, poste individuel, salle en rangées 6 × 2 × 2. Tests : 66 / 66.
+
+### 1.18.0 — 1er octobre 2026 · Plan de classe et matériel, étape 1 : matériel à préparer
+- Projet → nouvelle partie **« Matériel à préparer par séance »** (une ligne par élément) : `projects.materiel =
+  { "3": ["Imprimante 3D", …] }`, réutilisée pour chaque classe qui fait le projet, chaque année (copiée par « Dupliquer »).
+- Nouveau `js/prepa.js` : **séance prévue** d'un cours à venir (séances faites + cours suivis de la classe d'ici là sans
+  séance reliée + 1 ; un cours qui a sa séance garde son numéro) ; liste d'un cours = liste de la séance du projet +
+  **ajouts ponctuels sur le cours** (`cours.aPreparer`) ; coches « prêt » propres à chaque cours (`cours.prepa`).
+- Planning → panneau du cours : partie **« À préparer »** (cases à cocher, ajout pour ce cours, lien « Modifier la liste
+  de la séance n du projet » qui revient au planning). Petite boîte orange sur le cours tant que tout n'est pas prêt.
+- **Rappel** dans le coin des alertes (une app web fermée ne peut pas envoyer de notification sans serveur) : la veille
+  du prochain jour de cours à partir de 16 h (le vendredi pour le lundi), et le jour même jusqu'au début du cours ;
+  « Voir la liste » ouvre le panneau du cours.
+- Vérifié sur la démonstration : séances prévues 6, 7, 8 pour les 3 prochains cours d'une classe ; liste projet + ajout
+  + coches ; rappel présent à 16 h 30 la veille, absent à 15 h ; enregistrement du projet depuis le planning. Tests : 63 / 63.
+
+### 1.17.1 — 1er octobre 2026 · Planning : la vie de classe se distingue d'un cours
+- Retour du professeur (professeur principal de 2 classes) : au planning, une heure de **vie de classe** ressemblait à
+  un cours de technologie avec la même classe. Désormais, tout cours d'une classe reliée qui n'est pas un « cours
+  suivi » (vie de classe, matière en grisé, cours ajouté en « appel seulement ») affiche sa **matière** (« Vie de
+  classe ») à côté du nom de la classe — ou en 2e ligne si plusieurs cours se partagent le créneau — avec un fond
+  hachuré ; aussi dans le panneau du cours.
+
+### 1.17.0 — 1er octobre 2026 · Archives des années consultables
+- Demande du professeur : archiver l'année avant « Nouvelle année ». Avant : un fichier téléchargé, qu'on ne pouvait
+  rouvrir qu'en **remplaçant** toutes les données. Maintenant l'archive est **consultable dans l'app, en lecture seule**,
+  sans toucher à l'année en cours.
+- Nouvelle table `archives` (`DB_VERSION` 8), **hors de `STORES`** : jamais synchronisée enregistrement par
+  enregistrement, jamais dans les sauvegardes, jamais effacée par une restauration. Une archive = instantané complet
+  de l'année (format d'une sauvegarde, photos comprises), `{ id: 'annee-AAAA-AAAA', year, createdAt, summary, size, blob, driveId }`.
+- Nouvel écran **Administration → Archives** (`js/screens/archives.js`) : archiver l'année (de nouveau = remplace),
+  liste des archives (Consulter, Fichier, Retirer de l'appareil), archives présentes dans **Google Drive**
+  (`carnet-archive-AAAA-AAAA.json` dans le dossier « Carnet de classe », « Récupérer sur cet appareil »), ouvrir un
+  fichier d'archive (aussi les anciens fichiers « carnet-archive-… » téléchargés avant cette version).
+- **Consultation** (`db.openArchive`) : l'archive remplace les données en mémoire seulement ; toute l'app fonctionne
+  (trombinoscope, fiches, projets, impressions, CSV) ; `commit` ne fait rien (message « lecture seule »),
+  synchronisation Drive, mise à jour Pronote et alertes suspendues ; bandeau « Archive AAAA · lecture seule —
+  Revenir à l'année en cours » (rechargement de l'app).
+- Sauvegarde et exports → Fin d'année : « 1. Archiver l'année » (mode Drive : copie dans Drive ; mode manuel : le
+  fichier est aussi proposé), « 2. Supprimer les classes » possible seulement si l'année a une archive.
+- Vérifié : archive de 13 classes / 309 élèves / 283 photos (2 Mo, < 0,5 s), nouvelle année, consultation (photos,
+  écriture refusée), retour à l'année en cours intact ; Drive simulé : envoi, remplacement du même fichier,
+  récupération sur un autre appareil. Tests : 63 / 63.
+
+### 1.16.0 — 1er octobre 2026 · Emploi du temps par lien Pronote, étape 2 : événements hors Pronote
+- Nouvelle table `evenements` (`DB_VERSION` 7) : `{ date, debut, fin, type, titre, lieu, classId, note, serieId }`,
+  synchronisée par Drive comme le reste, effacée en fin d'année (`clearYearIn`) ; suppression d'une classe → l'événement
+  perd seulement sa classe (`forgetClassIn`).
+- Planning : bouton **« + Événement »** (à la place de « + Cours ») ; formulaire : type (6 choix en gros boutons
+  colorés), intitulé, date, heures, lieu, classe concernée, note, « chaque semaine jusqu'à la fin de l'année ». Lien
+  « Ajouter plutôt un cours » pour un cours absent de Pronote.
+- Les événements s'affichent dans la semaine (cadre en pointillés de la couleur du type), à côté des cours qui se
+  chevauchent ; toucher = modifier ou supprimer (cette fois / les semaines suivantes pour une série).
+- Avertissement de chevauchement commun (`planning.chevauchementsTout`) : un événement sur un cours, ou un cours sur
+  un événement, demande confirmation.
+- `planning.js` : `TYPES_EVT`, `evenementsEntre`, `addEvenement`, `editEvenement`, `deleteEvenement`, `suivantsEvt`.
+  Démonstration : 3 événements fictifs.
+- Vérifié : ajout (avec classe et lieu), modification, suppression avec « Annuler », série hebdomadaire (31 semaines,
+  vacances sautées) modifiée en entier, chevauchement signalé, lien vers l'ajout d'un cours. Tests : 60 / 60.
+
+### 1.15.0 — 1er octobre 2026 · Emploi du temps par lien Pronote, étape 1 : mise à jour automatique
+- Administration → Emploi du temps : nouvelle partie **« Mise à jour automatique depuis Pronote »** : adresse du relais
+  Google (Enregistrer, Tester), guide pas à pas en 4 parties avec le code à copier, lien Pronote d'un nouveau collège
+  (« Ajouter » ouvre l'assistant habituel : classes puis aperçu), « Mettre à jour maintenant ».
+- Chaque collège : bouton **« Lien »** (ajouter / modifier / retirer ; le lien est vérifié : il doit donner CE collège),
+  état « Lien Pronote ✓ vérifié le … » ou dernière erreur, et « Nouvelle classe Pronote à relier » si besoin.
+- Nouveau `js/pronote-lien.js` : relais, téléchargement, mise à jour d'un collège sans assistant (`mettreAJour`),
+  résumé avec « Annuler », mise à jour automatique chaque soir à partir de 18 h ou à l'ouverture suivante (pas pendant
+  une saisie ou un panneau ouvert).
+- Planning : bouton ⟳ « Mettre à jour depuis Pronote » dans l'en-tête (si un lien est configuré).
+- `planning.readTexts` (import à partir de textes), `applyImport` : identifiants stables (cours, vacances), vacances
+  mises à jour seulement si elles changent, classes « pas encore décidées » laissées sans correspondance.
+- Synchronisation Drive : l'écran n'est plus redessiné quand le panneau d'un cours du planning est ouvert.
+- Vérifié avec un relais simulé et un calendrier fictif : salle modifiée, cours retiré, cours ajouté (identifiant
+  stable), 2e passage sans changement ; automatique silencieux sans changement, résumé + « nouvelle classe à relier »
+  sinon ; erreur affichée dans l'admin. Code du relais exécuté avec de faux services Google. Tests : 60 / 60.
+
+### 1.14.1 — 1er octobre 2026 · Correctif : les modifications de l'ordinateur n'arrivaient pas sur la tablette
+- Retour du professeur : tablette → ordinateur OK, mais ordinateur → tablette seulement après une synchro manuelle
+  ou une modification sur la tablette. Causes : vérification de Drive toutes les **5 min** seulement tant que l'app
+  reste affichée ; et données reçues pendant une saisie / un panneau ouvert jamais affichées ensuite.
+- Vérification de Drive **toutes les 30 s** tant que l'app est affichée (quand rien n'a changé : 2 petites
+  requêtes, rien de téléchargé) ; au retour dans l'app après 10 s (au lieu de 1 min), y compris `focus`/`pageshow`.
+- Données reçues pendant une saisie ou avec un panneau ouvert : l'écran se met à jour dès qu'il est libre
+  (nouvel essai toutes les 2 s).
+- Vérifié avec un Drive simulé : classe renommée par « l'ordinateur » affichée seule en 22 s ; pendant une saisie,
+  la saisie n'est pas interrompue puis l'écran se met à jour. Tests : 51 / 51.
+
+### 1.14.0 — 1er octobre 2026 · Synchronisation Drive, étape C : synchronisation automatique
+- Nouveau `js/autosync.js` : synchronisation **automatique** en mode Drive — à l'ouverture, 5 s après la dernière
+  modification, au retour dans l'app (après 1 min d'absence), toutes les 5 min, au retour du réseau. Jamais deux à la fois.
+- **Indicateur dans l'en-tête** (à la place de « Sauvegardé le … ») : « Synchronisé 10:42 », « Synchronisation… »,
+  « Reconnecter Google » (jeton expiré après 1 h : reconnexion discrète tentée, sinon un toucher), « Hors ligne »,
+  « Erreur de synchro », « Synchro à vérifier », « Drive à configurer ». Un toucher = synchroniser maintenant.
+- **Seulement les différences** : si ni cet appareil ni Drive n'ont changé → aucun échange (2 petites requêtes) ;
+  si seul cet appareil a changé → Drive n'est pas retéléchargé. Photos envoyées seulement si elles changent.
+- **Deux appareils en même temps** : avant d'envoyer, l'app vérifie que Drive n'a pas été modifié depuis sa lecture
+  (version du fichier) ; sinon elle relit et refusionne (jusqu'à 3 fois) — rien n'est écrasé.
+- **Après restauration d'une sauvegarde, données de démonstration ou « tout effacer »** : synchronisation automatique
+  suspendue (« Synchro à vérifier ») ; au toucher : « Remplacer Drive par cet appareil » (ce qui n'existe plus ici est
+  supprimé de Drive puis des autres appareils), « Recharger depuis Drive » ou « Fusionner les deux ». L'identifiant
+  et le réglage Drive sont conservés. 1re synchronisation d'un appareil qui a déjà des classes : toujours demandée.
+- L'écran se met à jour quand des données arrivent, sauf pendant une saisie ou avec une liste / un panneau ouvert.
+- **Guide de l'identifiant réécrit** (retour du professeur : peu clair sur tablette) : 5 parties numérotées, noms
+  exacts des menus Google, oubli fréquent (utilisateur test) mis en avant, bouton Copier l'adresse, ID client et non
+  code secret GOCSPX, erreurs fréquentes (`origin_mismatch`, `access_denied`, fenêtre bloquée…).
+- Vérifié avec un Google Drive simulé : 1re synchro demandée puis 3 281 envois + 283 photos ; 1 note → « 1 envoyé »,
+  sans retéléchargement ; rien de neuf → aucun échange ; modification d'un autre appareil reçue ; envoi simultané
+  d'un autre appareil → refusion, les deux notes gardées ; démonstration chargée → synchro suspendue, « Remplacer
+  Drive » laisse une trace de suppression pour les anciens enregistrements. Tests : 51 / 51.
+
+### 1.13.1 — 1er octobre 2026 · Correctif : identifiant client refusé
+
+- Le collage de l'identifiant depuis la console Google était refusé (espace, caractère invisible, majuscule ou espace
+  ajoutés par le clavier, texte autour). `drive.extractClientId` retrouve l'identifiant dans le texte collé (ignore
+  espaces, caractères invisibles, majuscules, texte autour) ; en cas d'échec, le message montre ce qui a été reçu.
+  Champ sans majuscule ni correction automatiques. 7 tests (51 au total).
+### 1.13.0 — 1er octobre 2026 · Synchronisation Drive, étape B : connexion et synchronisation manuelle
+
+- **Application autonome** : chaque professeur saisit son propre identifiant client Google (aucun accès du
+  développeur). Guide pas à pas intégré, avec l'adresse exacte à autoriser (``location.origin``) et un bouton Copier.
+- Administration → Sauvegarde : **Mode de sauvegarde** « Sauvegarde manuelle » / « Google Drive » (réglage de
+  l'appareil). En mode Drive : avertissement « sans chiffrement, ne partagez jamais ce dossier », identifiant client,
+  « Se connecter à Google », état (compte, dernière synchronisation et bilan), **« Synchroniser maintenant »**,
+  « Ouvrir le dossier dans Google Drive », « Se déconnecter ». La sauvegarde par fichier reste disponible (« Copie de
+  secours »).
+- Nouveau ``js/drive.js`` : Google Identity Services (jeton 1 h), API Drive v3 par ``fetch`` ; dossier visible
+  « Carnet de classe » ; ``carnet-donnees.json`` (données fusionnées + traces de suppression + index des photos) ;
+  ``photo-<id>.jpg`` (une image par photo, envoyée ou reçue seulement si elle a changé ; photos supprimées mises à la
+  corbeille de Drive). Synchronisation = lire Drive → fusionner (``sync.mergeData``) → appliquer ici → envoyer.
+- 1re synchronisation d'un appareil qui a déjà des classes : « Fusionner les deux » ou « Remplacer cet appareil par
+  Drive » (refusé si Drive ne contient encore aucune classe, pour ne rien perdre).
+- Sûreté : une modification faite pendant la synchronisation n'est pas écrasée (``applyRemote`` garde la version locale
+  plus récente) ; valeurs par défaut créées au démarrage datées « 0 » (``commit({ oldest: true })``) pour que les vrais
+  réglages d'un autre appareil (ex. trimestre en cours) l'emportent.
+- Vérifié avec un Google Drive simulé : envoi complet (3 285 enregistrements + 283 photos), 2e synchronisation sans
+  échange, modifications et suppression venues d'un autre appareil reçues, suppression envoyée, appareil neuf
+  entièrement reconstitué (photos comprises). Reste à essayer avec un vrai compte Google.
+### 1.12.0 — 1er octobre 2026 · Synchronisation Drive, étape A : fondations de la fusion
+
+- Nouvelle table `effacements` (`DB_VERSION` 6) : chaque suppression (`commit` → `w.del`) laisse une trace
+  `{ id: 'store:recId', store, recId, at }` (sauf réglages propres à l'appareil). « Annuler » remet l'enregistrement
+  avec une date plus récente que la trace : il l'emporte.
+- `db.exportForSync()` : données à synchroniser (photos sans image) ; `db.applyRemote(changes)` : applique des
+  changements venus d'un autre appareil tels quels (dates conservées, sans nouvelle trace ni annulation).
+- Nouveau `js/sync.js` : `mergeData(local, drive)` — fusion enregistrement par enregistrement (le plus récent gagne,
+  égalité = version locale), traces de suppression, photos à télécharger, statistiques ; résultat stable (une
+  2e fusion ne change plus rien).
+- Tests : 44 (12 nouveaux sur la fusion). Aucun changement visible dans l'app.
+### 1.11.0 — 1er octobre 2026 · Planning, étape 7/7 : statistiques de présence
+
+- Nouveau `js/stats.js` : **taux de présence = appels où l'élève n'était pas absent / appels de sa classe**, un
+  retard compte comme présent. Trimestre d'un appel déduit de sa date et de `meta.trimesterStarts`
+  (`stats.trimesterOf`). `presenceEleve`, `presenceClasse` (moyenne des taux des élèves, plus absents, plus en
+  retard), `presenceProjet` (appels rattachés à une séance du projet).
+- **Fiche élève** : bloc « x % de présence ce trimestre · y % sur l'année (n appels) ». **Fiche PDF** : ligne
+  « Présence » par trimestre et colonne « Année » (comportement, aide, absences, retards aussi en total annuel).
+- **Classe** : bouton « Présence » dans le trombinoscope → panneau T1 / T2 / T3 / Année : présence moyenne, appels,
+  absences, retards, les plus absents, toute la classe triée (barre et %), toucher un élève ouvre sa fiche.
+- **Projet** : « Présence sur les séances du projet : x % · n appels · absences · retards · plus absents ».
+- **Récapitulatif CSV** : colonnes « Tn Présence », « Année Présence », « <projet> présence », dernière ligne
+  « MOYENNE DE LA CLASSE ». **Récapitulatif PDF** : mêmes colonnes + ligne « Présence moyenne … · Plus absents ».
+- Démonstration : appels fictifs sur les cours passés (quelques absences et retards) pour essayer les statistiques.
+### 1.10.0 — 1er octobre 2026 · Planning, étape 6/7 : réimportation et conflits
+
+- `planning.previewOf` renvoie désormais `conflits` (les autres changements s'appliquent directement) :
+  - **modif** : Pronote a changé un cours que le professeur avait modifié (`cours.perso` : déplacé, salle, statut).
+    Choix « **Ma version** » (par défaut : ses modifications restent prioritaires sur les points qu'il avait changés ;
+    les autres changements Pronote s'appliquent) ou « **Version Pronote** » (modifications effacées).
+  - **suppr** : Pronote a retiré un cours portant des données du professeur (modification, note,
+    « pas une séance projet », appel ou séance reliés). Choix « **Garder le cours** » (par défaut : devient un cours
+    ajouté à la main, `source: 'manuel'`, `retirePronote: true`, même identifiant, hors de la comparaison avec
+    Pronote : plus de conflit aux imports suivants) ou « **Le supprimer** » (appels et séances gardés, détachés).
+  - Notes, appels et séances restent attachés au cours dans tous les cas.
+- Aperçu de l'import : pastille « n conflits » et bloc « n conflits à régler », chaque conflit avec le résultat de
+  chaque choix (date, horaire, salle, statut), boutons « Tout : mes versions » / « Tout : Pronote ».
+  Choix mémorisés dans `plan.choix` et appliqués par `planning.applyImport`.
+- Alertes masquées dans l'administration (elles recouvraient les boutons de l'import).
+- Vérifié avec des exports fictifs générés depuis la démonstration : conflit de salle sur un cours déplacé,
+  cours retirés avec note / avec appel, choix appliqués, réimport du même fichier sans nouveau conflit.
+### 1.9.5 — 30 septembre 2026 · 1 créneau = 1 appel + 1 séance
+
+- Décision du professeur : chaque créneau (1 h, 1 h 30…) a **son appel et sa séance de projet**, même quand deux
+  créneaux de la même classe se suivent. Les règles « une séance par jour » (1.9.2) et « cours enchaînés » (1.9.4)
+  sont retirées (`coursEnchaines` supprimé).
+- Appel d'un créneau : sa séance reliée, sinon une séance du jour encore sans cours (onglet Projet), sinon
+  « Commencer la séance n » — aussi pour le 2e créneau d'une suite.
+- Migration étendue (`planning.lierAppels`, au démarrage, après import et à chaque rafraîchissement des alertes) :
+  après les appels, les **séances sans cours** sont reliées, dans l'ordre de leur numéro, aux créneaux suivis du même
+  jour et de la même classe qui n'ont pas encore de séance (ex. séances créées dans l'onglet Projet le matin).
+- Alerte « séance à remplir » : une par créneau sans séance reliée.
+### 1.9.4 — 30 septembre 2026 · Deux cours de la même classe dans la journée
+
+- Nouvelle règle (`planning.coursEnchaines`, `ENCHAINEMENT` = 20 min) : les cours de la même classe le même jour
+  séparés de moins de 20 min (09:10 → 09:11, 10:06 → 10:22 après la récréation) forment **un bloc** = un cours de
+  2 h = **une seule séance**. Des cours **séparés** dans la journée (matin et après-midi) ont **chacun leur séance**.
+  (Remplace la règle de 1.9.2 « une séance par jour », qui faisait reprendre la séance du matin l'après-midi.)
+- Appel : un par cours (inchangé). À l'appel, la séance reprise est celle du cours, sinon d'un cours du même bloc,
+  sinon une séance du jour créée sans cours (onglet Projet) ; sinon « Commencer la séance n ».
+- Alerte « séance à remplir » : une par bloc (horaire du bloc entier), écartée si le bloc a une séance, si une
+  séance du jour a été créée sans cours, ou si « Pas une séance projet » est choisi pour un cours du bloc.
+### 1.9.3 — 30 septembre 2026 · Durées de cours variables (1 h, 1 h 30…)
+
+- Règle : **chaque cours garde sa propre durée** ; rien ne suppose des créneaux d'une heure. Appel (un par cours),
+  alertes (15 min après le début), séance du jour, chevauchements, cours « en cours », rattachement des anciens
+  appels : tous calculés sur les vraies heures de début et de fin de chaque cours.
+- Correctif « Déplacer le cours » : les créneaux proposés sont les **heures de début** habituelles de
+  l'établissement, et le cours y garde **sa durée** (un cours d'1 h 30 reste d'1 h 30) ; un créneau n'est proposé
+  que si toute cette durée est libre. Des créneaux qui se chevauchent entre eux s'affichent côte à côte.
+### 1.9.2 — 30 septembre 2026 · Correctif : cours de 2 heures (séance en double, alerte à tort)
+
+- Pronote découpe un cours de 2 h en deux cours d'1 h. À l'appel de la 2e heure, l'app ne retrouvait pas la séance
+  du jour (déjà reliée à la 1re heure) et proposait « Commencer la séance suivante » → séance en trop ; et après sa
+  suppression, l'alerte « séance à remplir » apparaissait pour la 2e heure.
+- Appel : la séance reliée au cours, sinon **la séance du même jour** du projet (reliée ou non) est reprise — une
+  seule séance par jour, jamais une nouvelle à chaque heure.
+- Alerte « séance à remplir » : pas d'alerte si une séance de projet existe déjà ce jour-là pour la classe (reliée
+  ou non à un cours). Libellé : « Cours du jour sans séance de projet ».
+- Rappel des décisions : un appel par cours (donc un par heure) ; une séance de projet par jour et par classe.
+### 1.9.1 — 30 septembre 2026 · Supprimer une séance
+
+- Onglet **Projet** : icône corbeille à côté de la date de la séance affichée → « Supprimer la séance n du … ? »
+  (confirmation détaillée, puis Annuler possible). `model.deleteSeance` : le journal de la séance est effacé ;
+  observations, appels, absences et retards de cette séance sont **gardés**, détachés (plus de numéro) ; les séances
+  suivantes sont **renumérotées** (n − 1) avec les numéros et libellés « Séance n · … » qui les citent (observations,
+  absences, retards, appels, changements de groupe). Si la séance était reliée à un cours, l'alerte « séance à
+  remplir » peut revenir pour ce cours (« Pas une séance projet » pour l'écarter).
+- Alertes : la boîte repliée reste repliée (choix mémorisé sur l'appareil, clé `carnet-alertes`).
+
+### 1.9.0 — 30 septembre 2026 · Planning, étape 5/7 : appel rattaché au cours, alertes
+
+- **Appel rattaché à un cours** : `appels.coursId` (et `seances.coursId`). Dans le trombinoscope, « Appel » utilise
+  le cours en contexte (`planning.coursContexte` : cours touché dans le planning, sinon en cours, sinon prochain
+  ou dernier de la journée) ; un cours n'a qu'un appel : s'il existe il est rouvert pour correction
+  (`model.appelOfCours`). La date de l'appel est celle du cours. Cours suivi avec projet en cours : « Commencer la
+  séance n et faire l'appel » (séance reliée au cours) ou « Faire l'appel sans séance de projet » ; une séance du
+  même jour créée dans l'onglet Projet est reprise et reliée. Cours « appel seulement » : pas de séance.
+  Cours annulé / classe absente : confirmation. Classe sans cours ce jour-là : appel hors planning (comme avant).
+- `model.currentAppel(classId)` : l'appel du cours en contexte, sinon le dernier appel du jour sans cours.
+- **Migration** (`planning.lierAppels`, au démarrage et après chaque import) : un appel sans cours (ou dont le cours
+  a disparu) est relié au cours de même classe et même date dont l'horaire encadre l'heure de l'appel
+  (30 min avant le début → 15 min après la fin) ; sa séance est reliée au même cours. Sinon il reste tel quel.
+- Séance créée dans l'onglet Projet pendant un cours suivi du jour : reliée à ce cours.
+- **Alertes** (`js/alertes.js`, boîte repliable en bas à gauche, sur tous les écrans, sauf impression) :
+  « Appel non fait – 4 G » 15 min après le début d'un cours suivi ou « appel seulement » sans appel (bouton
+  « Faire l'appel » : ouvre la classe en mode appel, rattaché au cours) ; à partir de 18 h, « Séances à remplir » pour
+  les cours suivis du jour avec projet en cours sans séance reliée : « Remplir la séance » (crée la séance reliée et
+  ouvre le journal) ou « Pas une séance projet » (`cours.pasSeance`, mémorisé). Jamais pour annulé, classe absente,
+  sortie, absence personnelle, vacances, fériés. Recalculées à chaque modification et toutes les 30 s.
+- Planning : « appel ✓ » sur les cours dont l'appel est fait ; panneau du cours : bouton « Faire l'appel » ou
+  « Appel fait · n absents · corriger ».
+- Réimport : un cours relié à un appel ou une séance n'est jamais supprimé (compté « gardé »). Supprimer un
+  cours ajouté ou un établissement détache ses appels et séances sans les effacer.
+
+### 1.8.2 — 30 septembre 2026 · Planning au design de la maquette + alerte de chevauchement
+
+Référence graphique : maquette `Planning.dc.html` et « Cahier des charges v2 » §7.0, fournis par le professeur
+(projet de maquettes hors dépôt).
+- Blocs de cours en aplat à la **teinte du niveau** (mêmes teintes que les tuiles des classes), fin liseré à la couleur
+  du collège (demande initiale), ligne « Projet · séance x/n » (projet en cours de la classe) ou « Déplacé depuis … ».
+  Pastille à droite : statut (jaune si annulé / classe absente), « Déplacé », « En cours » (foncée). Cours passés
+  atténués (55 %), cours en cours contouré avec barre de progression, trait « maintenant » foncé, bande
+  « Pause méridienne » (calculée entre les cours du matin et de l'après-midi de la semaine). Grille 8 h – 17 h 30 minimum.
+- En-tête : « Cette semaine », bouton accent **En cours · 3e E →** (ouvre la classe du cours en cours), + Cours,
+  Classes, Administration.
+- **Toucher un cours ouvre son panneau** (plus de bouton ⋯) : en-tête à la teinte du niveau, **Ouvrir la classe**,
+  lien vers le projet, **Statut du cours** (Cours normal / Annulé / Classe absente / Sortie pédagogique, stocké dans
+  `cours.perso.statut`), **Créneau** : « Déplacer le cours » (les créneaux libres — horaires habituels de
+  l'établissement, à venir, hors vacances — s'affichent en pointillés, on touche la cible ; barre « Déplacer … ·
+  touchez un créneau libre » avec Annuler), « Remettre à sa place » (annule seulement le déplacement),
+  « Autre horaire ou salle… » (formulaire), note, « Revenir entièrement à la version Pronote ».
+- **Alerte de chevauchement** : ajouter, déplacer ou changer l'horaire d'un cours qui chevauche un autre cours affiché
+  (annulés, classe absente et masqués exclus) → « Ce cours en chevauche N autres » avec la liste, « Enregistrer quand
+  même » ou « Revenir en arrière ». Pour un cours répété chaque semaine, toute l'année est vérifiée.
+- Téléphone : titre raccourci (le jour est dans les onglets), boutons compacts.
+
+### 1.8.1 — 30 septembre 2026 · Correctif : les listes se refermaient toutes seules
+
+- Sur la tablette, ouvrir une liste (ex. choix de la classe dans « + Cours ») ou un champ date / heure / texte
+  fait apparaître le clavier ou une fenêtre de choix, ce qui réduit la hauteur de l'écran. Le planning se
+  redessinait alors (réglage de la hauteur de la grille, depuis 1.7.0) et la liste disparaissait avant le choix.
+- Désormais le planning ne se redessine qu'au changement de **largeur** (tablette tournée), jamais pendant
+  qu'un champ est utilisé ou qu'une fiche est ouverte ; la hauteur de la grille se base sur la plus grande
+  hauteur connue pour cette largeur.
+- À retenir pour la suite : ne jamais redessiner l'écran sur un simple changement de hauteur (Android).
+
+### 1.8.0 — 30 septembre 2026 · Planning, étape 4/7 : saisie manuelle et notes sur un cours
+
+- Principe : les champs Pronote d'un cours ne sont **jamais** modifiés par le professeur. Ses changements vont
+  dans `cours.perso` (`date`, `debut`, `fin`, `salle`, `annule`) et la note dans `cours.note` ; l'affichage
+  utilise `planning.eff(cours)`. Ainsi la réimportation compare Pronote à Pronote et garde les modifications.
+  Un cours ajouté à la main a `source: 'manuel'`, `classId` (classe de l'app), `role`, `etabId` facultatif.
+- Planning : bouton **⋯** sur chaque cours → fiche du cours (tiroir) : détails, **note** (affichée sur le cours et
+  en bandeau en haut du trombinoscope quand on ouvre la classe depuis ce cours, ou pour le cours du moment),
+  **Modifier ou déplacer** (date, début, fin — la fin suit le début —, salle), **Annuler ce cours** / Rétablir,
+  **Revenir à la version Pronote**, Supprimer (cours ajoutés). Toucher le cours lui-même ouvre toujours la classe.
+- Modifier / déplacer : si la classe a d'autres cours le même jour au même horaire plus tard dans l'année, choix
+  « Cette fois seulement » ou « Ce cours et toutes les semaines suivantes » (même décalage de jours, mêmes heures et
+  salle ; les cours passés ne changent pas).
+- Bouton **+ Cours** : classe, date, début, fin, salle, établissement (facultatif), type (cours suivi / appel
+  seulement / en grisé), « chaque semaine jusqu'à la fin de l'année » (vacances et fériés sautés). Mention
+  « modifié » / « ajouté » sur le cours ; icône de note (texte complet si le cours est assez haut).
+- Réimportation : un cours disparu de Pronote mais modifié ou annoté est **gardé** (compté à part dans l'aperçu).
+  La liste des conflits (Pronote a changé un cours modifié) viendra à l'étape 6.
+- `planning.coursContexte(classId)` : cours « en contexte » d'une classe (dernier cours touché dans le planning,
+  sinon celui du moment, sinon le prochain de la journée) — servira à rattacher l'appel à l'étape 5.
+
+### 1.7.0 — 30 septembre 2026 · Planning, étape 3/7 : l'accueil devient le planning
+
+- Nouvel accueil (`js/screens/semaine.js`) : semaine du lundi au vendredi (samedi s'il y a cours), plage horaire
+  calculée d'après les cours (8 h – 17 h minimum), hauteur ajustée pour tenir sur l'écran de la Tab S7+ en paysage.
+  Semaine précédente / suivante, « Aujourd'hui », colonne du jour teintée, trait rouge de l'heure actuelle
+  (rafraîchi chaque minute), cours en cours encadré avec « En cours ».
+- Chaque cours : bord à la couleur du collège, nom de la classe de l'app (sinon le nom Pronote), heures, salle,
+  étiquette de statut (Annulé, Déplacé, Classe absente, Sortie…). Annulé / classe absente / absence personnelle :
+  barré en pointillés. Matière « En grisé », classe ignorée ou réunion sans classe : estompé. Matière « Masqué » :
+  absent. Classe pas encore reliée : bord orange et « ? » (le toucher ouvre Emploi du temps).
+- Vacances et jours fériés : colonne teintée et libellé dans l'en-tête du jour. Cours qui se chevauchent : côte à côte.
+- Toucher un cours → trombinoscope de la classe. Bouton **Classes** (liste des classes, `#/classes`) à côté
+  d'Administration. Les liens « retour » des écrans de classe s'appellent maintenant « Accueil ».
+- Téléphone (< 700 px) : un jour à la fois, onglets Lun … Ven, flèches jour précédent / suivant.
+- Sans emploi du temps importé, l'accueil reste la liste des classes (comme avant).
+- Vérifié en local sur les vrais exports : semaine en cours, décembre (6 A toujours à 15h05), vacances de la
+  Toussaint, cours déplacés / annulés, téléphone sans défilement horizontal. Données locales effacées après test.
+
+### 1.6.0 — 30 septembre 2026 · Planning, étape 2/7 : tables et import
+
+- Nouvelles tables (`DB_VERSION` 5) : `etablissements` (nom, initiales, couleur, correspondance des classes),
+  `cours` (date, début, fin, classe Pronote, salle, matière, statut, source), `jours` (vacances, fériés).
+  Réglage `meta.matiereRoles`. Tout est dans la sauvegarde JSON et l'instantané (`exportSnapshot`).
+- **Administration → Emploi du temps** : « Importer des fichiers Pronote » (plusieurs .ics à la fois) →
+  pour chaque établissement, initiales (proposées d'après le nom : PR, RB) et couleur, puis correspondance
+  classe/groupe Pronote → classe de l'app ou « Ignorer » (proposition automatique : comparaison sans espaces,
+  crochets, initiales ni « e » de « 4e » ; en cas de doublon, la classe qui porte les initiales du collège) →
+  aperçu (ajoutés / modifiés / supprimés / inchangés, cours par rôle) → « Valider l'import » (annulable).
+  Correspondance mémorisée et modifiable (bouton « Classes »), couleur modifiable, suppression d'un établissement.
+- Réimportation déjà sûre : cours reconnus par date + début + classe, identifiants conservés, pas de doublon
+  (la protection des modifications manuelles et les conflits viendront à l'étape 6).
+- **Rôle des matières** réglable : Cours suivi / Appel seulement / En grisé / Masqué (défauts : technologie =
+  suivi, vie de classe = appel, le reste masqué). Tous les cours sont stockés ; le rôle ne joue qu'à l'affichage.
+- Cascades : supprimer une classe rend sa correspondance « à choisir » ; « Nouvelle année » efface cours et
+  vacances de l'année écoulée (établissements et rôles conservés).
+- Démonstration : emploi du temps fictif (« COLLEGE DES TILLEULS », 2 h de technologie par classe et par semaine,
+  vacances, quelques statuts dans les jours qui viennent).
+- Tests : 32 (6 nouveaux sur initiales, rapprochement des classes, réimportation).
+- Vérifié en local avec les deux exports réels : 200 + 492 cours, propositions de classes justes, réimportation
+  du même fichier = 0 changement, sauvegarde/restauration identique.
+
+### 1.5.0 — 30 septembre 2026 · Planning, étape 1/7 : lecture des fichiers Pronote
+
+Chantier « Planning » (emploi du temps importé de Pronote, appel rattaché aux cours, alertes, statistiques
+de présence), mené en 7 étapes : 1 lecture iCal · 2 tables et import · 3 accueil planning · 4 saisie manuelle
+et notes sur un cours · 5 appel rattaché et alertes · 6 réimportation et conflits · 7 statistiques.
+
+- Nouveau `js/ical.js` : lit un export iCal de Pronote (un fichier par établissement, nom lu dans
+  `X-WR-CALDESC`). Dépliage des lignes, échappements iCal et codes HTML, conversion UTC → heure de Paris
+  (changement d'heure compris), statuts (`CATEGORIES` « Cours - … »), vacances et jours fériés (fin exclusive).
+  Garde seulement date, début, fin, classe ou groupe (« Groupe » prioritaire, ex. `[3C2D1]`), salle, matière,
+  statut. Jamais les professeurs, résumés ni UID. « Agenda » et « Sessions de stage » ignorés (décision : le
+  planning ne montre que les cours ; une note sur un cours servira pour les événements, étape 4).
+- Constats sur les exports réels : un « Cours déplacé » est le nouveau créneau (le cours a lieu) et l'ancien
+  créneau apparaît en « Cours annulé » ; les réunions (COORDINATION/CONCERTATION) sont des cours sans classe.
+- Clé de réimportation : établissement + date + heure de début + classe (les UID changent à chaque export).
+- Page `tests/index.html` : 26 tests automatiques sur un emploi du temps fictif, et vérification locale
+  de ses propres fichiers (lus sur l'appareil, rien n'est enregistré).
+- `.gitignore` : `*.ics` et `local-test/` ne peuvent pas être envoyés sur GitHub.
+- Aucun changement visible dans l'app pour l'instant.
+
+### 1.4.1 — 28 septembre 2026
+
+- **Choix dans le programme : l'intitulé du critère n'est plus modifié.** Choisir un repère ou une compétence
+  remplit seulement la colonne « Compétence Pronote » (compétence de fin de cycle) ; l'intitulé reste celui écrit
+  par le professeur. Pour un critère sans intitulé, le repère choisi s'affiche en grisé comme exemple et le curseur
+  s'y place. Un critère relié à une compétence doit avoir un intitulé pour être enregistré.
+
+### 1.4.0 — 28 septembre 2026
+
+- **Motifs des observations modifiables** (Réglages → « Motifs des observations ») : ajouter, renommer,
+  supprimer les motifs proposés à l'appui long, pour « Comportement » et pour « Aide ». Sans modification,
+  les motifs d'origine s'appliquent ; bouton « Rétablir les motifs par défaut ». Réglage stocké dans `meta.motifs`
+  (inclus dans les sauvegardes).
+- **Retards** : nouvelle table `retards` (`DB_VERSION` 4).
+  - À l'appel, chaque toucher fait passer l'élève de Présent → Absent → Retard → Présent ; un élève en retard
+    n'est plus compté absent. « Corriger cet appel » permet de noter un élève arrivé après l'appel.
+  - Fiche élève : bouton « Arrivé en retard » (même sans appel), compteur du trimestre et de l'année,
+    filtre « Retards » dans l'historique.
+  - Trombinoscope : étiquette « Retard » et nombre de retards dans l'en-tête.
+  - Récapitulatif CSV / PDF : colonne « Retards » par trimestre ; fiche PDF : dates des retards.
+- **Besoins particuliers des élèves** : dans la fiche élève, cases PAP, PPS, PPRE, PAI, AESH, ULIS, UPE2A
+  et zone de texte « Aménagements ». Rappel discret sous le nom dans le trombinoscope ; section dans la fiche PDF.
+  Champs `besoins` et `amenagements` des élèves.
+- **Critères choisis dans le programme** : dans l'éditeur de projet, « Choisir dans le programme » ouvre les
+  9 compétences de fin de cycle du programme de technologie cycle 4 (BO n° 9 du 29 février 2024), avec les
+  repères de progressivité filtrables par niveau (5e / 4e / 3e). Plusieurs repères peuvent être ajoutés d'un coup ;
+  l'icône livre d'un critère le remplace. La compétence de fin de cycle est recopiée dans « Compétence Pronote »
+  (en 1.4.0 le repère remplaçait aussi l'intitulé, voir 1.4.1). Données dans `js/programme.js`.
+
+### 1.3.1 — 27 septembre 2026
+
+- Version de départ de ce lisez-moi : trombinoscope avec observations et motifs, appel et absences, tirage au sort,
+  projets et séances, groupes, notes par niveaux avec ajustements, import du trombinoscope PDF, sauvegarde,
+  exports CSV et PDF, code d'accès, thème sombre, mises à jour automatiques.
+
+## Pistes pour la suite
+
+Écartés par le professeur (1er oct.) : chiffrement, alignement graphique des autres écrans, semestres /
+coefficients / seuils de mention.
+- Tests automatiques des règles de `model.js`.

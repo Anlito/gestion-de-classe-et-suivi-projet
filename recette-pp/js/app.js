@@ -1,0 +1,178 @@
+// app.js — Démarrage de l'application et aiguillage entre les écrans.
+import * as db from './db.js';
+import * as model from './model.js';
+import { setRenderer, setTheme, currentTheme } from './nav.js';
+import { html, toast, closeLayer } from './ui.js';
+import accueil from './screens/accueil.js';
+import semaine from './screens/semaine.js';
+import trombi from './screens/trombi.js';
+import eleve from './screens/eleve.js';
+import projet from './screens/projet.js';
+import groupes from './screens/groupes.js';
+import notes from './screens/notes.js';
+import admin from './screens/admin.js';
+import reglages from './screens/reglages.js';
+import editClasse from './screens/edit-classe.js';
+import editProjet from './screens/edit-projet.js';
+import sauvegarde from './screens/sauvegarde.js';
+import imprimer from './screens/imprimer.js';
+import emploiDuTemps from './screens/emploi-du-temps.js';
+import archives from './screens/archives.js';
+import salles from './screens/salles.js';
+import suiviPP from './screens/suivi-pp.js';
+import outils from './screens/outils.js';
+import ppAlerts from './screens/pp-alerts.js';
+import ppMeetings from './screens/pp-meetings.js';
+import ppFamilies from './screens/pp-families.js';
+import ppAudio from './screens/pp-audio.js';
+import ppProcedures from './screens/pp-procedures.js';
+import ppDataQuality from './screens/pp-data-quality.js';
+import ppCSV from './screens/pp-csv.js';
+import ppPreparation from './screens/pp-meeting-preparation.js';
+import ppTranscription from './screens/pp-transcription.js';
+import ppWriting from './screens/pp-writing.js';
+import ppCouncilProgress from './screens/pp-council-progress.js';
+import ppCouncilReview from './screens/pp-council-review.js';
+import ppCouncilExport from './screens/pp-council-export.js';
+import importsPP from './screens/imports-pp.js';
+import { initLock } from './lock.js';
+import { initAlertes, render as renderAlertes } from './alertes.js';
+import { lierAppels } from './planning.js';
+import { initAutoSync } from './autosync.js';
+import { initPronoteAuto } from './pronote-lien.js';
+import { initAgenda } from './agenda.js';
+import { initUpdates } from './update.js';
+
+
+// Adresse (après #) → écran. Les parties entre parenthèses deviennent des paramètres.
+const ROUTES = [
+  [/^#\/pp\/imports\/([^/]+)\/csv$/, ppCSV, ['classId']],
+  [/^#\/pp\/classe\/([^/]+)\/qualite$/, ppDataQuality, ['classId']],
+  [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv\/evenement\/([^/]+)$/, ppPreparation, ['studentId','eventId']],
+  [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv\/note\/([^/]+)$/, ppPreparation, ['studentId','preparationId']],
+  [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv$/, ppPreparation, ['studentId']],
+  [/^#\/pp\/eleve\/([^/]+)\/demarches\/([^/]+)$/, ppProcedures, ['studentId','procedureId']],
+  [/^#\/pp\/eleve\/([^/]+)\/demarches$/, ppProcedures, ['studentId']],
+  [/^#\/pp\/eleve\/([^/]+)\/(actions|documents|vie|journal)$/, suiviPP, ['studentId','section']],
+  [/^#\/pp\/classe\/([^/]+)\/dossier\/([123])$/, ppCouncilExport, ['classId','trimester']],
+  [/^#\/pp\/classe\/([^/]+)\/relecture\/([123])$/, ppCouncilReview, ['classId','trimester']],
+  [/^#\/pp\/eleve\/([^/]+)\/relecture\/([123])$/, ppCouncilReview, ['studentId','trimester']],
+  [/^#\/pp\/classe\/([^/]+)\/avancement\/([123])$/, ppCouncilProgress, ['classId','trimester']],
+  [/^#\/pp\/classe\/([^/]+)\/(conseils)\/([123])$/, suiviPP, ['classId','section','trimester']],
+  [/^#\/pp\/eleve\/([^/]+)\/(conseils)\/([123])$/, suiviPP, ['studentId','section','trimester']],
+  [/^#\/pp\/eleve\/([^/]+)\/appreciation\/([123])$/, ppWriting, ['studentId','trimester']],
+  [/^#\/pp\/classe\/([^/]+)\/appreciation\/([123])$/, ppWriting, ['classId','trimester']],
+  [/^#\/pp\/eleve\/([^/]+)\/audio\/([^/]+)\/transcription$/, ppTranscription, ['studentId','audioId']],
+  [/^#\/pp\/eleve\/([^/]+)\/audio$/, ppAudio, ['studentId']],
+  [/^#\/pp\/rencontres\/familles\/([^/]+)$/, ppFamilies, ['campaignId']],
+  [/^#\/pp\/rencontres$/, ppMeetings, []],
+  [/^#\/pp\/alertes$/, ppAlerts, []],
+  [/^#\/pp\/imports$/, importsPP, []],
+  [/^#\/pp\/imports\/([^/]+)$/, importsPP, ['classId']],
+  [/^#\/pp$/, suiviPP, []],
+  [/^#\/pp\/classe\/([^/]+)$/, suiviPP, ['classId']],
+  [/^#\/pp\/classe\/([^/]+)\/(conseils)$/, suiviPP, ['classId', 'section']],
+  [/^#\/pp\/eleve\/([^/]+)$/, suiviPP, ['studentId']],
+  [/^#\/admin\/outils$/, outils, []],
+  [/^#?\/?$/, semaine, []],
+  [/^#\/classes$/, accueil, []],
+  [/^#\/classe\/([^/]+)\/trombi$/, trombi, ['classId']],
+  [/^#\/classe\/([^/]+)\/eleve\/([^/]+)$/, eleve, ['classId', 'studentId']],
+  [/^#\/classe\/([^/]+)\/projet$/, projet, ['classId']],
+  [/^#\/classe\/([^/]+)\/groupes$/, groupes, ['classId']],
+  [/^#\/classe\/([^/]+)\/notes$/, notes, ['classId']],
+  [/^#\/admin$/, admin, []],
+  [/^#\/admin\/reglages$/, reglages, []],
+  [/^#\/admin\/sauvegarde$/, sauvegarde, []],
+  [/^#\/admin\/planning$/, emploiDuTemps, []],
+  [/^#\/admin\/archives$/, archives, []],
+  [/^#\/admin\/salles$/, salles, []],
+  [/^#\/admin\/salle\/([^/]+)$/, salles, ['id']],
+  [/^#\/imprimer\/(eleve|fiches|recap)\/([^/]+)$/, imprimer, ['kind', 'id']],
+  [/^#\/admin\/classe\/([^/]+)$/, editClasse, ['id']],
+  [/^#\/admin\/projet\/([^/]+)$/, editProjet, ['id']],
+];
+
+let current = null;
+const view = () => document.getElementById('view');
+
+function resolve() {
+  const h = location.hash || '#/';
+  for (const [re, screen, names] of ROUTES) {
+    const m = h.match(re);
+    if (m) return { screen, params: Object.fromEntries(names.map((n, i) => [n, decodeURIComponent(m[i + 1])])) };
+  }
+  return { screen: semaine, params: {} };
+}
+
+// Garde la position de défilement des zones marquées data-scroll quand on redessine le même écran.
+function saveScroll(root) {
+  return [...root.querySelectorAll('[data-scroll]')].map(el => [el.dataset.scroll, el.scrollTop]);
+}
+function restoreScroll(root, saved) {
+  for (const [k, top] of saved) { const el = root.querySelector(`[data-scroll="${k}"]`); if (el) el.scrollTop = top; }
+}
+
+function render() {
+  const root = view();
+  const r = resolve();
+  const key = location.hash || '#/';
+  const same = current && current.key === key;
+  const saved = same ? saveScroll(root) : [];
+  if (!same) { closeLayer(); if (current && current.screen.leave) current.screen.leave(); }
+  current = { ...r, key };
+  const out = r.screen.render(r.params);
+  if (out == null) return; // l'écran a redirigé ailleurs
+  root.innerHTML = out.s;
+  if (r.screen.mount) r.screen.mount(root, r.params);
+  if (same) restoreScroll(root, saved);
+  else root.querySelectorAll('[data-scroll]').forEach(el => { el.scrollTop = 0; });
+  renderAlertes();
+}
+
+// Un seul écouteur par type d'événement : data-click="action" appelle screen.actions.action(élément, événement, paramètres).
+function delegate(type) {
+  view().addEventListener(type, e => {
+    const el = e.target.closest(`[data-${type}]`);
+    if (!el || !current) return;
+    const fn = current.screen.actions && current.screen.actions[el.dataset[type]];
+    if (fn) fn(el, e, current.params);
+  });
+}
+
+async function requestPersistentStorage() {
+  try {
+    if (!navigator.storage || !navigator.storage.persist) return;
+    if (!(await navigator.storage.persisted())) await navigator.storage.persist();
+  } catch (e) { /* non disponible */ }
+}
+
+
+async function boot() {
+  setTheme(currentTheme());
+  initLock();
+  try {
+    await db.init();
+  } catch (e) {
+    view().innerHTML = html`<div class="fatal"><h1>Impossible d’ouvrir les données</h1><p>${String(e && e.message || e)}</p>
+      <p>Fermez les autres onglets du Carnet de classe puis rechargez la page.</p></div>`.s;
+    return;
+  }
+  db.onError(e => toast(db.archive() ? { text: 'Archive en lecture seule : rien n’est modifié. Pour travailler, revenez à l’année en cours.', ms: 5000 }
+    : { text: 'Erreur d’enregistrement : ' + (e && e.message || e), ms: 8000 }));
+  model.ensureMeta();
+  // Appels faits avant l'emploi du temps (ou hors planning) : rattachés au cours correspondant s'il existe.
+  try { lierAppels(); } catch (e) { console.error(e); }
+  setRenderer(render);
+  ['click', 'input', 'change', 'submit'].forEach(delegate);
+  addEventListener('hashchange', render);
+  render();
+  initAlertes();
+  initAutoSync();
+  initPronoteAuto();
+  initAgenda();
+  requestPersistentStorage();
+  initUpdates();
+}
+
+boot();

@@ -1,0 +1,11 @@
+import {repeatedTail,transcriptionIssue} from '../js/pp-speech-quality.js';
+export const tests=[];const test=(name,fn)=>tests.push({name,fn});
+const eq=(a,b)=>{if(a!==b)throw Error(`${a} ≠ ${b}`);};
+test('Transcription : boucle sur un mot refusée même au milieu du texte',()=>{eq(Boolean(transcriptionIssue('Bonjour '+('très '.repeat(30))+'et voilà.')),true);});
+test('Transcription : boucle de plusieurs mots refusée',()=>{eq(Boolean(transcriptionIssue('Nous parlons '+('de la transcription '.repeat(10)))),true);});
+test('Transcription : répétitions naturelles et liste préservées',()=>{eq(transcriptionIssue('C’est très très bien. Non, non, ne changez rien. Rendez-vous lundi, mardi et mercredi.'),'');});
+test('Transcription : thèmes répétés à distance préservés',()=>{eq(transcriptionIssue('Le travail est suivi. Le travail doit être régulier. Le travail sera vérifié la semaine prochaine.'),'');});
+test('Transcription : volume de texte incompatible avec la durée refusé',()=>{eq(Boolean(transcriptionIssue(Array.from({length:80},(_,i)=>'mot'+i).join(' '),2)),true);});
+test('Transcription : durée absente sans refus arbitraire',()=>{eq(transcriptionIssue(Array.from({length:80},(_,i)=>'mot'+i).join(' '),null),'');});
+test('Transcription : absence de parole refusée',()=>{eq(Boolean(transcriptionIssue('… !')),true);});
+test('Transcription : boucle de jetons interrompue sans réécriture',()=>{eq(repeatedTail(Array(12).fill(84n)),true);eq(repeatedTail([1n,2n,3n,1n,2n,3n,1n,2n,3n,1n,2n,3n]),true);eq(repeatedTail([1n,2n,1n,2n]),false);});

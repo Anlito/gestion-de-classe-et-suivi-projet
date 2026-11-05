@@ -1,0 +1,66 @@
+// sw.js — Fonctionnement hors-ligne : garde une copie des fichiers de l'app sur l'appareil.
+// À chaque nouvelle version de l'app, augmenter VERSION pour que la tablette récupère les nouveaux fichiers.
+const VERSION = 'carnet-recette-pp-v1.23.0-pp.20';
+const FONTS = 'carnet-fonts';
+const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
+const FILES = [
+  'js/recette-setup.js',
+  'js/pp-csv-adapter.js','js/screens/pp-csv.js',
+  'js/pp-comparison-rules.js','js/screens/pp-data-quality.js',
+  'js/pp-meeting-preparation.js','js/screens/pp-meeting-preparation.js',
+  'js/pp-followup-core.js','js/pp-procedures.js','js/screens/pp-procedures.js',
+  'js/pp-task-rules.js','js/pp-task-ui.js',
+  'js/pp-council-export-rules.js','js/pp-council-export.js','js/screens/pp-council-export.js',
+  'js/pp-council-review-rules.js','js/pp-council-review.js','js/screens/pp-council-review.js',
+  'js/pp-council-progress.js','js/screens/pp-council-progress.js',
+  'js/pp-writing.js','js/screens/pp-writing.js',
+  'js/pp-speech-quality.js','js/pp-speech-manifest.js','js/pp-speech-model.js','js/pp-speech-store.js','js/pp-speech-worker.js','js/pp-speech.js','js/screens/pp-transcription.js',
+  'vendor/transformers/transformers.min.js','vendor/transformers/ort-wasm-simd-threaded.jsep.mjs',
+  'js/pp-audio-store.js','js/pp-audio-capture.js','js/screens/pp-audio.js',
+  'js/pp-family-rules.js','js/pp-family.js','js/screens/pp-families.js',
+  'google-rencontres/Code.gs','google-rencontres/Formulaire.html','google-rencontres/Professeur.html','google-rencontres/INSTALLATION.md',
+  'js/pp-meeting-rules.js','js/pp-meetings.js','js/screens/pp-meetings.js',
+  'js/pp-alert-rules.js', 'js/screens/pp-alerts.js',
+  'js/pronote-recap.js','js/school-life.js',
+  'js/pronote-import.js', 'js/pp-import-store.js', 'js/screens/imports-pp.js',
+  'js/pp.js', 'js/pp-rules.js', 'js/screens/suivi-pp.js', 'js/screens/outils.js', 'css/pp.css',
+  './', 'index.html', 'manifest.webmanifest', 'css/app.css',
+  'js/pdfimport.js', 'js/photos.js', 'js/backup.js', 'js/lock.js', 'js/update.js', 'js/screens/sauvegarde.js', 'js/screens/imprimer.js', 'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs',
+  'js/app.js', 'js/db.js', 'js/model.js', 'js/ui.js', 'js/nav.js', 'js/components.js', 'js/demo.js', 'js/programme.js', 'js/ical.js', 'js/planning.js', 'js/alertes.js', 'js/stats.js', 'js/sync.js', 'js/drive.js', 'js/autosync.js', 'js/pronote-lien.js', 'js/prepa.js', 'js/salles.js', 'js/plan-view.js', 'js/plan-classe.js', 'js/agenda.js', 'js/screens/salles.js', 'js/screens/emploi-du-temps.js', 'js/screens/semaine.js', 'js/screens/archives.js',
+  'js/screens/accueil.js', 'js/screens/trombi.js', 'js/screens/eleve.js', 'js/screens/groupes.js', 'js/screens/notes.js', 'js/labo-blocs.js', 'js/screens/admin.js',
+  'js/screens/projet.js', 'js/screens/reglages.js', 'js/screens/edit-classe.js', 'js/screens/edit-projet.js',
+  'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
+];
+
+// cache: 'reload' : on télécharge toujours les fichiers frais du serveur (pas une vieille copie du navigateur).
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(VERSION)
+    .then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys()
+    .then(keys => Promise.all(keys.filter(k => k.startsWith('carnet-recette-pp-') && k !== VERSION).map(k => caches.delete(k))))
+    .then(() => self.clients.claim()));
+});
+
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET') return;
+  // Police Nunito (Google Fonts) : gardée en cache après le premier chargement en ligne.
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    e.respondWith(caches.open(FONTS).then(async c => {
+      const hit = await c.match(e.request);
+      if (hit) return hit;
+      try { const res = await fetch(e.request); if (res.ok || res.type === 'opaque') c.put(e.request, res.clone()); return res; }
+      catch (err) { return new Response('', { status: 504 }); }
+    }));
+    return;
+  }
+  if (url.origin !== location.origin) return;
+  // Test sur l'ordinateur (localhost) : toujours la dernière version des fichiers.
+  if (DEV) { e.respondWith(fetch(e.request).catch(() => caches.match(e.request, { ignoreSearch: true }))); return; }
+  // Fichiers de l'app : d'abord la copie locale (démarrage instantané, hors-ligne), sinon le réseau.
+  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request).catch(() => caches.match('index.html'))));
+});

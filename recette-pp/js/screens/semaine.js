@@ -1,0 +1,775 @@
+// Accueil : planning de la semaine (maquette Planning.dc.html, cahier des charges v2 §7.0).
+// Sans emploi du temps, l'accueil reste la liste des classes (screens/accueil.js).
+// Tablette : la semaine entière ; téléphone : un jour à la fois.
+// Toucher un cours ouvre son panneau : ouvrir la classe, projet, statut, déplacer (créneaux libres en pointillés),
+// remettre à sa place, note, autre horaire.
+import * as db from '../db.js';
+import * as model from '../model.js';
+import * as planning from '../planning.js';
+import { normClasse } from '../ical.js';
+import { html, toast, todayISO, choiceDialog } from '../ui.js';
+import { icon, saveStatus, ppLink } from '../components.js';
+import * as pp from '../pp.js';
+import { go, refresh } from '../nav.js';
+import accueil from './accueil.js';
+import { demanderAppel } from './trombi.js';
+import * as pronote from '../pronote-lien.js';
+import * as prepa from '../prepa.js';
+import * as agenda from '../agenda.js';
+import { ouvrirMateriel } from './edit-projet.js';
+import { onOuvrirCours } from '../alertes.js';
+
+let weekStart = null;   // lundi affiché (AAAA-MM-JJ)
+let dayIdx = null;      // jour affiché sur téléphone (0 = lundi)
+let timer = null, onResize = null;
+let screenW = 0, screenH = 0;
+let moving = null;      // id du cours en cours de déplacement (créneaux libres affichés)
+// Alerte « À préparer » : ouvre le panneau du cours dans la bonne semaine.
+onOuvrirCours(id => {
+  const c = db.get('cours', id);
+  if (!c) return;
+  const e = planning.eff(c);
+  weekStart = mondayOf(e.date); dayIdx = null; moving = null;
+  sheet = { mode: 'view', id: c.id, note: c.note || '' };
+  if ((location.hash || '#/') === '#/') refresh(); else go('#/');
+});
+
+// ---------- Dates ----------
+const pad = n => String(n).padStart(2, '0');
+const parse = iso => new Date(iso + 'T12:00:00');
+const addDays = (iso, n) => { const d = parse(iso); d.setDate(d.getDate() + n); return todayISO(d); };
+const mondayOf = iso => { const d = parse(iso); return addDays(iso, -((d.getDay() + 6) % 7)); };
+const toMin = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const fmtShort = iso => parse(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+const fmtSlot = (iso, debut) => parse(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }) + ' · ' + debut;
+const fmtLong = iso => parse(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+const narrow = () => window.innerWidth < 700;
+
+// Teinte du niveau de la classe (mêmes teintes que les tuiles des classes).
+const tintOf = cls => { if (!cls) return 'var(--surface)'; const s = model.SECTIONS.find(x => x.key === model.sectionOf(cls)); return s ? s.tint : 'var(--surface)'; };
+// « Projet · séance x/n » du projet en cours de la classe.
+function projetOf(classId) {
+  const a = classId && model.activeAssignments(classId)[0];
+  const p = a && db.get('projects', a.projectId);
+  if (!p) return null;
+  const pr = model.progress(a);
+  return { a, p, label: `${p.title} · séance ${pr.cur}/${pr.total}` };
+}
+const nameOf = (e, cls) => (cls ? cls.name : e.classe || e.matiere);
+// « VIE DE CLASSE » → « Vie de classe » ; cours ajouté à la main en « appel seulement » → « Appel seulement ».
+const matLabel = (c, role) => {
+  const m = (c.matiere || '').trim();
+  if (m) return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+  return role === 'appel' ? 'Appel seulement' : '';
+};
+
+// Cours de la semaine prêts à afficher (tels que modifiés par le professeur : planning.eff).
+function weekCours(mon) {
+  const etabs = Object.fromEntries(db.all('etablissements').map(e => [e.id, e]));
+  const today = todayISO(), now = nowMin();
+  return planning.coursEntre(mon, addDays(mon, 6)).map(c => {
+    const e = etabs[c.etabId];
+    const classId = planning.classIdOf(c.src);
+    const cls = classId ? db.get('classes', classId) : null;
+    const entry = c.source === 'pronote' && e && e.classes ? e.classes[normClasse(c.classe)] : null;
+    const link = classId ? 'ok' : !c.classe ? 'none' : entry && entry.classId === '' ? 'ignored' : 'todo';
+    const off = planning.OFF.has(c.statut);
+    const role = planning.roleOfCours(c);
+    const start = toMin(c.debut), end = Math.max(toMin(c.fin), start + 1);
+    const live = c.date === today && !off && now >= start && now < end;
+    const moved = !!c.deplaceDe || c.statut === 'deplace';
+    return {
+      c, e, cls, classId, link, off, start, end, live, moved,
+      name: nameOf(c, cls),
+      // Matière affichée quand ce n'est pas un cours suivi « normal » (ex. vie de classe avec sa classe de PP).
+      mat: role !== 'suivi' && cls ? matLabel(c, role) : '',
+      dim: role === 'grise' || link === 'ignored' || link === 'none',
+      past: !live && (c.date < today || (c.date === today && end <= now)),
+      chip: planning.statutLabel(c) && c.statut !== 'deplace' ? planning.statutLabel(c) : moved ? 'Déplacé' : live ? 'En cours' : '',
+      progress: live ? Math.round((now - start) / (end - start) * 100) : 0,
+      appelFait: !!model.appelOfCours(c.id),
+      prepa: !off && c.date >= today ? prepa.listeCours(c.src, today).reste : 0,
+    };
+  });
+}
+
+// Événements hors Pronote de la semaine (réunions, parents-profs…), au même format que les cours.
+function weekEvts(mon) {
+  const today = todayISO(), now = nowMin();
+  return planning.evenementsEntre(mon, addDays(mon, 6)).map(ev => {
+    const start = toMin(ev.debut), end = Math.max(toMin(ev.fin), start + 1);
+    const cls = ev.classId ? db.get('classes', ev.classId) : null;
+    return { evt: true, c: ev, cls, start, end, off: false, live: false, name: planning.titreEvt(ev), type: planning.typeEvt(ev),
+      past: ev.date < today || (ev.date === today && end <= now) };
+  });
+}
+
+function evtBlock(it, top, height, left, width, lanesN) {
+  const wide = lanesN === 1, ev = it.c;
+  const time = `${ev.debut}–${ev.fin}`;
+  const line2 = wide ? [time, ev.lieu, it.cls && it.cls.name].filter(Boolean).join(' · ') : lanesN === 2 ? time : ev.debut;
+  const cls = ['wk-c', 'wk-evt', it.past ? 'past' : '', moving ? 'faded' : '', height < 44 ? 'tiny' : ''].filter(Boolean).join(' ');
+  return html`<div role="button" tabindex="0" class="${cls}" data-click="evtSheet" data-id="${ev.id}"
+    style="top:${top}px;height:${height}px;left:calc(${left}% + ${it.lane ? 3 : 0}px);width:calc(${width}% - ${lanesN > 1 ? 3 : 0}px);--evt:${it.type.color}"
+    aria-label="${it.name}, ${time}${ev.lieu ? ', ' + ev.lieu : ''}${ev.note ? ', note : ' + ev.note : ''}">
+    <span class="wk-row1"><span class="wk-name">${it.name}</span>
+      ${ev.note ? html`<span class="wk-note-ic" title="${ev.note}">${icon.list}</span>` : ''}
+      ${wide && ev.titre ? html`<span class="wk-chip">${it.type.court}</span>` : ''}</span>
+    <span class="wk-meta">${line2}</span>
+  </div>`;
+}
+
+// Répartit les cours qui se chevauchent sur plusieurs colonnes (« couloirs »).
+function lanes(items) {
+  items.sort((a, b) => a.start - b.start || b.end - a.end);
+  let group = [], groupEnd = -1;
+  const flush = () => { const n = Math.max(...group.map(x => x.lane)) + 1; for (const x of group) x.lanes = n; group = []; };
+  for (const it of items) {
+    if (group.length && it.start >= groupEnd) flush();
+    const used = new Set(group.filter(x => x.end > it.start).map(x => x.lane));
+    let l = 0; while (used.has(l)) l++;
+    it.lane = l; group.push(it); groupEnd = Math.max(groupEnd, it.end);
+  }
+  if (group.length) flush();
+  return items;
+}
+
+// Vacances ou jours fériés d'une date (libellés sans doublon, tous établissements confondus).
+function dayOff(iso) {
+  return [...new Set(db.where('jours', j => iso >= j.du && iso <= j.au).map(j => j.label || (j.type === 'ferie' ? 'Férié' : 'Vacances')))];
+}
+
+// Pause méridienne : entre la fin des cours du matin et le début de ceux de l'après-midi de la semaine.
+function lunchOf(items) {
+  const on = items.filter(i => !i.off);
+  const morning = on.filter(i => i.start < 12 * 60 + 30), afternoon = on.filter(i => i.start >= 12 * 60 + 30);
+  if (!morning.length || !afternoon.length) return null;
+  const a = Math.max(...morning.map(i => i.end)), b = Math.min(...afternoon.map(i => i.start));
+  return b - a >= 40 ? { a, b } : null;
+}
+
+function block(it, top, height, left, width, lanesN) {
+  const wide = lanesN === 1;
+  const cls = ['wk-c', it.mat ? 'mat' : '', it.dim ? 'dim' : '', it.off ? 'off' : '', it.live ? 'live' : '', it.link === 'todo' ? 'todo' : '',
+    it.past && !it.off ? 'past' : '', moving && moving !== it.c.id ? 'faded' : '', moving === it.c.id ? 'sel' : '', height < 44 ? 'tiny' : ''].filter(Boolean).join(' ');
+  const proj = wide && !it.off && height >= 62 ? (it.c.deplaceDe ? 'Déplacé depuis ' + fmtSlot(it.c.deplaceDe.date, it.c.deplaceDe.debut) : (projetOf(it.classId) || {}).label) : '';
+  const time = `${it.c.debut}–${it.c.fin}`;
+  const line2 = wide ? time + (it.c.salle ? ' · ' + it.c.salle : '') + (it.appelFait ? ' · appel ✓' : '') : it.chip || it.mat || (lanesN === 2 ? time : it.c.debut);
+  return html`<div role="button" tabindex="0" class="${cls}" data-click="sheet" data-id="${it.c.id}"
+    style="top:${top}px;height:${height}px;left:calc(${left}% + ${it.lane ? 3 : 0}px);width:calc(${width}% - ${lanesN > 1 ? 3 : 0}px);--tint:${it.off ? 'transparent' : tintOf(it.cls)};--etab:${it.e ? it.e.color : 'transparent'}"
+    aria-label="${it.name}${it.mat ? ', ' + it.mat : ''}, ${time}${it.chip ? ', ' + it.chip : ''}${it.prepa ? `, ${it.prepa} à préparer` : ''}${it.c.note ? ', note : ' + it.c.note : ''}">
+    <span class="wk-row1"><span class="wk-name">${it.name}${it.link === 'todo' ? ' ?' : ''}</span>
+      ${it.mat && wide ? html`<span class="wk-mat">${it.mat}</span>` : ''}
+      ${it.c.note ? html`<span class="wk-note-ic" title="${it.c.note}">${icon.list}</span>` : ''}
+      ${it.prepa ? html`<span class="wk-prepa" title="${it.prepa} chose${it.prepa > 1 ? 's' : ''} à préparer">${icon.box}${wide ? it.prepa : ''}</span>` : ''}
+      ${wide && it.chip ? html`<span class="wk-chip${it.live ? ' live' : it.off ? ' warn' : ''}">${it.chip}</span>` : ''}</span>
+    <span class="wk-meta${!wide && (it.chip || it.mat) ? ' strong' : ''}">${line2}</span>
+    ${proj ? html`<span class="wk-proj">${proj}</span>` : ''}
+    ${it.live ? html`<span class="wk-progress"><span style="width:${it.progress}%"></span></span>` : ''}
+  </div>`;
+}
+
+// ---------- Panneau d'un cours ; formulaires « autre horaire » et « ajouter un cours » ----------
+let sheet = null; // { mode: 'view'|'edit'|'add', id?, f: { classId, etabId, date, debut, fin, salle, role, repeat }, note }
+
+export function openStudentEvent(studentId, eventId = null) {
+  const s = pp.requireStudent(studentId);
+  const ev = eventId && db.get('evenements', eventId);
+  if (eventId && (!ev || ev.studentId !== studentId)) throw new Error('Réunion introuvable pour cet élève.');
+  sheet = ev ? { mode: 'evt', id: ev.id, f: { ...ev, invites: (ev.invites || []).join(', ') } }
+    : { mode: 'evt', f: { type: 'reunion', titre: 'Réunion de suivi', date: todayISO(), debut: '17:30', fin: '18:30', lieu: '', classId: s.classId, studentId: s.id, note: '', invites: '', repeat: false } };
+  go('#/'); refresh();
+}
+
+// « À préparer » dans le panneau d'un cours : liste de la séance du projet + ajouts sur ce cours, à cocher.
+function prepaView(c) {
+  const l = prepa.listeCours(c);
+  const s = l.seance;
+  return html`<div class="stack-tight">
+    <div class="cs-sec">À préparer${l.items.length ? html` <span class="muted normal">· ${l.reste ? `${l.reste} sur ${l.items.length}` : 'tout est prêt ✓'}</span>` : ''}</div>
+    ${s ? html`<div class="muted small">${s.p.title} · séance ${s.n}${model.seanceOfCours(c.id) ? '' : ' (prévue)'}</div>` : ''}
+    ${l.items.map(i => html`<div class="prepa-row">
+      <button type="button" class="prepa-item${i.fait ? ' on' : ''}" data-click="prepaToggle" data-t="${i.text}" aria-pressed="${i.fait ? 'true' : 'false'}">
+        <span class="prepa-box">${i.fait ? icon.check : ''}</span><span class="grow">${i.text}</span>
+        ${i.src === 'cours' ? html`<span class="muted xsmall">ce cours</span>` : ''}</button>
+      ${i.src === 'cours' ? html`<button type="button" class="icon-btn" data-click="prepaDel" data-t="${i.text}" aria-label="Retirer ${i.text}">${icon.close}</button>` : ''}
+    </div>`)}
+    <div class="row-center">
+      <input class="input grow" value="${sheet.prepaNew || ''}" data-input="prepaNew" placeholder="Ajouter pour ce cours (ex. rallonge, photocopies)" enterkeyhint="done">
+      <button type="button" class="btn soft small" data-click="prepaAdd">Ajouter</button>
+    </div>
+    ${s ? html`<button type="button" class="link-btn self-start" data-click="prepaProjet" data-id="${s.p.id}">${(s.p.materiel || {})[s.n] ? 'Modifier' : 'Écrire'} la liste de la séance ${s.n} du projet (pour toutes les classes)</button>` : ''}
+  </div>`;
+}
+
+// Formulaire d'un événement (ajout ou modification).
+function evtView() {
+  const f = sheet.f;
+  const ev = sheet.id ? db.get('evenements', sheet.id) : null;
+  const pupil = f.studentId && db.get('students', f.studentId);
+  if (sheet.id && !ev) { sheet = null; return ''; }
+  const head = html`<div class="drawer-head"><span class="drawer-title grow ellipsis">${ev ? planning.titreEvt(ev) : 'Ajouter un événement'}</span>
+      <button type="button" class="btn soft" data-click="closeSheet">Annuler</button>
+      <button type="button" class="btn accent" data-click="saveEvt">Enregistrer</button></div>`;
+  const body = html`<div class="stack">
+    ${ev && pupil ? html`<div class="info-box"><strong>${model.fullName(pupil)}</strong><div class="muted small">${db.get('classes', pupil.classId)?.name || ''}</div><button type="button" class="btn accent" data-click="openEventStudent">${icon.book}${pp.active(pupil.classId) ? 'Ouvrir le suivi de l’élève' : 'Ouvrir la fiche de l’élève'}</button>${pp.active(pupil.classId)&&pp.enabled('preparation')?html`<a class="btn" href="#/pp/eleve/${pupil.id}/preparer-rdv/evenement/${ev.id}">Préparer / suivre cette rencontre</a>`:''}</div>` : ''}
+    <div class="lbl">Type
+      <div class="evt-types">${Object.entries(planning.TYPES_EVT).map(([k, t]) =>
+        html`<button type="button" class="evt-type${f.type === k ? ' on' : ''}" style="--evt:${t.color}" data-click="fType" data-k="${k}">${t.label}</button>`)}</div></div>
+    <label class="lbl">Intitulé (facultatif) <input class="input" value="${f.titre}" data-input="fTitre" placeholder="${planning.TYPES_EVT[f.type].court}"></label>
+    <label class="lbl">Date <input class="input" type="date" value="${f.date}" data-change="fDate"></label>
+    <div class="row-center">
+      <label class="lbl grow">Début <input class="input" type="time" value="${f.debut}" data-change="fDebut"></label>
+      <label class="lbl grow">Fin <input class="input" type="time" value="${f.fin}" data-change="fFin"></label>
+    </div>
+    <label class="lbl">Lieu (facultatif) <input class="input" value="${f.lieu}" data-input="fLieu" placeholder="Salle des professeurs, CDI…"></label>
+    <label class="lbl">Classe concernée (facultatif)
+      <select class="input" data-change="fClass"><option value="">—</option>${model.classes().map(k => html`<option value="${k.id}" ${f.classId === k.id ? 'selected' : ''}>${k.name}</option>`)}</select></label>
+    ${(pp.active(f.classId) || f.studentId) ? html`<label class="lbl">Élève PP associé (facultatif)<select class="input" data-change="fStudent"><option value="">— Événement de classe —</option>${model.studentsOf(f.classId).filter(s => pp.active(f.classId) || s.id === f.studentId).map(s => html`<option value="${s.id}" ${f.studentId === s.id ? 'selected' : ''}>${model.fullName(s)}</option>`)}</select></label>
+      ${f.studentId ? html`<div class="muted small">Visible dans le suivi de cet élève. Rappels préparés pour Google Agenda (si activé) : veille à 16 h et une heure avant. Sans cette connexion, aucune notification hors application. L’identité et les notes personnelles ne sont pas ajoutées au calendrier Google.</div>` : ''}` : ''}
+    <label class="lbl">Note (facultatif) <textarea class="field" rows="3" data-input="fNote" placeholder="Ordre du jour, documents à apporter…">${f.note}</textarea></label>
+    <label class="lbl">Inviter (facultatif) — adresses e-mail, séparées par des virgules
+      <input class="input" type="email" multiple value="${f.invites}" data-input="fInvites" placeholder="collegue@exemple.fr, parent@exemple.fr" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="email">
+      <span class="muted xsmall">${agenda.config().actif ? 'Google Agenda leur envoie l’invitation (et les modifications) depuis votre compte.' : 'L’invitation part quand la synchronisation Google Agenda est activée (Administration → Emploi du temps).'}</span></label>
+    ${ev ? '' : html`<label class="check-row"><input type="checkbox" data-change="fRepeat" ${f.repeat ? 'checked' : ''}> Chaque semaine jusqu’à la fin de l’année (vacances sautées)</label>`}
+    ${ev ? html`<button type="button" class="btn danger-soft" data-click="delEvt">Supprimer cet événement</button>`
+      : html`<div class="muted small">Les cours viennent de Pronote. Besoin d’un cours absent de Pronote (rattrapage…) ?
+          <button type="button" class="link-btn" data-click="add">Ajouter plutôt un cours</button></div>`}
+  </div>`;
+  return html`<div class="scrim dim" data-click="closeSheet"></div>
+    <aside class="drawer cours-sheet" role="dialog" aria-modal="true">
+      ${head}
+      <div class="drawer-body" data-scroll="sheet">${body}</div>
+    </aside>`;
+}
+
+function sheetView() {
+  if (sheet.mode === 'evt') return evtView();
+  const c = sheet.id ? db.get('cours', sheet.id) : null;
+  if (sheet.mode !== 'add' && !c) { sheet = null; return ''; }
+  const e = c ? planning.eff(c) : null;
+  const classId = c ? planning.classIdOf(c) : null;
+  const cls = classId ? db.get('classes', classId) : null;
+  const etab = e && e.etabId ? db.get('etablissements', e.etabId) : null;
+  let head, body;
+  if (sheet.mode === 'view') {
+    const proj = projetOf(classId);
+    const choix = planning.choixOf(e.statut);
+    head = html`<div class="cs-head" style="background:${tintOf(cls)}">
+        <div class="grow"><div class="cs-title">${nameOf(e, cls)}${(() => { const r = planning.roleOfCours(e); const m = r !== 'suivi' && cls ? matLabel(e, r) : ''; return m ? html` <span class="wk-mat big">${m}</span>` : ''; })()}</div>
+          <div class="cs-when">${fmtLong(e.date)} · ${e.debut}–${e.fin}</div>
+          <div class="cs-where">${[e.salle && 'Salle ' + e.salle, etab && etab.initiales, e.source === 'manuel' && 'ajouté à la main'].filter(Boolean).join(' · ') || ' '}</div></div>
+        <button type="button" class="cs-close" data-click="closeSheet" aria-label="Fermer">${icon.close}</button>
+      </div>`;
+    body = html`
+      <div class="stack-tight">
+        ${cls ? html`<button type="button" class="btn accent cs-open" data-click="open" data-id="${c.id}">Ouvrir la classe ${icon.arrow}</button>
+          ${['suivi', 'appel'].includes(planning.roleOfCours(e)) ? (() => {
+            const ap = model.appelOfCours(c.id);
+            const nAbs = ap ? db.where('absences', a => a.appelId === ap.id).length : 0;
+            const nRet = ap ? db.where('retards', a => a.appelId === ap.id).length : 0;
+            return html`<button type="button" class="btn soft cs-appel" data-click="faireAppel" data-id="${c.id}">${icon.roll}
+              ${ap ? `Appel fait · ${nAbs} absent${nAbs > 1 ? 's' : ''}${nRet ? ` · ${nRet} retard${nRet > 1 ? 's' : ''}` : ''} · corriger` : 'Faire l’appel'}</button>`;
+          })() : ''}`
+          : html`<div class="abs-info">${c.classe ? html`« ${c.classe} » n’est reliée à aucune classe de l’app.
+              <a class="link-btn" href="#/admin/planning">Emploi du temps → Classes</a>` : 'Cours sans classe.'}</div>`}
+        ${proj ? html`<a class="cs-proj" href="#/classe/${classId}/projet"><span class="grow"><span class="muted small">Projet</span><strong>${proj.label}</strong></span>${icon.chevron}</a>` : ''}
+      </div>
+      <div class="stack-tight">
+        <div class="cs-sec">Statut du cours</div>
+        ${Object.entries(planning.STATUT_CHOIX).map(([k, s]) => html`<button type="button" class="cs-opt${choix === k ? ' on' : ''}" data-click="statut" data-k="${k}">
+          <span class="grow">${s.choix}</span>${choix === k ? icon.check : ''}</button>`)}
+        ${choix === 'autre' ? html`<div class="row-center">
+          <input class="input grow" value="${sheet.statutTexte != null ? sheet.statutTexte : e.statutTexte || ''}" data-input="statutTexteIn" placeholder="Précisez : brevet blanc, intervention, conseil…" maxlength="60">
+          <button type="button" class="btn soft small" data-click="statutTexte">Enregistrer</button></div>` : ''}
+      </div>
+      <div class="stack-tight">
+        <div class="cs-sec">Créneau</div>
+        ${e.deplaceDe ? html`<div class="muted">Déplacé depuis <strong class="ink">${fmtSlot(e.deplaceDe.date, e.deplaceDe.debut)}</strong></div>` : ''}
+        <div class="row-center">
+          <button type="button" class="btn soft grow" data-click="startMove">Déplacer le cours</button>
+          ${e.deplaceDe ? html`<button type="button" class="btn soft grow" data-click="remettre">Remettre à sa place</button>` : ''}
+        </div>
+        <button type="button" class="link-btn self-start" data-click="editForm">Autre horaire ou salle…</button>
+      </div>
+      ${prepaView(c)}
+      <div class="stack-tight">
+        <div class="cs-sec">Note sur ce cours</div>
+        <textarea class="field" rows="3" data-input="noteText" placeholder="Photo de classe, élection des délégués, sortie à préparer…">${sheet.note}</textarea>
+        <div class="row-end"><button type="button" class="btn soft small" data-click="saveNote">Enregistrer la note</button></div>
+      </div>
+      ${e.modifie || c.source === 'manuel' ? html`<div class="stack-tight">
+        ${e.modifie ? html`<div class="muted small">Modifié par vous. Pronote : ${fmtLong(c.date)} · ${c.debut}–${c.fin}${c.salle ? ' · ' + c.salle : ''}.</div>
+          <button type="button" class="link-btn self-start" data-click="resetPerso">Revenir entièrement à la version Pronote</button>` : ''}
+        ${c.source === 'manuel' ? html`<button type="button" class="btn danger-soft" data-click="delCours">Supprimer ce cours ajouté</button>` : ''}
+      </div>` : ''}`;
+  } else {
+    const f = sheet.f;
+    const add = sheet.mode === 'add';
+    head = html`<div class="drawer-head"><span class="drawer-title grow ellipsis">${add ? 'Ajouter un cours' : 'Autre horaire · ' + nameOf(e, cls)}</span>
+        <button type="button" class="btn soft" data-click="${add ? 'closeSheet' : 'backView'}">Annuler</button>
+        <button type="button" class="btn accent" data-click="${add ? 'saveAdd' : 'saveEdit'}">Enregistrer</button></div>`;
+    body = html`<div class="stack">
+      ${add ? html`<label class="lbl">Classe
+        <select class="input" data-change="fClass"><option value="">— Choisir —</option>${model.classes().map(k => html`<option value="${k.id}" ${f.classId === k.id ? 'selected' : ''}>${k.name}</option>`)}</select></label>` : ''}
+      <label class="lbl">Date <input class="input" type="date" value="${f.date}" data-change="fDate"></label>
+      <div class="row-center">
+        <label class="lbl grow">Début <input class="input" type="time" value="${f.debut}" data-change="fDebut"></label>
+        <label class="lbl grow">Fin <input class="input" type="time" value="${f.fin}" data-change="fFin"></label>
+      </div>
+      <label class="lbl">Salle (facultatif) <input class="input" value="${f.salle}" data-input="fSalle" placeholder="—"></label>
+      ${add ? html`
+        <label class="lbl">Établissement (facultatif)
+          <select class="input" data-change="fEtab"><option value="">—</option>${planning.etablissements().map(x => html`<option value="${x.id}" ${f.etabId === x.id ? 'selected' : ''}>${x.initiales} · ${x.name}</option>`)}</select></label>
+        <label class="lbl">Type de cours
+          <select class="input" data-change="fRole">${['suivi', 'appel', 'grise'].map(r => html`<option value="${r}" ${f.role === r ? 'selected' : ''}>${planning.ROLES[r].label} — ${planning.ROLES[r].sub}</option>`)}</select></label>
+        <label class="check-row"><input type="checkbox" data-change="fRepeat" ${f.repeat ? 'checked' : ''}> Chaque semaine jusqu’à la fin de l’année (vacances sautées)</label>` : ''}
+    </div>`;
+  }
+  return html`<div class="scrim dim" data-click="closeSheet"></div>
+    <aside class="drawer cours-sheet" role="dialog" aria-modal="true">
+      ${head}
+      <div class="drawer-body" data-scroll="sheet">${body}</div>
+    </aside>`;
+}
+
+// Chevauchements : avertit et demande confirmation. Renvoie true pour continuer.
+// ignore : { ignoreCours: [ids], ignoreEvt: [ids] } ; quoi : « Ce cours » / « Cet événement ».
+async function okMalgreChevauchement(placements, ignore = {}, quoi = 'Ce cours') {
+  const conflicts = planning.chevauchementsTout(placements, ignore);
+  if (!conflicts.length) return true;
+  const lines = conflicts.slice(0, 4).map(x => `${fmtSlot(x.date, x.debut)}–${x.fin} : ${x.label}`);
+  const n = conflicts.length;
+  const choice = await choiceDialog({
+    title: n > 1 ? `${quoi} en chevauche ${n} autres` : `${quoi} en chevauche un autre`,
+    text: lines.join(' · ') + (n > 4 ? ` · et ${n - 4} autre${n - 4 > 1 ? 's' : ''}` : ''),
+    choices: [
+      { label: 'Enregistrer quand même', value: true, style: 'soft' },
+      { label: 'Revenir en arrière', value: false, style: 'accent' },
+    ],
+  });
+  return choice === true;
+}
+// « Cette fois » ou « toutes les semaines suivantes » (null si on renonce).
+async function askSerie(c) {
+  const n = planning.suivants(c).length;
+  if (!n) return false;
+  const e = planning.eff(c);
+  const choice = await choiceDialog({
+    title: 'Appliquer la modification à…',
+    text: `D’autres cours de cette classe ont lieu le ${DAYS[(parse(e.date).getDay() + 6) % 7].toLowerCase()} à ${e.debut} jusqu’à la fin de l’année. Les cours passés ne changent pas.`,
+    choices: [
+      { label: 'Cette fois seulement', value: 'one', style: 'soft' },
+      { label: 'Ce cours et toutes les semaines suivantes', sub: `${n + 1} cours jusqu’à la fin de l’année`, value: 'all', style: 'soft' },
+      { label: 'Annuler', value: null, style: 'soft' },
+    ],
+  });
+  return choice === null ? null : choice === 'all';
+}
+// Déplacement / changement d'horaire commun au glisser vers un créneau et au formulaire.
+async function deplacer(c, changes) {
+  const serie = await askSerie(c);
+  if (serie === null) return false;
+  const placements = planning.placementsDeplacement(c, changes, serie);
+  if (!(await okMalgreChevauchement(placements, { ignoreCours: placements.map(p => p.id) }))) return false;
+  const undo = planning.editCours(c, changes, serie);
+  toast({ text: (serie ? `${placements.length} cours déplacés` : `${nameOf(c, db.get('classes', planning.classIdOf(c)))} déplacé au ${fmtSlot(changes.date, changes.debut)}`),
+    undo: async () => { await undo(); refresh(); } });
+  return true;
+}
+
+export default {
+  render(params) {
+    // Pas encore d'emploi du temps : l'accueil reste la liste des classes.
+    if (!db.all('cours').length && !db.all('evenements').length && !sheet) return accueil.render(params);
+
+    const today = todayISO();
+    if (!weekStart) weekStart = mondayOf(today);
+    const items = [...weekCours(weekStart), ...weekEvts(weekStart)];
+    const hasSat = items.some(it => parse(it.c.date).getDay() === 6);
+    const nDays = hasSat ? 6 : 5;
+    const dates = Array.from({ length: nDays }, (_, i) => addDays(weekStart, i));
+    const phone = narrow();
+    if (dayIdx == null || dayIdx >= nDays) { const t = dates.indexOf(today); dayIdx = t >= 0 ? t : 0; }
+    const shown = phone ? [dates[dayIdx]] : dates;
+
+    // Plage horaire : celle des cours de la semaine, arrondie à l'heure (8 h – 17 h 30 au minimum).
+    const from = Math.floor(Math.min(8 * 60, ...items.map(i => i.start)) / 60) * 60;
+    const to = Math.ceil(Math.max(17.5 * 60, ...items.map(i => i.end)) / 30) * 30;
+    // Hauteur de référence : la plus grande vue pour cette largeur (le clavier ou une liste ouverte la réduisent un instant).
+    if (screenW !== window.innerWidth) { screenW = window.innerWidth; screenH = 0; }
+    screenH = Math.max(screenH, window.innerHeight);
+    const avail = screenH - 64 - 48 - 16;
+    const ppm = Math.max(phone ? 1.1 : 0.9, avail / (to - from));
+    const H = Math.round((to - from) * ppm);
+    const y = m => Math.round((m - from) * ppm);
+    const lunch = lunchOf(items.filter(it => !it.evt));
+
+    const isThisWeek = mondayOf(today) === weekStart;
+    const live = items.find(it => it.live && it.classId);
+    const t = nowMin();
+    const mc = moving ? db.get('cours', moving) : null;
+    if (moving && !mc) moving = null;
+    // Créneaux libres pendant un déplacement : heures de début habituelles de l'établissement ; le cours garde
+    // SA durée (1 h, 1 h 30…) et le créneau n'est libre que si toute cette durée tient sans chevaucher un cours.
+    const targets = d => {
+      if (!mc || d < today || dayOff(d).length) return [];
+      const me = planning.eff(mc);
+      const dur = Math.max(5, toMin(me.fin) - toMin(me.debut));
+      const busy = items.filter(it => it.c.date === d && !it.off && it.c.id !== mc.id);
+      const starts = [...new Set(planning.creneaux(mc).map(s => s.debut))];
+      const free = starts.map(debut => ({ debut, start: toMin(debut), end: toMin(debut) + dur }))
+        .filter(s => s.end <= 24 * 60 && !(d === today && s.start <= t) && !(d === me.date && s.debut === me.debut)
+          && !busy.some(b => s.start < b.end && b.start < s.end))
+        .map(s => ({ ...s, fin: pad(Math.floor(s.end / 60)) + ':' + pad(s.end % 60) }));
+      return lanes(free); // créneaux qui se chevauchent entre eux (ex. 8 h 00 et 8 h 30 pour 1 h 30) : côte à côte
+    };
+
+    return html`<div class="screen">
+      <header class="topbar home wk-top">
+        <button type="button" class="icon-btn" data-click="prev" aria-label="${phone ? 'Jour précédent' : 'Semaine précédente'}">${icon.back}</button>
+        <div class="wk-title">
+          <span class="brand-title">${phone ? parse(shown[0]).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : `Semaine du ${fmtShort(dates[0])} au ${fmtShort(dates[nDays - 1])}`}</span>
+          <span class="sub">${model.schoolYear()} · Trimestre ${model.trimester()}</span>
+        </div>
+        <button type="button" class="icon-btn flip" data-click="next" aria-label="${phone ? 'Jour suivant' : 'Semaine suivante'}">${icon.back}</button>
+        ${(phone ? shown[0] !== today : !isThisWeek) ? html`<button type="button" class="btn soft small" data-click="today">${phone ? 'Aujourd’hui' : 'Cette semaine'}</button>` : ''}
+        <div class="spacer"></div>
+        ${saveStatus()}
+        ${live ? html`<button type="button" class="btn accent wk-livebtn" data-click="open" data-id="${live.c.id}"><span class="dot"></span><span class="hide-phone">En cours · </span><strong>${live.name}</strong>${icon.arrow}</button>` : ''}
+        ${pronote.avecLien().length && pronote.relais() ? html`<button type="button" class="icon-btn${pronote.occupe() ? ' spin' : ''}" data-click="majPronote" aria-label="Mettre à jour depuis Pronote" title="Mettre à jour depuis Pronote">${icon.refresh}</button>` : ''}
+        <button type="button" class="btn soft" data-click="addEvt" aria-label="Ajouter un événement (réunion, parents-profs…)">${icon.plusBig}<span class="hide-narrow">Événement</span></button>
+        <a class="btn soft" href="#/classes">${icon.tabTrombi}<span class="hide-narrow">Classes</span></a>
+        ${ppLink()}
+        <a class="btn soft" href="#/admin">${icon.sliders}<span class="hide-narrow">Administration</span></a>
+      </header>
+      ${phone ? html`<nav class="wk-days">${dates.map((d, i) => html`<button type="button" class="wk-day-tab${i === dayIdx ? ' on' : ''}${d === today ? ' today' : ''}" data-click="day" data-i="${i}">
+        <span>${DAYS[i].slice(0, 3)}</span><strong>${parse(d).getDate()}</strong></button>`)}</nav>` : ''}
+      <main class="content wk" data-scroll="week">
+        <div class="wk-grid" style="--cols:${shown.length}">
+          <div class="wk-corner"></div>
+          ${shown.map(d => { const off = dayOff(d); return html`<div class="wk-dh${d === today ? ' today' : ''}${off.length ? ' holiday' : ''}">
+            ${phone ? '' : html`<span class="wk-dname">${DAYS[dates.indexOf(d)]}</span><span class="wk-dnum">${parse(d).getDate()}</span>`}
+            ${off.length ? html`<span class="wk-off">${off.join(' · ')}</span>` : ''}</div>`; })}
+          <div class="wk-hours" style="height:${H}px">${Array.from({ length: Math.floor((to - from) / 60) + 1 }, (_, i) => html`<span style="top:${y(from + i * 60)}px">${pad(from / 60 + i)}h</span>`)}</div>
+          ${shown.map(d => {
+            const dayItems = lanes(items.filter(it => it.c.date === d));
+            const off = dayOff(d).length;
+            const showLunch = lunch && !off && !dayItems.some(it => !it.off && it.start < lunch.b && lunch.a < it.end);
+            return html`<div class="wk-col${d === today ? ' today' : ''}${off ? ' holiday' : ''}" style="height:${H}px;--hour:${Math.round(60 * ppm)}px;--first:${y(from)}px">
+              ${showLunch ? html`<div class="wk-lunch" style="top:${y(lunch.a) + 4}px;height:${y(lunch.b) - y(lunch.a) - 8}px">Pause méridienne</div>` : ''}
+              ${dayItems.map(it => (it.evt ? evtBlock : block)(it, y(it.start) + 1, Math.max(22, y(it.end) - y(it.start) - 3), it.lane * 100 / it.lanes, 100 / it.lanes, it.lanes))}
+              ${targets(d).map(s => html`<button type="button" class="wk-target" style="top:${y(s.start) + 1}px;height:${Math.max(26, y(s.end) - y(s.start) - 3)}px;left:calc(${s.lane * 100 / s.lanes}% + ${s.lane ? 3 : 0}px);width:calc(${100 / s.lanes}% - ${s.lanes > 1 ? 3 : 0}px);right:auto"
+                data-click="moveTo" data-date="${d}" data-debut="${s.debut}" data-fin="${s.fin}" aria-label="Déplacer à ${s.debut}–${s.fin}">${icon.plus}${s.debut}</button>`)}
+              ${d === today && t >= from && t <= to ? html`<div class="wk-now" style="top:${y(t)}px"></div>` : ''}
+              ${!dayItems.length && !off && !mc ? html`<div class="wk-empty">Pas de cours</div>` : ''}
+            </div>`;
+          })}
+        </div>
+      </main>
+      ${mc ? html`<div class="sel-bar move-bar"><span class="sel-text">Déplacer <strong>${nameOf(planning.eff(mc), db.get('classes', planning.classIdOf(mc)))}</strong> · touchez un créneau libre</span>
+        <button type="button" class="toast-btn" data-click="cancelMove">Annuler</button></div>` : ''}
+      ${sheet ? sheetView() : ''}
+    </div>`;
+  },
+
+  mount(root, params) {
+    if (!db.all('cours').length && !db.all('evenements').length && !sheet) { if (accueil.mount) accueil.mount(root, params); return; }
+    // Faire défiler jusqu'à l'heure actuelle sur un petit écran.
+    const now = root.querySelector('.wk-now');
+    const main = root.querySelector('.wk');
+    if (now && main && main.scrollTop === 0 && main.scrollHeight > main.clientHeight) main.scrollTop = Math.max(0, now.offsetTop - 120);
+    if (!timer) timer = setInterval(() => { if ((location.hash || '#/') === '#/' && !document.hidden && !sheet && !moving) refresh(); }, 60 * 1000);
+    // Redessiner seulement quand la LARGEUR change (tablette tournée). Sur Android, ouvrir une liste, un champ
+    // date/heure ou le clavier réduit la HAUTEUR : redessiner à ce moment fermait la liste avant le choix.
+    if (!onResize) {
+      let w = window.innerWidth, t = null;
+      const busy = () => sheet || document.querySelector('#layer > *') || (document.activeElement && document.activeElement.matches('input, select, textarea'));
+      onResize = () => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          if (Math.abs(window.innerWidth - w) < 50 || busy()) return;
+          w = window.innerWidth;
+          refresh();
+        }, 250);
+      };
+      addEventListener('resize', onResize);
+    }
+  },
+
+  leave() {
+    sheet = null; moving = null;
+    clearInterval(timer); timer = null;
+    if (onResize) { removeEventListener('resize', onResize); onResize = null; }
+  },
+
+  actions: {
+    async majPronote() {
+      if (pronote.occupe()) return;
+      const p = pronote.toutMettreAJour();
+      refresh(); // bouton qui tourne
+      await p;
+      refresh();
+    },
+    ...accueil.actions,
+    prev() {
+      if (narrow()) { if (dayIdx > 0) dayIdx--; else { weekStart = addDays(weekStart, -7); dayIdx = 4; } }
+      else weekStart = addDays(weekStart, -7);
+      refresh();
+    },
+    next() {
+      if (narrow()) { if (dayIdx < 4) dayIdx++; else { weekStart = addDays(weekStart, 7); dayIdx = 0; } }
+      else weekStart = addDays(weekStart, 7);
+      refresh();
+    },
+    today() { weekStart = mondayOf(todayISO()); dayIdx = null; refresh(); },
+    day(el) { dayIdx = +el.dataset.i; refresh(); },
+    open(el) {
+      const c = db.get('cours', el.dataset.id);
+      if (!c) return;
+      const classId = planning.classIdOf(c);
+      if (classId) { planning.openedFromPlanning(c); sheet = null; moving = null; go(`#/classe/${classId}/trombi`); }
+    },
+
+    faireAppel(el) {
+      const c = db.get('cours', el.dataset.id);
+      const classId = c && planning.classIdOf(c);
+      if (!classId) return;
+      planning.openedFromPlanning(c);
+      demanderAppel(classId);
+      sheet = null; moving = null;
+      go(`#/classe/${classId}/trombi`);
+    },
+
+    // ----- Panneau d'un cours -----
+    sheet(el) {
+      if (moving) return;
+      const c = db.get('cours', el.dataset.id);
+      if (!c) return;
+      sheet = { mode: 'view', id: c.id, note: c.note || '' };
+      refresh();
+    },
+    closeSheet() { sheet = null; refresh(); },
+    statut(el) {
+      const c = db.get('cours', sheet.id);
+      const k = el.dataset.k;
+      if (planning.choixOf(planning.eff(c).statut) === k) return;
+      const undo = planning.setStatut(c, k);
+      sheet.statutTexte = null;
+      refresh();
+      // « Autre » : on écrit tout de suite la précision.
+      if (k === 'autre') { const i = document.querySelector('[data-input="statutTexteIn"]'); if (i) i.focus(); return; }
+      toast({ text: `${nameOf(c, db.get('classes', planning.classIdOf(c)))} · ${planning.STATUT_CHOIX[k].choix}`, undo: async () => { await undo(); refresh(); } });
+    },
+    statutTexteIn(el) { sheet.statutTexte = el.value; },
+    statutTexte() {
+      const c = db.get('cours', sheet.id);
+      const t = (sheet.statutTexte != null ? sheet.statutTexte : planning.eff(c).statutTexte || '').trim();
+      planning.setStatut(c, 'autre', t);
+      sheet.statutTexte = null;
+      refresh();
+      toast({ text: `${nameOf(c, db.get('classes', planning.classIdOf(c)))} · ${t || 'Autre'}` });
+    },
+    startMove() { moving = sheet.id; sheet = null; refresh(); },
+    cancelMove() { moving = null; refresh(); },
+    async moveTo(el) {
+      const c = db.get('cours', moving);
+      if (!c) { moving = null; refresh(); return; }
+      const { date, debut, fin } = el.dataset;
+      const done = await deplacer(c, { date, debut, fin });
+      if (done) moving = null;
+      refresh();
+    },
+    remettre() {
+      const c = db.get('cours', sheet.id);
+      const e = planning.eff(c);
+      const undo = planning.remettre(c);
+      refresh();
+      toast({ text: `${nameOf(e, db.get('classes', planning.classIdOf(c)))} remis au ${fmtSlot(c.date, c.debut)}`, undo: async () => { await undo(); refresh(); } });
+    },
+    noteText(el) { sheet.note = el.value; },
+    saveNote() {
+      const c = db.get('cours', sheet.id);
+      const undo = planning.setNote(c, sheet.note);
+      refresh();
+      toast({ text: sheet.note.trim() ? 'Note enregistrée' : 'Note effacée', undo: async () => { await undo(); if (sheet) sheet.note = (db.get('cours', sheet.id) || {}).note || ''; refresh(); } });
+    },
+    editForm() {
+      const e = planning.eff(db.get('cours', sheet.id));
+      sheet = { ...sheet, mode: 'edit', f: { date: e.date, debut: e.debut, fin: e.fin, salle: e.salle || '' } };
+      refresh();
+    },
+    backView() { sheet.mode = 'view'; refresh(); },
+    add() {
+      moving = null;
+      const d = narrow() ? addDays(weekStart, dayIdx || 0) : (mondayOf(todayISO()) === weekStart ? todayISO() : weekStart);
+      sheet = { mode: 'add', f: { classId: '', etabId: '', date: d, debut: '08:00', fin: '09:00', salle: '', role: 'suivi', repeat: false } };
+      refresh();
+    },
+    fClass(el) { sheet.f.classId = el.value; if (sheet.mode === 'evt') { sheet.f.studentId = ''; refresh(); } },
+    fStudent(el) { sheet.f.studentId = el.value; refresh(); },
+    fEtab(el) { sheet.f.etabId = el.value; },
+    fRole(el) { sheet.f.role = el.value; },
+    fRepeat(el) { sheet.f.repeat = el.checked; },
+    fDate(el) { sheet.f.date = el.value; },
+    fDebut(el) {
+      // La fin suit le début (même durée) tant qu'on ne l'a pas changée.
+      const f = sheet.f, dur = toMin(f.fin) - toMin(f.debut);
+      f.debut = el.value;
+      if (el.value && dur > 0) { const m = toMin(el.value) + dur; f.fin = pad(Math.floor(m / 60) % 24) + ':' + pad(m % 60); refresh(); }
+    },
+    fFin(el) { sheet.f.fin = el.value; },
+    fSalle(el) { sheet.f.salle = el.value; },
+    async saveEdit() {
+      const f = sheet.f, c = db.get('cours', sheet.id);
+      if (!f.date || !f.debut || !f.fin || f.fin <= f.debut) { toast({ text: 'Vérifiez la date et les heures (la fin doit suivre le début)' }); return; }
+      const done = await deplacer(c, { date: f.date, debut: f.debut, fin: f.fin, salle: f.salle.trim() });
+      if (!done) return;
+      sheet = { mode: 'view', id: c.id, note: c.note || '' };
+      if (f.date < weekStart || f.date > addDays(weekStart, 6)) { weekStart = mondayOf(f.date); dayIdx = null; }
+      refresh();
+    },
+    async saveAdd() {
+      const f = sheet.f;
+      if (!f.classId) { toast({ text: 'Choisissez la classe' }); return; }
+      if (!f.date || !f.debut || !f.fin || f.fin <= f.debut) { toast({ text: 'Vérifiez la date et les heures (la fin doit suivre le début)' }); return; }
+      const placements = planning.datesAjout(f.date, f.repeat).map(date => ({ date, debut: f.debut, fin: f.fin }));
+      if (!(await okMalgreChevauchement(placements))) return;
+      const { undo, n } = planning.addCours({ classId: f.classId, etabId: f.etabId || null, date: f.date, debut: f.debut, fin: f.fin, salle: f.salle.trim(), role: f.role }, f.repeat);
+      sheet = null;
+      weekStart = mondayOf(f.date); dayIdx = null;
+      refresh();
+      toast({ text: n > 1 ? `${n} cours ajoutés (chaque semaine)` : 'Cours ajouté', undo: async () => { await undo(); refresh(); } });
+    },
+    // ----- Événements hors Pronote -----
+    addEvt() {
+      moving = null;
+      const d = narrow() ? addDays(weekStart, dayIdx || 0) : (mondayOf(todayISO()) === weekStart ? todayISO() : weekStart);
+      sheet = { mode: 'evt', f: { type: 'reunion', titre: '', date: d, debut: '17:30', fin: '18:30', lieu: '', classId: '', note: '', invites: '', repeat: false } };
+      refresh();
+    },
+    evtSheet(el) {
+      if (moving) return;
+      const ev = db.get('evenements', el.dataset.id);
+      if (!ev) return;
+      sheet = { mode: 'evt', id: ev.id, f: { type: ev.type, titre: ev.titre || '', date: ev.date, debut: ev.debut, fin: ev.fin, lieu: ev.lieu || '', classId: ev.classId || '', studentId: ev.studentId || '', note: ev.note || '', invites: (ev.invites || []).join(', ') } };
+      refresh();
+    },
+    fType(el) { sheet.f.type = el.dataset.k; refresh(); },
+    fTitre(el) { sheet.f.titre = el.value; },
+    fLieu(el) { sheet.f.lieu = el.value; },
+    fNote(el) { sheet.f.note = el.value; },
+    fInvites(el) { sheet.f.invites = el.value; },
+    async openEventStudent() {
+      const f = sheet?.f, ev = sheet?.id && db.get('evenements', sheet.id);
+      const pupil = f?.studentId && db.get('students', f.studentId);
+      if (!ev || !pupil || pupil.classId !== f.classId) { toast({ text: 'L’élève associé est introuvable. Vérifiez la classe et l’élève.' }); return; }
+      const changed = ['type', 'titre', 'date', 'debut', 'fin', 'lieu', 'classId', 'studentId', 'note'].some(k => String(f[k] || '') !== String(ev[k] || ''))
+        || JSON.stringify(planning.emailsDe(f.invites).sort()) !== JSON.stringify([...(ev.invites || [])].sort());
+      if (changed) {
+        const choice = await choiceDialog({ title: 'Quitter l’événement sans enregistrer ?', text: 'Des modifications sont en cours. Restez sur l’événement pour les enregistrer, ou ouvrez la fiche en abandonnant ces modifications.', choices: [{ label: 'Rester sur l’événement', value: 'stay', style: 'accent' }, { label: 'Ouvrir la fiche sans enregistrer', value: 'open', style: 'soft' }] });
+        if (choice !== 'open') return;
+      }
+      go(pp.active(pupil.classId) ? `#/pp/eleve/${pupil.id}` : `#/classe/${pupil.classId}/eleve/${pupil.id}`);
+    },
+    async saveEvt() {
+      const f = sheet.f;
+      if (!f.date || !f.debut || !f.fin || f.fin <= f.debut) { toast({ text: 'Vérifiez la date et les heures (la fin doit suivre le début)' }); return; }
+      const mauvaises = String(f.invites || '').split(/[\s,;]+/).filter(Boolean).filter(t => !planning.emailsDe(t).length);
+      if (mauvaises.length) { toast({ text: `Adresse e-mail à vérifier : ${mauvaises.join(', ')}`, ms: 6000 }); return; }
+      const ev = sheet.id ? db.get('evenements', sheet.id) : null;
+      let serie = false;
+      if (ev && planning.suivantsEvt(ev).length) {
+        const n = planning.suivantsEvt(ev).length;
+        const choice = await choiceDialog({
+          title: 'Appliquer la modification à…',
+          choices: [
+            { label: 'Cet événement seulement', value: 'one', style: 'soft' },
+            { label: 'Celui-ci et les semaines suivantes', sub: `${n + 1} événements`, value: 'all', style: 'soft' },
+            { label: 'Annuler', value: null, style: 'soft' },
+          ],
+        });
+        if (!choice) return;
+        serie = choice === 'all';
+      }
+      const shift = ev ? Math.round((parse(f.date) - parse(ev.date)) / 864e5) : 0;
+      const placements = (ev ? [ev, ...(serie ? planning.suivantsEvt(ev) : [])].map(x => ({ date: x === ev ? f.date : addDays(x.date, shift), debut: f.debut, fin: f.fin }))
+        : planning.datesAjout(f.date, f.repeat).map(date => ({ date, debut: f.debut, fin: f.fin })));
+      const ignoreEvt = ev ? [ev.id, ...(serie ? planning.suivantsEvt(ev).map(x => x.id) : [])] : [];
+      if (!(await okMalgreChevauchement(placements, { ignoreEvt }, 'Cet événement'))) return;
+      let undo, text;
+      if (ev) { undo = planning.editEvenement(ev, f, serie); text = serie ? `${placements.length} événements modifiés` : 'Événement modifié'; }
+      else { const r = planning.addEvenement(f, f.repeat); undo = r.undo; text = r.n > 1 ? `${r.n} événements ajoutés (chaque semaine)` : 'Événement ajouté'; }
+      sheet = null;
+      if (f.date < weekStart || f.date > addDays(weekStart, 6)) { weekStart = mondayOf(f.date); dayIdx = null; }
+      refresh();
+      toast({ text, undo: async () => { await undo(); refresh(); } });
+    },
+    async delEvt() {
+      const ev = db.get('evenements', sheet.id);
+      const n = planning.suivantsEvt(ev).length;
+      const choice = await choiceDialog({
+        title: `Supprimer « ${planning.titreEvt(ev)} » ?`,
+        choices: [
+          { label: n ? 'Cet événement seulement' : 'Supprimer', value: 'one', style: n ? 'soft' : 'accent' },
+          ...(n ? [{ label: 'Celui-ci et les semaines suivantes', sub: `${n + 1} événements`, value: 'all', style: 'soft' }] : []),
+          { label: 'Annuler', value: null, style: 'soft' },
+        ],
+      });
+      if (!choice) return;
+      const undo = planning.deleteEvenement(ev, choice === 'all');
+      sheet = null;
+      refresh();
+      toast({ text: choice === 'all' ? `${n + 1} événements supprimés` : 'Événement supprimé', undo: async () => { await undo(); refresh(); } });
+    },
+    // ----- À préparer -----
+    prepaToggle(el) {
+      const c = db.get('cours', sheet.id);
+      const t = el.dataset.t;
+      prepa.cocher(c, t, !(c.prepa || {})[t]);
+      refresh();
+    },
+    prepaNew(el) { sheet.prepaNew = el.value; },
+    prepaAdd() {
+      const c = db.get('cours', sheet.id);
+      const t = (sheet.prepaNew || '').trim();
+      if (!t) { toast({ text: 'Écrivez d’abord ce qu’il faut préparer' }); return; }
+      prepa.ajouter(c, t);
+      sheet.prepaNew = '';
+      refresh();
+      const i = document.querySelector('[data-input="prepaNew"]'); if (i) i.focus();
+    },
+    prepaDel(el) {
+      const c = db.get('cours', sheet.id);
+      const undo = prepa.retirer(c, el.dataset.t);
+      refresh();
+      toast({ text: `« ${el.dataset.t} » retiré`, undo: async () => { await undo(); refresh(); } });
+    },
+    prepaProjet(el) { sheet = null; ouvrirMateriel(el.dataset.id, '#/'); },
+    resetPerso() {
+      const c = db.get('cours', sheet.id);
+      const undo = planning.resetPerso(c);
+      refresh();
+      toast({ text: 'Version Pronote rétablie', undo: async () => { await undo(); refresh(); } });
+    },
+    async delCours() {
+      const c = db.get('cours', sheet.id);
+      const n = planning.suivants(c).filter(x => x.source === 'manuel').length;
+      const choice = await choiceDialog({
+        title: 'Supprimer ce cours ajouté ?',
+        choices: [
+          { label: 'Ce cours seulement', value: 'one', style: 'soft' },
+          ...(n ? [{ label: 'Ce cours et les semaines suivantes', sub: `${n + 1} cours`, value: 'all', style: 'soft' }] : []),
+          { label: 'Annuler', value: null, style: 'soft' },
+        ],
+      });
+      if (!choice) return;
+      const undo = planning.deleteCours(c, choice === 'all');
+      sheet = null;
+      refresh();
+      toast({ text: choice === 'all' ? `${n + 1} cours supprimés` : 'Cours supprimé', undo: async () => { await undo(); refresh(); } });
+    },
+  },
+};

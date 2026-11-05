@@ -1,0 +1,7 @@
+import {composeDraft} from '../js/pp-writing.js';
+export const tests=[];const test=(name,fn)=>tests.push({name,fn});const eq=(a,b)=>{if(a!==b)throw Error(`${a} ≠ ${b}`);};
+test('Appréciation : structure en trois parties et élision',()=>{eq(composeDraft('Emma',false,{level:'satisfaisant',facts:'un travail sérieux',nuance:'Quelques dispersions',goals:'elle devra rester attentive'}),'Le trimestre d’Emma est satisfaisant : un travail sérieux.\nQuelques dispersions.\nPour progresser, elle devra rester attentive.');});
+test('Appréciation : aucun éloge ajouté implicitement',()=>{const text=composeDraft('Tom',false,{level:'excellent',facts:'des progrès',goals:'poursuivre ainsi'});eq(text.includes('Félicitations'),false);eq(text.includes('continuer à progresser'),true);});
+test('Appréciation : classe et félicitations explicites',()=>{const text=composeDraft('5e B',true,{level:'très bon',facts:'des efforts réguliers',goals:'conserver cette dynamique',praise:'Bravo à la classe !'});eq(text.includes('de la classe 5e B'),true);eq(text.endsWith('Bravo à la classe.'),true);});
+test('Appréciation : constats manquants refusés',()=>{let refused=false;try{composeDraft('Alex',false,{level:'satisfaisant',goals:'participer'});}catch{refused=true;}eq(refused,true);});
+test('Appréciation : conseils manquants refusés',()=>{let refused=false;try{composeDraft('Alex',false,{level:'satisfaisant',facts:'des efforts'});}catch{refused=true;}eq(refused,true);});
