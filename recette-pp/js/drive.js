@@ -51,7 +51,7 @@ export const connected = () => !!token && token.exp > Date.now();
 // Google Agenda (1.21.0) : autorisation supplémentaire, demandée seulement si la synchronisation de l'agenda est activée.
 // « calendar.app.created » : l'app ne voit que l'agenda qu'elle a créé (« Carnet de classe »), pas vos autres agendas.
 export const SCOPE_AGENDA = 'https://www.googleapis.com/auth/calendar.app.created';
-const veutAgenda = () => !!(db.getMeta('agenda', {}) || {}).actif;
+const veutAgenda = () => !!(db.getMeta('recetteAgenda', {}) || {}).actif;
 export const aLAgenda = () => connected() && !!token.scopes && token.scopes.includes(SCOPE_AGENDA);
 
 // interactive = false : tentative discrète (sans fenêtre si Google se souvient de l'autorisation).

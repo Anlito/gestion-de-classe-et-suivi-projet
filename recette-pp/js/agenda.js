@@ -211,7 +211,7 @@ export function initAgenda() {
     const stores = info.stores || [];
     // Ne pas réagir à nos propres enregistrements (état de l'agenda, réglages de l'appareil).
     const keys = info.keys || [];
-    if (keys.length && keys.every(k => k === 'meta:agendaEtat' || k === 'meta:agenda' || (k.startsWith('meta:') && db.LOCAL_META.has(k.slice(5))))) return;
+    if (keys.length && keys.every(k => k === 'meta:recetteAgendaEtat' || k === 'meta:recetteAgenda' || (k.startsWith('meta:') && db.LOCAL_META.has(k.slice(5))))) return;
     if (stores.some(s => STORES_PLANNING.has(s)) || info.reset) planifier();
   });
   planifier(12000); // à l'ouverture (après la synchronisation Drive)
