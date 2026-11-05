@@ -169,14 +169,17 @@ function dropPhotoURL(id) {
 
 function write(ops) {
   pending = pending.then(() => new Promise(resolve => {
-    const stores = [...new Set(ops.map(o => o.store))];
-    const tx = idb.transaction(stores, 'readwrite');
-    for (const op of ops) {
-      const os = tx.objectStore(op.store);
-      if (op.after) os.put(op.after); else os.delete(op.id);
-    }
-    tx.oncomplete = () => resolve();
-    tx.onerror = tx.onabort = () => { emitError(tx.error); resolve(); };
+    let tx;
+    try{
+      const stores = [...new Set(ops.map(o => o.store))];
+      tx = idb.transaction(stores, 'readwrite');
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => { emitError(tx.error); resolve(); };
+      for (const op of ops) {
+        const os = tx.objectStore(op.store);
+        if (op.after) os.put(op.after); else os.delete(op.id);
+      }
+    }catch(e){try{tx?.abort();}catch{}emitError(e);resolve();}
   }));
   return pending;
 }

@@ -25,6 +25,10 @@ import ppAlerts from './screens/pp-alerts.js';
 import ppMeetings from './screens/pp-meetings.js';
 import ppFamilies from './screens/pp-families.js';
 import ppAudio from './screens/pp-audio.js';
+import ppProcedures from './screens/pp-procedures.js';
+import ppDataQuality from './screens/pp-data-quality.js';
+import ppCSV from './screens/pp-csv.js';
+import ppPreparation from './screens/pp-meeting-preparation.js';
 import ppTranscription from './screens/pp-transcription.js';
 import ppWriting from './screens/pp-writing.js';
 import ppCouncilProgress from './screens/pp-council-progress.js';
@@ -42,6 +46,14 @@ import { initUpdates } from './update.js';
 
 // Adresse (après #) → écran. Les parties entre parenthèses deviennent des paramètres.
 const ROUTES = [
+  [/^#\/pp\/imports\/([^/]+)\/csv$/, ppCSV, ['classId']],
+  [/^#\/pp\/classe\/([^/]+)\/qualite$/, ppDataQuality, ['classId']],
+  [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv\/evenement\/([^/]+)$/, ppPreparation, ['studentId','eventId']],
+  [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv\/note\/([^/]+)$/, ppPreparation, ['studentId','preparationId']],
+  [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv$/, ppPreparation, ['studentId']],
+  [/^#\/pp\/eleve\/([^/]+)\/demarches\/([^/]+)$/, ppProcedures, ['studentId','procedureId']],
+  [/^#\/pp\/eleve\/([^/]+)\/demarches$/, ppProcedures, ['studentId']],
+  [/^#\/pp\/eleve\/([^/]+)\/(actions|documents|vie|journal)$/, suiviPP, ['studentId','section']],
   [/^#\/pp\/classe\/([^/]+)\/dossier\/([123])$/, ppCouncilExport, ['classId','trimester']],
   [/^#\/pp\/classe\/([^/]+)\/relecture\/([123])$/, ppCouncilReview, ['classId','trimester']],
   [/^#\/pp\/eleve\/([^/]+)\/relecture\/([123])$/, ppCouncilReview, ['studentId','trimester']],

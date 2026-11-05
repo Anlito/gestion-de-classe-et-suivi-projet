@@ -1,5 +1,8 @@
 // Règles pures du suivi PP : réutilisables dans les tests sans navigateur.
 export const PP_TOOLS = [
+  {key:'qualite',label:'Qualité et évolution',description:'Derniers imports, éléments à vérifier et comparaison de relevés.'},
+  {key:'demarches',label:'Démarches documentaires',description:'Demandes, réception, validité et relances des documents.'},
+  {key:'preparation',label:'Préparer les rencontres',description:'Faits à aborder, compte rendu, décisions et suites.'},
   {key:'audio',label:'Notes audio',description:'Enregistrement, réécoute et transcription personnelle par élève.'},
   {key:'rencontres',label:'Rencontres parents–PP',description:'Campagnes, créneaux et réservations manuelles liées à l’agenda.'},
   { key:'alertes', label:'Alertes PP', description:'Seuils d’assiduité, de mesures et de carnet, avec suivi des dépassements.' },

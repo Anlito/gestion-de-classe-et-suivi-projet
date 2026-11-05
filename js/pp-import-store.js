@@ -23,9 +23,9 @@ export function buildImport(parsed, mappings, classId, hash, options = {}) {
     if (mappings[index] === 'skip') return;
     const studentId = mappings[index];
     if (['attendance','discipline'].includes(parsed.profile)) {
-      if (!parsed.totalsChecked) throw new Error('Les totaux du relevé doivent être vérifiés avant import.');
+      if (!parsed.totalsChecked) throw new Error('Les compteurs et contrôles du relevé doivent être vérifiés avant import.');
       const entityId = [testMode?'test-recap':'recap',classId,studentId,model.schoolYear(),parsed.profile,parsed.sourceSchool,parsed.period.join('|')].join('|');
-      records.push({...base,id:db.uid(),entityId,parents:heads.filter(r=>r.entityId===entityId).map(r=>r.id),kind:'periodReport',studentId,profile:parsed.profile,period:parsed.period,columns:parsed.columns,metrics:row.metrics,sourceRow:row.sourceRow,sourcePage:row.sourcePage,sourceClass:row.sourceClass||parsed.sourceClass,sourceSchool:parsed.sourceSchool});
+      records.push({...base,id:db.uid(),entityId,parents:heads.filter(r=>r.entityId===entityId).map(r=>r.id),kind:'periodReport',studentId,profile:parsed.profile,period:parsed.period,columns:parsed.columns,metrics:row.metrics,sourceFormat:parsed.sourceFormat||'pdf',sourceRow:row.sourceRow,sourcePage:row.sourcePage,sourceClass:row.sourceClass||parsed.sourceClass,sourceSchool:parsed.sourceSchool});
     }
     if (parsed.profile === 'bulletin') {
       const occurrences = new Map();
@@ -52,9 +52,9 @@ export function buildImport(parsed, mappings, classId, hash, options = {}) {
 export async function commitImport(parsed, mappings, classId, hash, file, options = {}) {
   const plan = buildImport(parsed, mappings, classId, hash, options);
   const blobId = 'pp-file-' + db.uid(), at = new Date().toISOString(), source = { classId, year: model.schoolYear(), at, testMode: plan.testMode, sourceYear: plan.sourceYear, sourceClass: plan.sourceClass };
-  const mimeType = plan.profile === 'roster' ? 'text/csv' : 'application/pdf';
+  const mimeType = /\.csv$/i.test(file.name) ? 'text/csv' : 'application/pdf';
   const batch = { ...source, id: plan.batchId, kind: 'importBatch', profile: plan.profile, fingerprint: hash,
-    fileName: file.name, trimester: plan.trimester, mappings: plan.mappings, conflicts: plan.conflicts,
+    fileName: file.name, sourceFormat:parsed.sourceFormat||(/\.csv$/i.test(file.name)?'csv':'pdf'), trimester: plan.trimester, mappings: plan.mappings, conflicts: plan.conflicts,
     matched: plan.matched, avisAdded: plan.records.filter(r => r.kind === 'council').length, reportRows:plan.records.filter(r=>r.kind==='periodReport').length, period:parsed.period, title:parsed.label };
   const documents = plan.profile === 'bulletin' ? plan.mappings.filter(m => m.studentId).map(m => ({ ...source, id: db.uid(), entityId: db.uid(), parents: [],
     kind: 'document', studentId: m.studentId, category: 'Bulletin', title: `${plan.testMode ? 'TEST · ' : ''}Bulletin · trimestre ${plan.trimester}`, blobId, mimeType, fileName: file.name, size: file.size, importBatchId: plan.batchId })) : [];

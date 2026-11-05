@@ -1,15 +1,20 @@
 import * as db from './db.js';
 import * as model from './model.js';
+import {taskDetails} from './pp-task-rules.js';
 import { isPPClass, revisionHeads, PP_TOOLS, DOCUMENT_TYPES, CARNET_TYPES, validISODate, PP_ROLES, MEASURE_TYPES } from './pp-rules.js';
 export { PP_TOOLS, DOCUMENT_TYPES, CARNET_TYPES, revisionHeads };
 
 export const classes = () => model.classes().filter(c => isPPClass(c, model.schoolYear()));
 export const active = classId => isPPClass(db.get('classes', classId), model.schoolYear());
 export const hasPP = () => classes().length > 0;
-export const enabled = key => PP_TOOLS.some(t => t.key === key) && db.getMeta('ppTool:' + key, true) !== false;
+export const toolVersions=key=>revisionHeads(db.where('ppRecords',r=>r.kind==='toolSetting'&&r.tool===key));
+export const toolConflict=key=>new Set(toolVersions(key).map(r=>r.value)).size>1;
+export const enabled = key => PP_TOOLS.some(t => t.key === key) && (toolVersions(key).length?toolVersions(key).every(r=>r.value===true):db.getMeta('ppTool:' + key, true) !== false);
 export function setEnabled(key, value) {
   if (!PP_TOOLS.some(t => t.key === key)) throw new Error('Outil inconnu.');
-  return db.commit(w => w.meta('ppTool:' + key, !!value));
+  const id=db.uid(),row={id,entityId:'pp-tool-'+key,parents:toolVersions(key).map(r=>r.id),kind:'toolSetting',tool:key,value:!!value,year:'*',at:new Date().toISOString()};
+  const undo=db.commit(w=>{w.put('ppRecords',row);w.meta('ppTool:'+key,!!value);});
+  return {entry:row,undo};
 }
 export const records = ({ studentId, classId, kind } = {}) => db.where('ppRecords', r =>
   r.year === model.schoolYear() && (!studentId || r.studentId === studentId) && (!classId || r.classId === classId) && (!kind || r.kind === kind));
@@ -19,12 +24,17 @@ export function requireStudent(studentId) {
   if (!s || !active(s.classId)) throw new Error('Choisissez un élève d’une classe dont vous êtes PP.');
   return s;
 }
-export function saveEntry(data, previous = null) {
+export function buildEntry(data, previous = null) {
   const s = data.studentId ? requireStudent(data.studentId) : null;
   const classId = s ? s.classId : data.classId;
   if (!active(classId)) throw new Error('Cette classe n’a pas de suivi PP actif.');
-  if (previous && (!db.get('ppRecords', previous.id) || previous.studentId !== (s?.id || null) || previous.classId !== classId)) throw new Error('La version source a changé. Rouvrez la fiche.');
+  if (previous && (!db.get('ppRecords', previous.id) || previous.year!==model.schoolYear() || previous.studentId !== (s?.id || null) || previous.classId !== classId)) throw new Error('La version source a changé. Rouvrez la fiche.');
   const kind = previous?.kind || data.kind;
+  if(kind==='task'&&data.related&&data.related!==previous?.related){
+    const separator=String(data.related).indexOf(':'),type=String(data.related).slice(0,separator),ref=String(data.related).slice(separator+1);
+    const target=type==='event'?db.get('evenements',ref):type==='record'?latest({studentId:s?.id}).find(r=>r.entityId===ref&&r.entityId!==previous?.entityId&&['council','document','note','progress','measure','procedure','meetingPreparation','alertState'].includes(r.kind)):null;
+    if(!s||!target||target.studentId!==s.id||(target.classId&&target.classId!==classId)||target.cancelled)throw Error('Choisissez un élément lié au même élève.');
+  }
   const tool = { measure:'vieScolaire', task: 'actions', note: 'notes', progress: 'notes', carnet: 'carnet', document: 'documents', council: 'conseils' }[kind];
   if (!tool || !enabled(tool)) throw new Error('Cet outil est désactivé.');
   if (data.due && !validISODate(data.due)) throw new Error('Vérifiez la date d’échéance.');
@@ -47,20 +57,25 @@ export function saveEntry(data, previous = null) {
   }
   if (kind !== 'council' && !(data.title || data.text || '').trim()) throw new Error('Renseignez le contenu.');
   const id = db.uid();
+  let parents=previous?[previous.id]:[];
+  if(kind==='task'&&previous&&data.resolveConcurrent===true){const ids=latest({studentId:s?.id,kind:'task'}).filter(r=>r.entityId===previous.entityId).map(r=>r.id);if(!Array.isArray(data.expectedHeads)||data.expectedHeads.length!==ids.length||new Set(data.expectedHeads).size!==ids.length||!data.expectedHeads.every(id=>ids.includes(id)))throw Error('Les versions de l’action ont changé. Rechargez-la.');parents=ids;}
   // Données explicites uniquement : aucune reprise de propriétés internes reçues d’un formulaire.
-  const entry = { id, entityId: previous?.entityId || id, parents: previous ? [previous.id] : [], kind,
+  const entry = { id, entityId: previous?.entityId || id, parents, kind,
     classId, studentId: s?.id || null, year: model.schoolYear(), at: new Date().toISOString(),
     title: (data.title || '').trim(), text: (data.text || '').trim(), date: data.date || '', due: data.due || '',
     status: data.status || (kind === 'council' ? 'draft' : 'todo'), category: data.category || '',
     trimester: kind === 'council' ? Number(data.trimester) : undefined,
     subject: data.subject || '', teacher: data.teacher || '',
     ...(kind==='council'&&previous?.writingBasis?{writingBasis:previous.writingBasis}:{}),
+    ...(kind==='task'?taskDetails(data,previous):{}),
     ...(kind==='measure'?{reason:String(data.reason||'').trim(),authorRole:data.authorRole||'',authorName:String(data.authorName||'').trim(),reportEntityId:report?.entityId||null,columnId:report?data.columnId:null,durationMinutes:duration,plannedDate:data.plannedDate||''}:{}),
     testMode: report?.testMode === true || previous?.testMode === true, sourceYear: report?.sourceYear || previous?.sourceYear, sourceClass: report?.sourceClass || previous?.sourceClass,
     blobId: data.blobId || previous?.blobId, fileName: data.fileName || previous?.fileName,
     mimeType: data.mimeType || previous?.mimeType, size: data.size ?? previous?.size };
-  const undo = db.commit(w => w.put('ppRecords', entry));
-  return { entry, undo };
+  return entry;
+}
+export function saveEntry(data,previous=null){
+  const entry=buildEntry(data,previous),undo=db.commit(w=>w.put('ppRecords',entry));return {entry,undo};
 }
 export async function attachDocument(studentId, file, category, title) {
   const s = requireStudent(studentId);
@@ -77,9 +92,7 @@ export async function attachDocument(studentId, file, category, title) {
     blobId, fileName: file.name, mimeType, size: file.size };
   const blob = new Blob([file], { type: mimeType });
   const undo = db.commit(w => { w.put('photos', { id: blobId, blob }); w.put('ppRecords', entry); });
-  await db.flush();
-  await db.verifyStored('ppRecords', entry.id, entry.updatedAt);
-  await db.verifyStored('photos', blobId);
+  try{await db.flush();await db.verifyStored('ppRecords', entry.id, entry.updatedAt);await db.verifyStored('photos', blobId);}catch(e){await undo();await db.flush();throw e;}
   return { entry, undo };
 }
 export function removeEntry(id) {

@@ -1,6 +1,7 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import * as pp from '../pp.js';
+import {taskExtraFields,taskExtraView} from '../pp-task-ui.js';
 import { isOverdue } from '../pp-rules.js';
 import { isMasteryLayout, previousResultText, annualBulletinRows } from '../pronote-import.js';
 import { schoolHistory, measureEditor, measureExtras, classReportSummary } from '../school-life.js';
@@ -31,7 +32,7 @@ function currentRecords() {
 }
 function entryView(r) {
   const conflict = pp.latest(currentFilters()).filter(x => x.entityId === r.entityId).length > 1;
-  return html`<article class="pp-record${st.editId === r.id ? ' selected' : ''}">
+  return html`<article class="pp-record${st.editId === r.id ? ' selected' : ''}" data-record-id="${r.id}">
     <div class="row-center wrap"><span class="chip${r.kind === 'progress' ? ' pos' : ''}">${kindLabel(r)}</span>
       ${r.testMode ? html`<span class="chip warn">TEST · source ${r.sourceClass || '?'} · ${r.sourceYear || '?'}</span>` : ''}
       ${conflict ? html`<span class="chip warn">Versions concurrentes conservées</span>` : ''}
@@ -39,6 +40,7 @@ function entryView(r) {
     <strong>${r.title || (r.kind === 'council' ? `Trimestre ${r.trimester}` : '')}</strong>
     ${r.text ? html`<div class="pp-record-text">${r.text}</div>` : ''}
     ${r.kind==='measure'?measureExtras(r):''}
+    ${r.kind==='task'?taskExtraView(r):''}
     <span class="muted small">${r.date ? fmtDate(r.date) : r.kind==='measure'?'Saisie le '+fmtDate(r.at)+' · date de la mesure non renseignée':fmtDate(r.at)}${r.due ? ' · échéance ' + fmtDate(r.due) : ''}</span>
     ${r.kind === 'task' ? html`<label class="check-row"><input type="checkbox" data-change="task" data-id="${r.id}" ${r.status === 'done' ? 'checked' : ''}> ${r.status === 'done' ? 'Fait' : isOverdue(r, todayISO()) ? 'À faire · échéance dépassée' : 'À faire'}</label>` : ''}
     <div class="button-group">
@@ -83,7 +85,7 @@ function editor() {
     <label class="lbl">Choisir un document (20 Mo maximum)<input type="file" class="input" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" data-change="file"></label>
     <label class="lbl">Prendre une photo<input type="file" class="input" accept="image/jpeg,image/png,image/webp" capture="environment" data-change="file"></label>
     <span class="muted small">${st.file ? st.file.name : 'Aucun fichier sélectionné.'}</span></div>`;
-  if (st.tab === 'actions') return html`<div class="stack">${field('title', 'Action à suivre')}${field('due', 'Échéance (facultative)', 'date')}${textField('Détail / résultat de l’action')}</div>`;
+  if (st.tab === 'actions') return html`<div class="stack">${field('title', 'Action à suivre')}${field('due', 'Échéance (facultative)', 'date')}${textField('Détail de l’action')}${taskExtraFields(st.form,st.studentId)}</div>`;
   if (st.tab === 'conseils') return html`<div class="stack pp-editor-stack"><label class="lbl">Contenu<select class="input" data-change="kindCouncil" ${st.editId ? 'disabled' : ''}><option value="avis" ${st.form.category !== 'synthese' ? 'selected' : ''}>${st.collective ? 'Avis d’un professeur sur la classe' : 'Avis par matière'}</option><option value="synthese" ${st.form.category === 'synthese' ? 'selected' : ''}>${st.collective ? 'Synthèse générale de classe' : 'Synthèse globale de l’élève'}</option></select></label>
     ${st.form.category !== 'synthese' ? html`${field('subject', 'Matière')}${field('teacher', 'Professeur (facultatif)')}` : html`<p class="muted small">Bilan du trimestre → constats nuancés → conseils concrets. Félicitations si justifiées.</p>`}
     ${textField(st.form.category === 'synthese' ? 'Votre appréciation' : 'Appréciation du professeur')}
@@ -129,7 +131,7 @@ function classRecap(c) {
       ${panel('Vue d’ensemble de la classe', html`<div class="pp-recap-metrics"><div><strong>${pupils.length}</strong><span>élève${pupils.length > 1 ? 's' : ''}</span></div>${pp.enabled('actions') ? html`<div><strong>${tasks.length}</strong><span>action${tasks.length > 1 ? 's' : ''} ouverte${tasks.length > 1 ? 's' : ''}</span></div>` : ''}${pp.enabled('documents') ? html`<div><strong>${documents.length}</strong><span>pièce${documents.length > 1 ? 's' : ''} jointe${documents.length > 1 ? 's' : ''}</span></div>` : ''}</div>
       ${pp.enabled('actions') ? html`<h3 class="pp-source-title">Actions à suivre</h3>${tasks.length ? tasks.map(r => html`<a class="pp-home-row" href="${r.studentId ? '#/pp/eleve/' + r.studentId : '#/pp/classe/' + c.id}"><strong>${r.title}</strong><span class="muted small">${r.studentId ? model.fullName(db.get('students', r.studentId) || {}) : c.name}${r.due ? ' · ' + fmtDate(r.due) : ' · sans échéance'}</span>${isOverdue(r, todayISO()) ? html`<span class="chip warn">En retard</span>` : ''}</a>`) : html`<p class="muted small">Aucune action ouverte pour cette classe.</p>`}` : ''}
       <h3 class="pp-source-title">Prochaines réunions</h3>${meetings.length ? meetings.map(e => html`<div class="pp-home-row"><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut}${e.studentId ? ' · ' + model.fullName(db.get('students', e.studentId) || {}) : ' · classe entière'}</span></div>`) : html`<p class="muted small">Aucune réunion à venir pour cette classe.</p>`}
-      <div class="button-group">${pp.enabled('rencontres') ? html`<a class="btn accent" href="#/pp/rencontres">Rencontres parents–PP</a>` : ''}${pp.enabled('alertes') ? html`<a class="btn accent" href="#/pp/alertes">Alertes PP · seuils et suivi</a>` : ''}</div>${classReportSummary(c.id)}<p class="muted small pp-source-title">Ces relevés conservent leurs périodes. Les appels du Carnet restent distincts. Les alertes PP utilisent la dernière période d’assiduité disponible.</p>`)}
+      <div class="button-group">${pp.enabled('qualite')?html`<a class="btn" href="#/pp/classe/${c.id}/qualite">Qualité des données et évolution</a>`:''}${pp.enabled('rencontres') ? html`<a class="btn accent" href="#/pp/rencontres">Rencontres parents–PP</a>` : ''}${pp.enabled('alertes') ? html`<a class="btn accent" href="#/pp/alertes">Alertes PP · seuils et suivi</a>` : ''}</div>${classReportSummary(c.id)}<p class="muted small pp-source-title">Ces relevés conservent leurs périodes. Les appels du Carnet restent distincts. Les alertes PP utilisent la dernière période d’assiduité disponible.</p>`)}
       ${pp.enabled('conseils') ? panel(`Conseil · trimestre ${trimester}`, html`<div class="info-box small-text">${pupilsWithAdvice} élève${pupilsWithAdvice > 1 ? 's' : ''} avec un avis ou une synthèse enregistré${pupilsWithAdvice > 1 ? 's' : ''} sur ${pupils.length}. Ce nombre ne mesure pas la complétude des avis.</div>
       <h3 class="pp-source-title">Avis généraux des professeurs</h3>${collective.filter(r => r.category !== 'synthese').map(r => html`<article class="pp-record"><strong>${[r.subject, r.teacher].filter(Boolean).join(' · ') || 'Avis collectif'}</strong><div class="pp-record-text">${r.text}</div></article>`)}${collective.some(r => r.category !== 'synthese') ? '' : html`<p class="muted small">Aucun avis collectif renseigné pour ce trimestre.</p>`}
       <h3 class="pp-source-title">Conclusion générale de la classe</h3>${collective.filter(r => r.category === 'synthese').map(r => html`<article class="pp-record"><span class="chip${r.status === 'validated' ? ' pos' : ''}">${r.status === 'validated' ? 'Validé' : 'Brouillon'}</span><div class="pp-record-text">${r.text}</div></article>`)}${collective.some(r => r.category === 'synthese') ? '' : html`<p class="muted small">La conclusion générale est à préparer.</p>`}`, html`<div class="button-group"><a class="btn accent" href="#/pp/classe/${c.id}/avancement/${trimester}">Avancement du conseil</a><a class="btn" href="#/pp/classe/${c.id}/conseils">Préparer le conseil de la classe</a></div>`) : panel('Suivi collectif', html`<p class="muted">Le module Conseils est masqué. Les données collectives sont conservées.</p>`) }
@@ -138,7 +140,7 @@ function classRecap(c) {
 function profile(s, c) {
   const pupils = model.studentsOf(c.id).filter(p => !st.filter || model.fullName(p).toLocaleLowerCase('fr').includes(st.filter.toLocaleLowerCase('fr')));
   return html`<section class="panel pp-sidebar"><div class="pp-profile">${photo(s, { cls: 'big' })}<div><strong>${s.prenom}</strong><span class="upper">${s.nom}</span><span class="chip">${c.name} · PP</span></div></div>
-    <div class="pp-profile-links"><a class="link-btn" href="#/classe/${c.id}/eleve/${s.id}">Fiche du Carnet →</a><button class="link-btn" data-click="newMeeting">+ Réunion liée</button>${pp.enabled('audio')?html`<a class="link-btn" href="#/pp/eleve/${s.id}/audio">Notes audio →</a>`:''}</div>
+    <div class="pp-profile-links">${pp.enabled('preparation')?html`<a class="link-btn" href="#/pp/eleve/${s.id}/preparer-rdv">Préparer / suivre une rencontre →</a>`:''}${pp.enabled('demarches')?html`<a class="link-btn" href="#/pp/eleve/${s.id}/demarches">Démarches et renouvellements →</a>`:''}<a class="link-btn" href="#/classe/${c.id}/eleve/${s.id}">Fiche du Carnet →</a><button class="link-btn" data-click="newMeeting">+ Réunion liée</button>${pp.enabled('audio')?html`<a class="link-btn" href="#/pp/eleve/${s.id}/audio">Notes audio →</a>`:''}</div>
     <div class="muted small pp-profile-links">${model.besoinsOf(s).join(' · ') || 'Aucun dispositif renseigné'}</div>
     <div class="pp-search"><input class="input" aria-label="Rechercher un élève" placeholder="Rechercher un élève" data-input="search" value="${st.filter}"></div>
     <div class="panel-scroll" data-scroll="pp-pupils">${pupils.map(p => html`<a class="pp-pupil${p.id === s.id ? ' current' : ''}" data-pp-pupil href="#/pp/eleve/${p.id}" ${p.id === s.id ? raw('aria-current="true"') : ''}>${p.prenom} <span class="upper">${p.nom}</span></a>`)}</div></section>`;
@@ -157,7 +159,7 @@ export default {
     if (params.studentId && (!s || !pp.active(s.classId))) { go('#/pp', { replace: true }); return null; }
     if (classCouncil && (st.classId !== classId || st.studentId || !st.collective || st.tab !== 'conseils' || st.trimester !== recapPeriod)) { keepDraft(); st.classId = classId; st.studentId = ''; st.collective = true; st.tab = 'conseils'; st.trimester = recapPeriod; restoreDraft(); }
     if (s && (s.id !== st.studentId || s.classId !== st.classId || st.collective)) { keepDraft(); st.studentId = s.id; st.classId = s.classId; st.collective = false; restoreDraft(); }
-    if(s&&params.section==='conseils'&&pp.enabled('conseils')&&(st.tab!=='conseils'||st.trimester!==requestedPeriod)){keepDraft();st.tab='conseils';st.trimester=[1,2,3].includes(requestedPeriod)?requestedPeriod:1;restoreDraft();}
+    if(s&&params.section&&tabs().some(t=>t[0]===params.section)&&(st.tab!==params.section||(params.section==='conseils'&&st.trimester!==requestedPeriod))){keepDraft();st.tab=params.section;if(params.section==='conseils')st.trimester=[1,2,3].includes(requestedPeriod)?requestedPeriod:1;restoreDraft();}
     const c = db.get('classes', s?.classId || classId);
     if (!tabs().some(t => t[0] === st.tab)) st.tab = tabs()[0]?.[0] || 'none';
     const title = s ? model.fullName(s) : classCouncil ? c.name + ' · Conseil de classe' : 'Mon suivi PP';
@@ -183,6 +185,7 @@ export default {
   },
   leave() { keepDraft(); if (previewUrl) URL.revokeObjectURL(previewUrl); previewUrl = null; },
   actions: {
+    taskResolve(el){st.form.resolveConcurrent=el.checked;keepDraft();},
     schoolReport(el) { st.form.reportEntityId=el.value;st.form.columnId='';keepDraft();refresh(); },
     form(el) { st.form[el.dataset.key] = el.value; keepDraft(); },
     search(el) {
@@ -191,7 +194,7 @@ export default {
       const text = st.filter.toLocaleLowerCase('fr');
       document.querySelectorAll('[data-pp-pupil]').forEach(a => { a.hidden = !a.textContent.toLocaleLowerCase('fr').includes(text); });
     },
-    tab(el,e,params) { keepDraft(); st.tab = el.dataset.key; st.collective = false; restoreDraft(); if(params?.studentId&&params.section==='conseils'){go('#/pp/eleve/'+params.studentId);return;}refresh(); },
+    tab(el,e,params) { keepDraft(); st.tab = el.dataset.key; st.collective = false; restoreDraft(); if(params?.studentId&&params.section){go('#/pp/eleve/'+params.studentId);return;}refresh(); },
     trimester(el, e, params) { keepDraft(); if(params?.trimester){go('#/pp/'+(params.studentId?'eleve/'+params.studentId:'classe/'+params.classId)+'/conseils/'+el.value);return;}st.trimester = Number(el.value); if (params?.section === 'conseils') recapPeriod = st.trimester; restoreDraft(); refresh(); },
     recapTrimester(el) { recapPeriod = Number(el.value); refresh(); },
     kind(el) { st.form.kind = el.value; keepDraft(); refresh(); },
@@ -204,14 +207,15 @@ export default {
     async edit(el) {
       const r = db.get('ppRecords', el.dataset.id); if (!r) return;
       if ((st.form.text || st.form.title || st.file) && !(await confirmDialog({ title: 'Ouvrir cet élément ?', text: 'Le contenu non enregistré de cet éditeur sera remplacé.', ok: 'Ouvrir' }))) return;
-      st.editId = r.id; st.form = { ...r }; keepDraft(); refresh();
+      st.editId = r.id; st.form = { ...r,...(r.kind==='task'?{resolveConcurrent:false,expectedHeads:pp.latest({studentId:st.studentId,kind:'task'}).filter(other=>other.entityId===r.entityId).map(other=>other.id)}:{}) }; keepDraft(); refresh();
     },
     async save() {
       if (st.busy) return;
+      const context=draftKey(),formSnapshot=JSON.stringify(st.form),fileSnapshot=st.file,originalEdit=st.editId;
+      let result;
       try {
         st.busy = true;
         const data = { ...st.form, studentId: st.collective ? null : st.studentId, classId: st.classId };
-        let result;
         if (st.tab === 'documents') {
           if (!st.file) throw new Error('Choisissez un document ou prenez une photo.');
           result = await pp.attachDocument(st.studentId, st.file, data.category || pp.DOCUMENT_TYPES[0], data.title);
@@ -224,15 +228,17 @@ export default {
           await db.flush();
           await db.verifyStored('ppRecords', result.entry.id, result.entry.updatedAt);
         }
-        st.form = {}; st.editId = null; st.file = null; keepDraft(); refresh();
+        if(draftKey()===context&&JSON.stringify(st.form)===formSnapshot&&st.file===fileSnapshot&&st.editId===originalEdit){st.form = {}; st.editId = null; st.file = null; keepDraft();}else if(draftKey()!==context){const draft=drafts.get(context);if(draft&&JSON.stringify(draft.form)===formSnapshot&&draft.file===fileSnapshot&&draft.editId===originalEdit)drafts.delete(context);}
+        refresh();
         toast({ text: 'Enregistré sur cet appareil. Drive prend le relais si la synchronisation est activée.', undo: async () => { await result.undo(); refresh(); }, ms: 6000 });
-      } catch (e) { toast({ text: e.message, ms: 6000 }); }
+      } catch (e) { if(result?.undo){await result.undo();await db.flush();}toast({ text: e.message, ms: 6000 }); }
       finally { st.busy = false; const b = document.querySelector('[data-click="save"]'); if (b) { b.disabled = false; b.textContent = 'Enregistrer'; } }
     },
     async task(el) {
-      try { const r = db.get('ppRecords', el.dataset.id); pp.saveEntry({ ...r, status: el.checked ? 'done' : 'todo' }, r); await db.flush(); refresh(); }
-      catch (e) { toast({ text: e.message }); refresh(); }
+      let result;try { const r = db.get('ppRecords', el.dataset.id);result=pp.saveEntry({ ...r, status: el.checked ? 'done' : 'todo' }, r); await db.flush();await db.verifyStored('ppRecords',result.entry.id,result.entry.updatedAt);refresh(); }
+      catch (e) { if(result?.undo){await result.undo();await db.flush();}toast({ text: e.message }); refresh(); }
     },
+    async taskLink(el){const ref=el.dataset.ref;if(ref.startsWith('event:')){const {openStudentEvent}=await import('./semaine.js');openStudentEvent(st.studentId,ref.slice(6));return;}const rows=pp.latest({studentId:st.studentId}).filter(r=>r.entityId===ref.slice(7));const row=rows[0];if(!row){toast({text:'Élément lié indisponible'});return;}if(row.kind==='meetingPreparation'){go('#/pp/eleve/'+st.studentId+'/preparer-rdv/note/'+row.id);return;}if(row.kind==='procedure'){go('#/pp/eleve/'+st.studentId+'/demarches/'+row.id);return;}const tab={council:'conseils',document:'documents',note:'journal',progress:'journal',measure:'vie'}[row.kind];if(!tab||!tabs().some(t=>t[0]===tab)){toast({text:'Ouvrez ou activez le module de cet élément.'});return;}keepDraft();st.tab=tab;if(row.kind==='council')st.trimester=row.trimester;restoreDraft();refresh();document.querySelector('[data-record-id="'+CSS.escape(row.id)+'"]')?.scrollIntoView({block:'center'});},
     async removeDocument(el) {
       if (!(await confirmDialog({ title: 'Retirer ce document ?', text: 'Le fichier sera retiré de ce dossier et des appareils après synchronisation.', danger: true, ok: 'Retirer' }))) return;
       try { const undo = pp.removeEntry(el.dataset.id); await db.flush(); refresh(); toast({ text: 'Document retiré', undo: async () => { await undo(); refresh(); } }); }

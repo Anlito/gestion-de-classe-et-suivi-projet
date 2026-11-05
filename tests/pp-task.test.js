@@ -1,0 +1,6 @@
+import {taskDetails} from '../js/pp-task-rules.js';
+export const tests=[];const test=(name,fn)=>tests.push({name,fn});const eq=(a,b)=>{if(a!==b)throw Error(`${a} ≠ ${b}`);};const bad=fn=>{let rejected=false;try{fn();}catch{rejected=true;}eq(rejected,true);};
+test('Actions : état en cours et bilan conservés',()=>{const row=taskDetails({status:'inprogress',assignedTo:'Parent',reviewDate:'2026-11-15',outcome:'Progrès observé',nextStep:'Poursuivre'});eq(row.status,'inprogress');eq(row.reviewDate,'2026-11-15');eq(row.completedAt,null);});
+test('Actions : réalisation datée puis réouverture sans perte d’historique',()=>{const done=taskDetails({status:'done'},null,'2026-11-05T16:00:00Z');eq(done.completedAt,'2026-11-05T16:00:00Z');eq(taskDetails({status:'done'},done,'2026-11-06T16:00:00Z').completedAt,done.completedAt);eq(taskDetails({status:'todo'},done).completedAt,null);});
+test('Actions : date et état incorrects refusés',()=>{bad(()=>taskDetails({reviewDate:'2026-02-30'}));bad(()=>taskDetails({status:'arbitraire'}));});
+test('Actions : lien reconnu et contenu borné',()=>{eq(taskDetails({related:'event:123'}).related,'event:123');bad(()=>taskDetails({related:'https://example.com'}));bad(()=>taskDetails({assignedTo:'x'.repeat(241)}));});

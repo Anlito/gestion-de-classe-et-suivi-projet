@@ -1,9 +1,14 @@
 // sw.js — Fonctionnement hors-ligne : garde une copie des fichiers de l'app sur l'appareil.
 // À chaque nouvelle version de l'app, augmenter VERSION pour que la tablette récupère les nouveaux fichiers.
-const VERSION = 'carnet-v1.23.0-pp.19';
+const VERSION = 'carnet-v1.23.0-pp.20';
 const FONTS = 'carnet-fonts';
 const DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
 const FILES = [
+  'js/pp-csv-adapter.js','js/screens/pp-csv.js',
+  'js/pp-comparison-rules.js','js/screens/pp-data-quality.js',
+  'js/pp-meeting-preparation.js','js/screens/pp-meeting-preparation.js',
+  'js/pp-followup-core.js','js/pp-procedures.js','js/screens/pp-procedures.js',
+  'js/pp-task-rules.js','js/pp-task-ui.js',
   'js/pp-council-export-rules.js','js/pp-council-export.js','js/screens/pp-council-export.js',
   'js/pp-council-review-rules.js','js/pp-council-review.js','js/screens/pp-council-review.js',
   'js/pp-council-progress.js','js/screens/pp-council-progress.js',

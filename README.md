@@ -1,10 +1,28 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.19 (5 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.20 (5 novembre 2026)
 
-Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
+Évolutions développées sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
+
+### Compléments de suivi et recette de reprise · version 20
+
+Actions : responsable, état À faire / En cours / Fait, échéance, date de bilan, résultat observé, suite à donner et lien vers un rendez-vous ou un élément du même élève. Les changements créent des versions ; les branches concurrentes peuvent être départagées explicitement avec contrôle des identifiants affichés. Les réalisations sont datées, la réouverture conserve l’historique. Aucun message au responsable indiqué.
+
+Démarches : demande/en attente/reçu/à compléter/clôturé, interlocuteur, dates des échanges, validité et renouvellement distincts, association de plusieurs pièces. Joindre une pièce reçue enregistre ensemble le binaire, le document et la nouvelle version de la démarche. Une relance actualise une seule action liée ; deux créations hors ligne ont une identité commune et restent des branches à départager. Une démarche close doit être rouverte avant ajout de pièce ou relance. La réception ne prolonge jamais automatiquement la validité.
+
+Rencontres : préparation depuis la fiche ou le détail de l’événement, sélection de versions exactes des faits sur une période, notes/questions, compte rendu personnel, décisions, prochain point et suite à donner. Les versions précédemment retenues restent référencées si les faits changent. Les périodes importées sont proposées quand elles croisent la période choisie, sans découpage de leurs cumuls. Une action de suite peut être créée/actualisée explicitement. Pas de compte rendu automatiquement envoyé aux familles.
+
+Qualité et évolution : derniers imports, bulletin et présence d’avis par élève/trimestre, versions concurrentes et démarches attendues/échues. Deux relevés du même élève/type/établissement peuvent être affichés côte à côte. Écart calculé seulement pour périodes sans chevauchement de même durée calendaire et schéma identique ; absence de donnée distincte de zéro. Aucune soustraction de cumuls chevauchants, comparaison de taux inventée, ni attribution d’un changement à une action. La présence d’un avis ne prouve pas que toutes les matières ont répondu.
+
+CSV supplémentaires : **Configurer un autre CSV** permet d’indiquer séparateur, identité (ensemble ou nom/prénom séparés), classe, établissement, période et colonnes de cumuls d’assiduité ou de mesures. Aperçu par élève et deux confirmations obligatoires. Cellules vides, décimales, unités textuelles et en-têtes ambigus refusés. Aucune valeur manquante transformée en zéro. Source CSV conservée avec son bon type, doublon du fichier bloqué. Cette configuration ne devine pas un export inconnu et n’importe pas encore des lignes d’événements détaillés ou des coordonnées administratives ; ces adaptations nécessitent leurs exemples. Les profils PDF et la liste d’élèves CSV restent inchangés.
+
+Mes outils : réglages PP versionnés et communs à toutes les classes/années. Deux choix opposés issus de synchronisation sont signalés ; outil masqué jusqu’au choix explicite « Retenir activé / masqué ». Les anciens réglages meta sont repris en l’absence de version. Les écritures PP sensibles contrôlent le stockage et annulent leurs ajouts après échec. Une exception synchrone IndexedDB n’empêche plus les écritures suivantes. Les données ne sont pas migrées dans un nouveau schéma : ppRecords et le format de sauvegarde 2 existants accueillent ces ajouts.
+
+Fichiers : pp-task-rules/ui, pp-followup-core, pp-procedures, pp-meeting-preparation, pp-comparison-rules, pp-csv-adapter et écrans associés ; routes, intégrations agenda/fiches/récap, stockage, réglages et cache hors ligne. Guide SUIVI-PP à jour. Vérifications : 208 tests de règles ; parcours dédiés actions/démarches/rencontres, réception et restauration de pièce, liens par élève, relances uniques, résolution des branches et des réglages, interruption de transaction avec retour à l’état initial, comparaison et CSV paramétré ; paysages 1280 × 752 et 1024 × 640 sans défilement global. Régression PP habituelle : 52 contrôles réussis. Relecture des conseils relancée après les changements de stockage.
+
+Sauvegarde réelle du 5 novembre fournie par l’utilisatrice restaurée en navigateur isolé, réseau externe bloqué : 13 classes, 331 élèves, 305 photos, 8 événements et tous les autres contenus conservés exactement, sauf réglages propres à l’appareil volontairement non repris. Réexport en format 2 et rechargement vérifiés ; aucune référence de photo/classe manquante. Le fichier privé original est intact, hors dépôt et hors archive. Cette vérification ne remplace pas la synchronisation réelle tablette/portable. L’utilisatrice a confirmé disposer des deux appareils et choisi de conserver l’aide à la rédaction guidée pour cette publication. Production toujours non remplacée à ce stade ; recette physique/Drive et publication restent à accomplir.
 
 ### Dossier de préparation du conseil · version 19
 Depuis **Avancement du conseil → Dossier / PDF**, choisir le trimestre, les élèves et les rubriques. Le récapitulatif collectif précède les élèves, dans l’ordre de la liste du Carnet. Aperçu en paysage, impression/PDF via Chrome, téléchargement d’un fichier HTML autonome consultable hors connexion. Format compact par défaut, nouvelle page par élève en option. Aucun téléchargement supplémentaire de moteur ou modèle pour cet outil.

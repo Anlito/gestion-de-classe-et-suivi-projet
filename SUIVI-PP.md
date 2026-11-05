@@ -1,4 +1,4 @@
-# Suivi PP — Version de travail 1.23.0-pp.19
+# Suivi PP — Version de travail 1.23.0-pp.20
 
 Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil. Elle est distincte de votre application actuellement en ligne, qui n’a pas été modifiée.
 
@@ -134,3 +134,15 @@ Depuis **Avancement du conseil**, cliquer sur **Dossier / PDF**. Le même lien e
 4. **Imprimer / PDF** ouvre l’impression de Chrome : choisir **Enregistrer au format PDF** pour conserver un PDF. **Conserver le dossier** télécharge un fichier HTML autonome, à ouvrir dans un navigateur, y compris sans connexion.
 
 Les notes personnelles PP, documents joints, audios et données TEST ne sont pas inclus. Les avis et synthèses choisis restent des textes à relire avant utilisation du dossier. Le fichier téléchargé ne se met pas à jour automatiquement. Il n’est ni envoyé aux familles ni ajouté automatiquement au Drive. Les écrans restent utilisables en paysage avec un défilement dans les panneaux ; l’impression sur la Galaxy Tab S7 reste à essayer physiquement.
+
+
+## Compléments de suivi · version 20
+
+- **Actions** : indiquer qui doit agir, l’état en cours, le lien vers un document/démarche/rencontre, le bilan prévu, le résultat observé et la suite. « Fait » date la réalisation ; rouvrir garde les versions précédentes. Ces informations constituent votre suivi personnel, pas un envoi au responsable.
+- **Démarches et renouvellements**, depuis une fiche : enregistrer l’objet, le document attendu, l’état et les dates. Associer les pièces existantes ou joindre la pièce reçue. Réception, validité et renouvellement sont indépendants. Enregistrer les changements avant de programmer une relance ; modifier la relance actualise la même action. Si deux versions existent, les départager avant de joindre une pièce ou relancer.
+- **Préparer / suivre une rencontre** : partir de la fiche ou du détail de l’événement. Choisir la période, actualiser, sélectionner les faits utiles et noter ses questions. Après la rencontre, compléter le compte rendu, les décisions et la suite. Enregistrer, puis créer l’action du prochain point si souhaité. Les anciens faits retenus restent consultables comme versions exactes. Aucun texte n’est envoyé aux parents.
+- **Qualité des données et évolution**, depuis Récap classe : vérifier les derniers imports, les éléments de conseil absents et les démarches à suivre. Choisir un élève et deux relevés pour les comparer. Les périodes qui se chevauchent ou de durées différentes restent côte à côte sans écart calculé. Une différence ne permet pas à elle seule de conclure à l’effet d’une action.
+- **Configurer un autre CSV**, depuis Importer Pronote : pour un tableau de cumuls par élève, choisir le séparateur, les colonnes et la période exacte. Vérifier l’aperçu, les unités et chaque association avant les deux confirmations. Les cellules vides ne deviennent jamais zéro. Un export contenant le détail des événements ou des coordonnées nécessite encore son adaptation ; ne pas le faire passer pour un cumul. Les colonnes administratives de la liste élèves ne modifient pas automatiquement les fiches.
+- **Mes outils** : si des réglages différents arrivent des deux appareils, choisir explicitement la version à retenir. Le masquage conserve tous les contenus.
+
+L’aide aux appréciations reste guidée pour cette mise en production, conformément à votre choix. Les essais réels sur Galaxy Tab S7 et Drive restent nécessaires avant publication.

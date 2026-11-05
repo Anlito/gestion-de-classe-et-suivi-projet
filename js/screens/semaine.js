@@ -214,7 +214,7 @@ function evtView() {
       <button type="button" class="btn soft" data-click="closeSheet">Annuler</button>
       <button type="button" class="btn accent" data-click="saveEvt">Enregistrer</button></div>`;
   const body = html`<div class="stack">
-    ${ev && pupil ? html`<div class="info-box"><strong>${model.fullName(pupil)}</strong><div class="muted small">${db.get('classes', pupil.classId)?.name || ''}</div><button type="button" class="btn accent" data-click="openEventStudent">${icon.book}${pp.active(pupil.classId) ? 'Ouvrir le suivi de l’élève' : 'Ouvrir la fiche de l’élève'}</button></div>` : ''}
+    ${ev && pupil ? html`<div class="info-box"><strong>${model.fullName(pupil)}</strong><div class="muted small">${db.get('classes', pupil.classId)?.name || ''}</div><button type="button" class="btn accent" data-click="openEventStudent">${icon.book}${pp.active(pupil.classId) ? 'Ouvrir le suivi de l’élève' : 'Ouvrir la fiche de l’élève'}</button>${pp.active(pupil.classId)&&pp.enabled('preparation')?html`<a class="btn" href="#/pp/eleve/${pupil.id}/preparer-rdv/evenement/${ev.id}">Préparer / suivre cette rencontre</a>`:''}</div>` : ''}
     <div class="lbl">Type
       <div class="evt-types">${Object.entries(planning.TYPES_EVT).map(([k, t]) =>
         html`<button type="button" class="evt-type${f.type === k ? ' on' : ''}" style="--evt:${t.color}" data-click="fType" data-k="${k}">${t.label}</button>`)}</div></div>
