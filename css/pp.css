@@ -137,3 +137,5 @@
 @media(max-width:780px){.pp-council-board{grid-template-columns:1fr;overflow:auto}.pp-council-board .panel{min-height:280px}.pp-council-board .panel-scroll{max-height:450px}.pp-council-row{grid-template-columns:minmax(0,1fr) auto}.pp-council-row>a{grid-column:1/-1}}
 
 .pp-council-board .stack>.row{display:flex;align-items:center;gap:12px;}
+
+.pp-council-row>.button-group{flex-direction:column;margin:0;gap:12px;}

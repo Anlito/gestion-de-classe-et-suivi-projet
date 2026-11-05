@@ -1,4 +1,4 @@
-# Suivi PP — Version de travail 1.23.0-pp.17
+# Suivi PP — Version de travail 1.23.0-pp.18
 
 Cette copie contient de vrais écrans et enregistre les saisies sur l’appareil. Elle est distincte de votre application actuellement en ligne, qui n’a pas été modifiée.
 
@@ -116,3 +116,12 @@ Dans **Récap classe**, choisir le trimestre puis **Avancement du conseil**. Le 
 Utiliser le filtre d’état et la recherche, puis **Ouvrir** pour accéder directement aux Conseils du bon élève et trimestre. La conclusion de classe figure séparément à gauche. Le nombre d’avis indique seulement les éléments enregistrés : il ne mesure pas la participation de toutes les matières. Les avis TEST sont exclus.
 
 Cette vue ne valide, ne remplace et n’efface aucun texte. Les relectures et conflits restent des indications à examiner dans Conseils ; cette version n’ajoute pas d’acquittement ou de fusion automatique.
+
+## Relire et retenir une synthèse
+Dans **Avancement du conseil**, cliquer sur **Relire** pour l’élève concerné, ou **Relire la conclusion** pour la classe. Dans Conseils, utiliser **Relire les synthèses**.
+1. Lire les avis actuels à gauche. Si plusieurs versions d’un même avis sont proposées, cocher celle à retenir.
+2. À droite, choisir la synthèse de départ. Ouvrir **Lire cette version** pour comparer les textes. S’il n’existe pas de synthèse, saisir un premier texte.
+3. Corriger librement le texte retenu, puis cocher **J’ai relu les avis actuels et le texte retenu**.
+4. Choisir **Garder en brouillon** ou **Valider le texte retenu**. Attendre la confirmation. Les anciennes versions restent consultables dans les deux volets d’historique.
+
+Une arrivée ou correction d’avis après cette relecture fera réapparaître **À relire**. Une nouvelle branche concurrente fera réapparaître **À vérifier**. Si les données changent pendant la saisie, la sauvegarde est bloquée : **Recharger la relecture** propose de repartir des versions actuelles et vous demande confirmation avant d’abandonner un texte non enregistré. Les avis TEST ne sont pas inclus. Rien n’est envoyé à Pronote.

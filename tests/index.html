@@ -58,7 +58,8 @@ import { tests as audioTests } from './pp-audio.test.js';
 import { tests as speechTests } from './pp-speech.test.js';
 import { tests as writingTests } from './pp-writing.test.js';
 import { tests as councilProgressTests } from './pp-council-progress.test.js';
-const tests = [...councilProgressTests,...writingTests,...speechTests,...audioTests,...familyTests,...meetingTests,...alertTests,...icalTests, ...planningTests, ...syncTests, ...driveTests, ...pronoteTests, ...archivesTests, ...sallesTests, ...laboBlocsTests, ...ppTests, ...importTests,...recapTests];
+import { tests as councilReviewTests } from './pp-council-review.test.js';
+const tests = [...councilReviewTests,...councilProgressTests,...writingTests,...speechTests,...audioTests,...familyTests,...meetingTests,...alertTests,...icalTests, ...planningTests, ...syncTests, ...driveTests, ...pronoteTests, ...archivesTests, ...sallesTests, ...laboBlocsTests, ...ppTests, ...importTests,...recapTests];
 import { parseICS, STATUTS } from '../js/ical.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

@@ -1,10 +1,21 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
-## Version de travail Suivi PP — 1.23.0-pp.17 (5 novembre 2026)
+## Version de travail Suivi PP — 1.23.0-pp.18 (5 novembre 2026)
 
 Premier lot développé sur une branche de travail, **non publié sur GitHub Pages**.
 Base GitHub : `9c5f2a23a89a56e27a6e09c75203ed87624ad717` ; branche locale `feat/suivi-pp`.
 Le projet n’était pas présent sur ce PC ; cette copie isolée ne remplace pas un autre dossier local de référence.
+
+### Relecture et choix des synthèses · version 18
+Depuis Avancement du conseil, **Relire** ouvre les avis actuels à gauche et les synthèses à départager à droite. Accès également dans Conseils via **Relire les synthèses**, pour un élève ou la conclusion collective. Choisir explicitement une version de chaque avis concurrent et la synthèse de départ, corriger le texte, puis confirmer la relecture. **Garder en brouillon** et **Valider le texte retenu** sont deux actions distinctes. Une première synthèse peut aussi être rédigée s’il n’en existe pas.
+
+La sauvegarde crée une nouvelle version du texte retenu avec toutes les synthèses courantes de ce seul périmètre comme parents. Chaque avis concurrent choisi crée une version avec ses branches comme parents. Ces écritures sont réunies dans une transaction contrôlée, sans supprimer les anciennes lignes ; elles restent consultables dans les volets **Versions anciennes des avis** et **Synthèses antérieures conservées**. La synthèse retient les identifiants exacts de tous les avis relus. Une modification, suppression ou arrivée d’avis ultérieure rouvre À relire. Une branche tardive issue d’un autre appareil rouvre À vérifier : aucune résolution automatique de conflit futur.
+
+Les TEST, autres élèves, autres classes, années et trimestres restent exclus. Une empreinte du contexte et la liste exacte des versions affichées sont vérifiées avant écriture. Toute évolution pendant la saisie bloque l’enregistrement et demande de recharger la relecture, avec confirmation si le texte non enregistré doit être abandonné. L’échec de confirmation du stockage annule la nouvelle transaction en mémoire et conserve les têtes précédentes. Aucun avis n’est réécrit en place ni texte validé sans clic explicite.
+
+Fichiers : `pp-council-review-rules.js`, `pp-council-review.js`, écran `pp-council-review.js`, routes app, liens depuis Conseils et Avancement, fraîcheur des avis dans pp-council-progress et cache SW. Métadonnées de provenance/résolution dans ppRecords : compatibles avec sauvegarde et synchronisation existantes, sans migration. Vérifications : 186 tests automatiques ; suite PP habituelle (52 contrôles) ; parcours dédié fusionnant deux branches d’avis et deux synthèses, validation et brouillon, rechargement, sauvegarde/restauration et consultation de l’historique, TEST exclus, nouvel avis rouvrant la relecture, arrivée pendant la saisie refusée, collectif séparé, branche tardive simulée et nouvelle résolution. Un abandon de transaction IndexedDB a été simulé : les têtes initiales ont été restaurées, sans fausse annonce de sauvegarde. Géométrie 1280 × 752 et 1024 × 640 vérifiée sans défilement global.
+
+Essais fictifs isolés, aucun compte Google réel. Le fonctionnement entre deux appareils physiques et le comportement des longues listes sur Galaxy Tab S7 restent à vérifier ; les règles de fusion ont été simulées localement. Aucun envoi à Pronote, ni publication GitHub. Les indications de lecture seule de la version 17 ci-dessous concernent la vue d’avancement, enrichie ici d’un accès séparé à la relecture.
 
 ### Avancement du conseil · version 17
 Depuis le récap classe ou la rubrique Conseils, **Avancement du conseil** ouvre une vue par trimestre, avec une ligne par élève, le nombre d’avis enregistrés et l’état de la synthèse : À préparer, Brouillon, Validée, À vérifier ou À relire. Recherche et filtre d’état, compteurs des élèves et état séparé de la conclusion de classe. Le bouton Ouvrir conduit directement aux Conseils du bon élève et du bon trimestre ; une route dédiée permet également d’ouvrir le conseil collectif au trimestre voulu. Le changement de trimestre et les autres onglets de la fiche restent utilisables depuis ces liens.
