@@ -13,12 +13,11 @@ export function disciplineColumnInfo(column) {
 export function measureExtras(r) {
   return html`<div class="muted small">${r.authorRole || 'Auteur non renseigné'}${r.authorName?' · '+r.authorName:''} · ${r.status||'prévue'}${r.plannedDate?' · prévue le '+fmtDate(r.plannedDate):''}</div><div class="pp-record-text">${r.reason || ''}</div><span class="muted small">${r.reportEntityId?'Déjà comprise dans un relevé : aucun ajout au cumul.':'Mesure indépendante, séparée des cumuls importés.'}${r.durationMinutes!=null?' · durée renseignée : '+r.durationMinutes+' min':''}</span>`;
 }
-export function schoolHistory(studentId) {
+export function schoolHistory(studentId, detailViews = []) {
   const rows=pp.records({studentId,kind:'periodReport'}), details=pp.latest({studentId,kind:'measure'});
-  if(!rows.length) return html`<p class="muted">Importez un relevé depuis le récap classe. Les mesures saisies ici restent distinctes des cumuls Pronote.</p>`;
-  return html`${['attendance','discipline'].map(profile=>{
+  return html`<div class="pp-school-history">${['attendance','discipline'].map(profile=>{
     const reports=latestReportHeads(rows,profile);
-    return reports.length?html`<h3>${profile==='attendance'?'Absences et retards':'Punitions et sanctions'}</h3>${reports.map((r,n)=>{
+    return html`<section class="pp-school-column" data-school-profile="${profile}"><h3>${profile==='attendance'?'Absences et retards':'Punitions et sanctions'}</h3><div class="pp-school-column-body">${reports.length?reports.map((r,n)=>{
       const conflicts=reports.filter(x=>x.entityId===r.entityId).length>1;
       return html`<article class="pp-record"><strong>${periodText(r)}</strong><span class="muted small">${r.sourceSchool||''} · ${r.sourceClass||''}${r.testMode?' · TEST':''}${n===0?' · période la plus récente':''}</span>
         ${conflicts?html`<span class="chip warn">Versions concurrentes : vérifier les relevés</span>`:''}
@@ -29,8 +28,9 @@ export function schoolHistory(studentId) {
         })}
         ${profile==='discipline'?html`<span class="muted small">Le relevé indique un nombre de mesures. La durée des retenues, les dates, l’auteur et le motif sont à compléter s’ils sont connus.</span>`:''}
         <span class="muted small">Cumul de cette période uniquement. Aucun total avec les autres relevés ou les appels du Carnet.</span><button class="btn soft small" data-click="preview" data-id="${r.importBatchId}">Ouvrir le relevé source</button></article>`;
-    })}`:'';
-  })}`;
+    }):html`<p class="muted small">${profile==='attendance'?'Aucun relevé d’absences et de retards importé.':'Aucun relevé de punitions importé.'}</p>`}
+    ${profile==='discipline'&&detailViews.length?html`<h4>Détails et mesures saisies</h4>${detailViews}`:''}</div></section>`;
+  })}</div>`;
 }
 export function measureEditor(form,studentId) {
   const reports=latestReportHeads(pp.records({studentId,kind:'periodReport'}),'discipline');

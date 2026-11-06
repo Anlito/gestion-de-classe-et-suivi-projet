@@ -1,5 +1,11 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.23.5 · Deux colonnes de vie scolaire · 6 novembre 2026
+
+Dans la fiche élève, Vie scolaire présente Absences et retards à gauche et Punitions et sanctions à droite, avec titres fixes et défilement indépendant. Les détails des mesures sont regroupés dans la colonne des punitions ; ils ne sont plus rendus une seconde fois sous les relevés. Chaque colonne indique l’absence de relevé lorsque nécessaire. Le formulaire reste repliable ; lorsqu’il est ouvert, les deux rubriques se superposent dans l’espace restant pour éviter des colonnes trop étroites. Aucun compteur, import ou document existant n’est modifié.
+
+Fichiers : school-life.js, screens/suivi-pp.js, pp.css, nav.js et sw.js. Vérifications : 212 tests réussis et parcours navigateur avec relevés fictifs d’assiduité et de punitions ; colonnes côte à côte et sans débordement global en 1280 × 752 et 1024 × 640, détails présents une seule fois dans la bonne colonne, saisie liée au relevé sans double compte, formulaires repliables et brouillons conservés.
+
 ## Version 1.23.4 · Lecture et saisie des fiches PP · 6 novembre 2026
 
 Les formulaires des cinq rubriques Notes, Actions, Documents, Conseils et Vie scolaire sont masqués par défaut. Ajouter ouvre la colonne, Fermer la masque et agrandit l’historique. Le brouillon et le fichier sélectionné restent en mémoire pendant cette navigation ; ils ne constituent pas une sauvegarde après fermeture de l’application. Modifier et Ajouter les détails d’une mesure ouvrent directement le formulaire ; une sauvegarde réussie le referme. Nouveau demande confirmation avant de remplacer un brouillon textuel ou une pièce.
