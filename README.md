@@ -1,5 +1,11 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.23.3 · Relevés Pronote en portrait · 6 novembre 2026
+
+L’importeur reconnaît aussi les relevés compacts en portrait : titres de mesures abrégés, deux derniers titres fusionnés dans le texte PDF, titres d’assiduité sur plusieurs lignes et variante sans colonnes d’internat. Les classes accolées à l’identité sont séparées. Les identités tronquées demandent une correspondance manuelle ; les taux d’absence tronqués restent absents avec avertissement. Les suffixes de minutes abrégés sont lus seulement dans la colonne de durée ; effectifs, cellules et sommes du rapport restent contrôlés avant import. Aucun compteur ne devient une durée de retenue. Les documents privés et données administratives ne sont pas ajoutés au dépôt.
+
+Fichiers : pronote-recap.js, tests/pronote-recap.test.js, nav.js et sw.js. Vérifications : 212 tests réussis, lecture locale des deux PDF fournis avec effectifs et totaux concordants ; tests de refus pour total incohérent ou titre manquant. La publication GitHub Pages précédente étant bloquée, la disponibilité du correctif en ligne doit être confirmée séparément. Le réglage Drive de deux minutes est conservé. Les abréviations de sanctions restent à préciser depuis la source ; aucune identité tronquée ni taux incomplet n’est deviné.
+
 ## Version 1.23.2 · Fréquence de synchronisation · 6 novembre 2026
 
 La vérification périodique de Google Drive passe de 30 secondes à 2 minutes lorsque l’application est affichée. L’enregistrement local immédiat, la synchronisation quelques secondes après une modification et celle au retour dans l’application restent conservés. La page Sauvegarde affiche maintenant la bonne fréquence. Fichiers modifiés : autosync.js, sauvegarde.js, nav.js et sw.js (actualisation du cache). Vérification de la syntaxe et de l’intervalle enregistré ; contrôle des fichiers publiés. Les modifications d’un autre appareil peuvent donc mettre jusqu’à deux minutes à apparaître pendant que l’application reste ouverte. Les limites d’édition simultanée décrites ci-dessous restent applicables.

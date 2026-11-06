@@ -15,6 +15,33 @@ export function recapPage(profile='discipline',count=2,totalCount=count,number=1
  centers.forEach((x,n)=>{let value=values[n];let text=profile==='attendance'&&n===2?'10 %':String(value*(total?totalCount:1));if(profile==='attendance'&&n===8)text+=' min';put(text,x-2,y,4);});}
  return {number,width:842.16,height:594.96,items};
 }
+
+function compactPage(profile='attendance') {
+ const p=recapPage(profile);p.width=595;
+ const centers=profile==='attendance'?[360,385,409,433,457,482,506,530,554]:Array.from({length:18},(_,n)=>252+n*18);
+ const rows=p.items.filter(i=>i.y>120),header=p.items.filter(i=>i.y<90||['Élèves','Classes'].includes(i.text));
+ p.items=header;if(profile==='attendance')p.items.filter(i=>['Élèves','Classes'].includes(i.text)).forEach(i=>i.y=101);
+ const put=(text,x,y,width=12)=>p.items.push({text,x,y,width,height:8});
+ if(profile==='attendance'){
+  ['Nb','Total','Taux','Oui','Non','Repa.','minu.','Retar','Infirm'].forEach((t,n)=>put(t,centers[n]-6,n===3||n===4?112:102));put('Abs',354,110);
+ }else{
+  ['Ex.','Ret.','De.','Av.','Blâ.',...Array(11).fill('Ex.')].forEach((t,n)=>put(t,centers[n]-6,101));
+  put('sur. Co .',centers[16]-7,99,36);
+ }
+ for(const y of [...new Set(rows.map(i=>i.y))]){
+  const row=rows.filter(i=>i.y===y),label=row[0].text;
+  put(label.startsWith('EXEMPLE')?label+' . 5 B':label,29,y,60);
+  let values=row.slice(2);if(profile==='attendance')values=values.filter((_,n)=>n!==6&&n!==7);
+  values.forEach((item,n)=>put(profile==='attendance'&&n===2?'10,0.':profile==='attendance'&&n===6?item.text.replace(' min',' mi.'):item.text,centers[n]-2,y,4));
+ }
+ return p;
+}
+test('Relevé portrait : titres d’assiduité sur plusieurs lignes, sans internat',()=>{
+ const r=parseRecap([compactPage()]);eq([r.rows.length,r.rows[0].metrics.halfDays,r.rows[0].metrics.lateMinutes,r.rows[0].metrics.lateCount,r.rows[0].metrics.absenceRate,r.rows[0].sourceClass,r.rows[0].ambiguous],[2,4,10,2,null,'5 B',true]);eq(r.warnings.some(w=>w.includes('taux')),true);
+});
+test('Relevé portrait : abréviations de mesures et deux derniers titres fusionnés',()=>{const r=parseRecap([compactPage('discipline')]);eq([r.columns.length,r.rows[0].metrics.c1,r.rows[0].sourceClass],[18,2,'5 B']);});
+test('Relevé portrait : total incohérent toujours refusé',()=>{const p=compactPage();p.items.filter(i=>i.y>120&&i.x===358).at(-1).text='99';reject(()=>parseRecap([p]));});
+test('Relevé portrait : titre obligatoire manquant refusé',()=>{const p=compactPage();p.items=p.items.filter(i=>i.text!=='minu.');reject(()=>parseRecap([p]));});
 test('Relevé : effectif variable et dix-huit colonnes distinctes',()=>{const r=parseRecap([recapPage('discipline',5)]);eq([r.rows.length,r.columns.length,r.rows[0].metrics.c1],[5,18,2]);});
 test('Relevé : deux pages à en-têtes répétés et total global',()=>eq(parseRecap([recapPage('discipline',2,2,1,false),recapPage('discipline',1,3,2)]).rows.length,3));
 test('Relevé : total numérique incohérent refusé',()=>{const p=recapPage();const last=p.items.at(-17);last.text='99';reject(()=>parseRecap([p]));});
