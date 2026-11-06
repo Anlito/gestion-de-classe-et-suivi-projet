@@ -1,7 +1,7 @@
 // autosync.js — Synchronisation Google Drive automatique et indicateur dans l'en-tête.
 //
-// Quand : à l'ouverture de l'app, 5 s après une série de modifications, au retour dans l'app (après 1 min),
-// et toutes les 5 min tant que l'app est affichée. Jamais pendant qu'une synchronisation tourne déjà.
+// Quand : à l'ouverture de l'app, 5 s après une série de modifications, au retour dans l'app,
+// et toutes les 2 min tant que l'app est affichée. Jamais pendant qu'une synchronisation tourne déjà.
 // Jeton Google valable 1 h : quand il expire, une reconnexion discrète est tentée ; si Google demande une action,
 // l'indicateur affiche « Reconnecter Google » (un toucher suffit).
 // Après un remplacement complet des données sur cet appareil (restauration d'une sauvegarde, données de
@@ -13,8 +13,8 @@ import { go, refresh } from './nav.js';
 
 const DELAI_MODIF = 5000;
 // Vérification régulière de Drive tant que l'app est affichée : quand rien n'a changé, c'est 2 toutes petites
-// requêtes, sans rien télécharger (1.14.1 : 5 min → 30 s, les modifications de l'ordinateur arrivaient trop tard).
-const PERIODE = 30 * 1000;
+// requêtes, sans rien télécharger. Intervalle de 2 min pour espacer les vérifications automatiques.
+const PERIODE = 2 * 60 * 1000;
 const RETOUR = 10 * 1000;
 
 // État affiché : 'off' (mode manuel) | 'idle' | 'running' | 'auth' | 'offline' | 'error' | 'reinit' | 'setup'

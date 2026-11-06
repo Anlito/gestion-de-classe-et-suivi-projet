@@ -1,5 +1,9 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.23.2 · Fréquence de synchronisation · 6 novembre 2026
+
+La vérification périodique de Google Drive passe de 30 secondes à 2 minutes lorsque l’application est affichée. L’enregistrement local immédiat, la synchronisation quelques secondes après une modification et celle au retour dans l’application restent conservés. La page Sauvegarde affiche maintenant la bonne fréquence. Fichiers modifiés : autosync.js, sauvegarde.js, nav.js et sw.js (actualisation du cache). Vérification de la syntaxe et de l’intervalle enregistré ; contrôle des fichiers publiés. Les modifications d’un autre appareil peuvent donc mettre jusqu’à deux minutes à apparaître pendant que l’application reste ouverte. Les limites d’édition simultanée décrites ci-dessous restent applicables.
+
 ## Version 1.23.1 · Fiche élève et gestion des notes · 6 novembre 2026
 
 La colonne d’un élève PP regroupe ses actions en une grille : Préparer une rencontre en premier, puis Créer RDV, Notes audio, Démarches et Fiche Carnet. Boutons tactiles d’au moins 48 px, icônes et libellés courts, retours à la ligne contrôlés, identité et dispositifs séparés de la recherche et de la liste. Seule la liste d’élèves défile dans cette colonne. La grille centrale est ajustée à 1024 px pour garder les noms et les boutons lisibles. Les outils masqués restent absents.

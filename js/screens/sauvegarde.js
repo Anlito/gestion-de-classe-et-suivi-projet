@@ -90,7 +90,7 @@ function driveView() {
         ${drive.connected() ? html`<button type="button" class="btn soft" data-click="disconnect">Se déconnecter de Google</button>` : ''}
       </div>
       <div class="muted small"><strong>Synchronisation automatique</strong> : à l’ouverture de l’app, quelques secondes après vos modifications,
-        au retour dans l’app et toutes les 5 minutes. L’indicateur en haut des écrans (« Synchronisé 10:42 ») le montre ; touchez-le pour
+        au retour dans l’app et toutes les 2 minutes. L’indicateur en haut des écrans (« Synchronisé 10:42 ») le montre ; touchez-le pour
         synchroniser tout de suite ou vous reconnecter à Google (la connexion Google dure 1 heure).
         Sur un nouvel appareil : même identifiant, même compte Google, puis « Synchroniser maintenant » : vos données arrivent.</div>` : ''}
   </div>`;
