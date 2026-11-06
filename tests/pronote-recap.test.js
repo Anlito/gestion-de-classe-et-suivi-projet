@@ -16,14 +16,14 @@ export function recapPage(profile='discipline',count=2,totalCount=count,number=1
  return {number,width:842.16,height:594.96,items};
 }
 
-function compactPage(profile='attendance') {
+function compactPage(profile='attendance',withInternat=false) {
  const p=recapPage(profile);p.width=595;
- const centers=profile==='attendance'?[360,385,409,433,457,482,506,530,554]:Array.from({length:18},(_,n)=>252+n*18);
+ const centers=profile==='attendance'?(withInternat?Array.from({length:11},(_,n)=>334+22*n):[360,385,409,433,457,482,506,530,554]):Array.from({length:18},(_,n)=>252+n*18);
  const rows=p.items.filter(i=>i.y>120),header=p.items.filter(i=>i.y<90||['Élèves','Classes'].includes(i.text));
  p.items=header;if(profile==='attendance')p.items.filter(i=>['Élèves','Classes'].includes(i.text)).forEach(i=>i.y=101);
  const put=(text,x,y,width=12)=>p.items.push({text,x,y,width,height:8});
  if(profile==='attendance'){
-  ['Nb','Total','Taux','Oui','Non','Repa.','minu.','Retar','Infirm'].forEach((t,n)=>put(t,centers[n]-6,n===3||n===4?112:102));put('Abs',354,110);
+  (withInternat?['Nb','Total','Taux','Oui','Non','Rep.','Inter.','Inter.','en .','Reta','Infir']:['Nb','Total','Taux','Oui','Non','Repa.','minu.','Retar','Infirm']).forEach((t,n)=>put(t,centers[n]-6,n===3||n===4?112:102));put('Abs',centers[0]-6,110);if(withInternat)put('Reta',centers[8]-6,93);
  }else{
   ['Ex.','Ret.','De.','Av.','Blâ.',...Array(11).fill('Ex.')].forEach((t,n)=>put(t,centers[n]-6,101));
   put('sur. Co .',centers[16]-7,99,36);
@@ -31,8 +31,8 @@ function compactPage(profile='attendance') {
  for(const y of [...new Set(rows.map(i=>i.y))]){
   const row=rows.filter(i=>i.y===y),label=row[0].text;
   put(label.startsWith('EXEMPLE')?label+' . 5 B':label,29,y,60);
-  let values=row.slice(2);if(profile==='attendance')values=values.filter((_,n)=>n!==6&&n!==7);
-  values.forEach((item,n)=>put(profile==='attendance'&&n===2?'10,0.':profile==='attendance'&&n===6?item.text.replace(' min',' mi.'):item.text,centers[n]-2,y,4));
+  let values=row.slice(2);if(profile==='attendance'&&!withInternat)values=values.filter((_,n)=>n!==6&&n!==7);
+  values.forEach((item,n)=>put(profile==='attendance'&&n===2?'10,0.':profile==='attendance'&&n===(withInternat?8:6)?item.text.replace(' min',' mi.'):item.text,centers[n]-2,y,4));
  }
  return p;
 }
@@ -42,6 +42,9 @@ test('Relevé portrait : titres d’assiduité sur plusieurs lignes, sans intern
 test('Relevé portrait : abréviations de mesures et deux derniers titres fusionnés',()=>{const r=parseRecap([compactPage('discipline')]);eq([r.columns.length,r.rows[0].metrics.c1,r.rows[0].sourceClass],[18,2,'5 B']);});
 test('Relevé portrait : total incohérent toujours refusé',()=>{const p=compactPage();p.items.filter(i=>i.y>120&&i.x===358).at(-1).text='99';reject(()=>parseRecap([p]));});
 test('Relevé portrait : titre obligatoire manquant refusé',()=>{const p=compactPage();p.items=p.items.filter(i=>i.text!=='minu.');reject(()=>parseRecap([p]));});
+test('Relevé portrait : internat et titres fortement abrégés sans décaler les retards',()=>{const r=parseRecap([compactPage('attendance',true)]);eq([r.rows.length,r.rows[0].metrics.halfDays,r.rows[0].metrics.lateMinutes,r.rows[0].metrics.lateCount],[2,4,10,2]);});
+test('Relevé portrait : une seule colonne internat ne suffit pas à reconnaître le modèle',()=>{const p=compactPage('attendance',true),header=p.items.find(i=>i.text==='Inter.');p.items=p.items.filter(i=>i!==header);reject(()=>parseRecap([p]));});
+test('Relevé portrait : en abrégé sans titre de retards au-dessus est refusé',()=>{const p=compactPage('attendance',true);p.items=p.items.filter(i=>!(i.text==='Reta'&&i.y===93));reject(()=>parseRecap([p]));});
 test('Relevé : effectif variable et dix-huit colonnes distinctes',()=>{const r=parseRecap([recapPage('discipline',5)]);eq([r.rows.length,r.columns.length,r.rows[0].metrics.c1],[5,18,2]);});
 test('Relevé : deux pages à en-têtes répétés et total global',()=>eq(parseRecap([recapPage('discipline',2,2,1,false),recapPage('discipline',1,3,2)]).rows.length,3));
 test('Relevé : total numérique incohérent refusé',()=>{const p=recapPage();const last=p.items.at(-17);last.text='99';reject(()=>parseRecap([p]));});

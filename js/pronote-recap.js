@@ -43,14 +43,17 @@ export function parseRecap(pages) {
       if (compact) {
         const band=all.filter(i=>i.y>=studentHeader.y-12&&i.y<=studentHeader.y+15&&i.x>classHeader.x+classHeader.width);
         const part=label=>band.find(i=>norm(i.text)===label);
-        const nb=part('nb'), abs=part('abs'), minute=part('minu');
-        const late=band.find(i=>norm(i.text)==='retar'&&minute&&i.x>minute.x+10);
-        const selected=[nb,part('total'),part('taux'),part('oui'),part('non'),part('repa'),minute,late,part('infirm')];
-        if(!abs||selected.some(h=>!h)||Math.abs(nb.x-abs.x)>8)throw new Error('Colonnes du relevé d’assiduité non reconnues.');
-        centers=selected.map(center);headerBottom=Math.max(...selected.map(h=>h.y));minuteIndex=6;lateIndex=7;
+        const nb=part('nb'), abs=part('abs'), minute=part('minu')||part('en');
+        const internal=band.filter(i=>['inter','internat'].includes(norm(i.text))).sort((a,b)=>a.x-b.x);
+        const late=band.find(i=>['retar','reta'].includes(norm(i.text))&&minute&&i.x>minute.x+10);
+        const selected=[nb,part('total'),part('taux'),part('oui'),part('non'),part('repa')||part('rep'),...internal,minute,late,part('infirm')||part('infir')];
+        const minuteTitle=minute&&band.some(i=>Math.abs(center(i)-center(minute))<8&&['reta','retar'].includes(norm(i.text)));
+        if(!abs||![0,2].includes(internal.length)||selected.some(h=>!h)||Math.abs(nb.x-abs.x)>8||(norm(minute.text)==='en'&&!minuteTitle))throw new Error('Colonnes du relevé d’assiduité non reconnues.');
+        centers=selected.map(center);headerBottom=Math.max(...selected.map(h=>h.y));minuteIndex=6+internal.length;lateIndex=minuteIndex+1;
       } else { centers = headers.map(center); headerBottom = Math.max(...headers.map(h=>h.y)); }
-      if(compactLayout!==null&&compactLayout!==compact)throw new Error('Colonnes différentes entre les pages.');
-      compactLayout=compact;
+      const layout=compact?centers.length:'landscape';
+      if(compactLayout!==null&&compactLayout!==layout)throw new Error('Colonnes différentes entre les pages.');
+      compactLayout=layout;
       columns = ATTENDANCE.map(([id,label,unit])=>({id,label,unit}));
     } else {
       const first = all.find(i=>['rete','ret'].includes(norm(i.text)));

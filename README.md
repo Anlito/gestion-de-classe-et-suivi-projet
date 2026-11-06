@@ -1,5 +1,11 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.23.7 · Relevés d’assiduité compacts avec internat · 6 novembre 2026
+
+L’import PDF reconnaît aussi la variante portrait à onze colonnes avec les titres abrégés Rep., Inter., Reta/rds, en . et Infir/meri/e. Les deux colonnes d’internat sont prises en compte pour positionner et contrôler les cellules ; les métriques conservées restent les absences et retards. Le nombre de retards n’est pas confondu avec les minutes. L’intitulé en . doit être accompagné du fragment de titre de retards à la même position. Une colonne d’internat isolée, une cellule absente ou des totaux incohérents restent refusés ; un changement de modèle entre pages est également refusé.
+
+Fichiers : pronote-recap.js, tests/pronote-recap.test.js, nav.js et sw.js. Vérifications : 220 tests réussis et lecture du PDF privé fourni, 30 lignes avec effectif et sommes concordants. Aucun PDF ni identité réelle n’est ajouté au dépôt. Les identités et taux tronqués gardent les précautions des versions précédentes. Les anciens modèles à neuf colonnes compactes et onze colonnes larges restent couverts par les tests.
+
 ## Version 1.23.6 · Noms personnalisés des classes à l’import · 6 novembre 2026
 
 La comparaison des noms ne confond plus la lettre E de « 4E - PR » avec le marqueur ordinal de « 4e B » : un document 4E peut être importé dans la classe 4E - PR. Les variantes 5B / 5e B restent reconnues. Lorsque les noms diffèrent davantage, l’écran Imports Pronote propose une confirmation explicite par classe source, limitée au fichier et à la classe cible courants. Changer de fichier ou de classe remet ces confirmations à zéro. Le lot d’import conserve la correspondance confirmée pour sa traçabilité ; aucune classe ni élève n’est fusionné ou renommé.
