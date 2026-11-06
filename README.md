@@ -1,5 +1,11 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.23.6 · Noms personnalisés des classes à l’import · 6 novembre 2026
+
+La comparaison des noms ne confond plus la lettre E de « 4E - PR » avec le marqueur ordinal de « 4e B » : un document 4E peut être importé dans la classe 4E - PR. Les variantes 5B / 5e B restent reconnues. Lorsque les noms diffèrent davantage, l’écran Imports Pronote propose une confirmation explicite par classe source, limitée au fichier et à la classe cible courants. Changer de fichier ou de classe remet ces confirmations à zéro. Le lot d’import conserve la correspondance confirmée pour sa traçabilité ; aucune classe ni élève n’est fusionné ou renommé.
+
+La confirmation ne contourne pas les contrôles de l’année, du trimestre, de l’appartenance des élèves à la classe cible ou des associations multiples. Une deuxième classe source dans le même fichier doit être confirmée séparément ou ses lignes ignorées. Aucun mode TEST n’est nécessaire pour un nom personnalisé. Fichiers : pronote-import.js, pp-import-store.js, screens/imports-pp.js, tests/pronote-import.test.js, nav.js et sw.js. Vérifications : 217 tests réussis et import navigateur fictif dans deux classes de collèges distincts avec noms d’élèves identiques ; choix limités à la classe cible, confirmation réinitialisée au changement de classe, trace du lot enregistrée, absence de marquage TEST. L’établissement reste à vérifier par l’utilisateur dans le document source.
+
 ## Version 1.23.5 · Deux colonnes de vie scolaire · 6 novembre 2026
 
 Dans la fiche élève, Vie scolaire présente Absences et retards à gauche et Punitions et sanctions à droite, avec titres fixes et défilement indépendant. Les détails des mesures sont regroupés dans la colonne des punitions ; ils ne sont plus rendus une seconde fois sous les relevés. Chaque colonne indique l’absence de relevé lorsque nécessaire. Le formulaire reste repliable ; lorsqu’il est ouvert, les deux rubriques se superposent dans l’espace restant pour éviter des colonnes trop étroites. Aucun compteur, import ou document existant n’est modifié.

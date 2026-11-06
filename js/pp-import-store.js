@@ -13,7 +13,7 @@ export function buildImport(parsed, mappings, classId, hash, options = {}) {
   if (['attendance','discipline'].includes(parsed.profile) && !pp.enabled('vieScolaire')) throw new Error('Activez l’outil Vie scolaire pour importer ce relevé.');
   if (alreadyImported(hash, classId, { testMode })) throw new Error('Ce fichier a déjà été validé pour cette classe. Aucun doublon créé.');
   const c = db.get('classes', classId), pupils = model.studentsOf(classId);
-  const problems = importProblems(parsed, mappings, c, model.schoolYear(), pupils, { testMode });
+  const problems = importProblems(parsed, mappings, c, model.schoolYear(), pupils, { testMode, classCorrespondence:options.classCorrespondence });
   if (problems.length) throw new Error(problems[0]);
   if (parsed.profile === 'bulletin' && (!pp.enabled('conseils') || !pp.enabled('documents'))) throw new Error('Activez les outils Conseils et Documents pour importer un bulletin et sa pièce jointe.');
   const records = [], conflicts = [], batchId = db.uid(), now = new Date().toISOString();
@@ -47,7 +47,8 @@ export function buildImport(parsed, mappings, classId, hash, options = {}) {
     }
   });
   return { batchId, records, conflicts, mappings: parsed.rows.map((r, i) => ({ sourceRow: r.sourceRow, studentId: mappings[i] === 'skip' ? null : mappings[i] })),
-    matched: mappings.filter(id => id && id !== 'skip').length, profile: parsed.profile, trimester: parsed.trimester || null, fingerprint: hash, testMode, sourceYear: parsed.year || null, sourceClass: parsed.sourceClass || null };
+    matched: mappings.filter(id => id && id !== 'skip').length, profile: parsed.profile, trimester: parsed.trimester || null, fingerprint: hash, testMode, sourceYear: parsed.year || null, sourceClass: parsed.sourceClass || null,
+    classCorrespondence:options.classCorrespondence?.classId===classId&&Array.isArray(options.classCorrespondence.sourceClasses)?{classId,sourceClasses:[...options.classCorrespondence.sourceClasses]}:null };
 }
 export async function commitImport(parsed, mappings, classId, hash, file, options = {}) {
   const plan = buildImport(parsed, mappings, classId, hash, options);
@@ -55,7 +56,7 @@ export async function commitImport(parsed, mappings, classId, hash, file, option
   const mimeType = /\.csv$/i.test(file.name) ? 'text/csv' : 'application/pdf';
   const batch = { ...source, id: plan.batchId, kind: 'importBatch', profile: plan.profile, fingerprint: hash,
     fileName: file.name, sourceFormat:parsed.sourceFormat||(/\.csv$/i.test(file.name)?'csv':'pdf'), trimester: plan.trimester, mappings: plan.mappings, conflicts: plan.conflicts,
-    matched: plan.matched, avisAdded: plan.records.filter(r => r.kind === 'council').length, reportRows:plan.records.filter(r=>r.kind==='periodReport').length, period:parsed.period, title:parsed.label };
+    matched: plan.matched, avisAdded: plan.records.filter(r => r.kind === 'council').length, reportRows:plan.records.filter(r=>r.kind==='periodReport').length, period:parsed.period, title:parsed.label, classCorrespondence:plan.classCorrespondence };
   const documents = plan.profile === 'bulletin' ? plan.mappings.filter(m => m.studentId).map(m => ({ ...source, id: db.uid(), entityId: db.uid(), parents: [],
     kind: 'document', studentId: m.studentId, category: 'Bulletin', title: `${plan.testMode ? 'TEST · ' : ''}Bulletin · trimestre ${plan.trimester}`, blobId, mimeType, fileName: file.name, size: file.size, importBatchId: plan.batchId })) : [];
   // CSV : fichier source conservé sur le lot, sans reprise des colonnes privées.

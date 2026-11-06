@@ -10,6 +10,19 @@ test('Import : aucun choix automatique entre homonymes', () => eq(suggestStudent
 test('Import : zéro, non noté et absence de moyenne distincts', () => eq([grade('0').value, grade('N.Not').status, grade('').status], [0, 'not_graded', 'missing']));
 test('Import : bulletin d’une autre année bloqué', () => eq(importProblems({ profile: 'bulletin', year: '2025–2026', trimester: 1, rows: [{}] }, ['a'], { name: '4D' }, '2026–2027', [{ id: 'a' }]).length, 1));
 test('Import : association double au même élève bloquée', () => eq(importProblems({ profile: 'roster', rows: [{}, {}] }, ['a', 'a'], { name: '4D' }, '2026–2027', [{ id: 'a' }]).length, 1));
+
+test('Import : classe 4E avec suffixe de collège sans confusion du E',()=>eq(importProblems({profile:'roster',sourceClass:'4E',rows:[{sourceClass:'4 E'}]},['a'],{id:'pr',name:'4E - PR'},'2026–2027',[{id:'a'}]),[]));
+test('Import : noms de niveaux ordinaux toujours compatibles',()=>eq(importProblems({profile:'roster',sourceClass:'5B',rows:[{sourceClass:'5e B'}]},['a'],{id:'b',name:'5e B'},'2026–2027',[{id:'a'}]),[]));
+test('Import : correspondance personnalisée limitée à la classe confirmée',()=>{
+ const parsed={profile:'roster',sourceClass:'4E',rows:[{sourceClass:'4E'}]},options={classCorrespondence:{classId:'pr',sourceClasses:['4E']}};
+ eq(importProblems(parsed,['a'],{id:'pr',name:'Quatrième collège PR'},'2026–2027',[{id:'a'}],options),[]);
+ eq(importProblems(parsed,['a'],{id:'autre',name:'Quatrième autre collège'},'2026–2027',[{id:'a'}],options).length,2);
+});
+test('Import : correspondance de classe ne contourne ni année ni élève extérieur',()=>{
+ const parsed={profile:'bulletin',year:'2025–2026',trimester:1,sourceClass:'4E',rows:[{sourceClass:'4E'}]};
+ eq(importProblems(parsed,['autre'],{id:'pr',name:'Quatrième collège PR'},'2026–2027',[{id:'a'}],{classCorrespondence:{classId:'pr',sourceClasses:['4E']}}).length,3);
+});
+test('Import : une deuxième classe du fichier exige sa propre correspondance',()=>eq(importProblems({profile:'roster',sourceClass:'4E',rows:[{sourceClass:'4F'}]},['a'],{id:'pr',name:'Quatrième collège PR'},'2026–2027',[{id:'a'}],{classCorrespondence:{classId:'pr',sourceClasses:['4E']}}).length,1));
 test('Import TEST : écarts de classe et année acceptés explicitement', () => eq(importProblems({ profile: 'bulletin', year: '2025–2026', sourceClass: '4D', trimester: 1, rows: [{}] }, ['a'], { name: '5e B' }, '2026–2027', [{ id: 'a' }], { testMode: true }), []));
 test('Import TEST : trimestre inconnu toujours bloqué', () => eq(importProblems({ profile: 'bulletin', year: '2025–2026', sourceClass: '4D', trimester: null, rows: [{}] }, ['a'], { name: '5e B' }, '2026–2027', [{ id: 'a' }], { testMode: true }).length, 1));
 test('Import TEST : élève extérieur à la classe toujours refusé', () => eq(importProblems({ profile: 'bulletin', year: '2025–2026', trimester: 1, rows: [{}] }, ['autre'], { name: '5e B' }, '2026–2027', [{ id: 'a' }], { testMode: true }).length, 2));

@@ -202,18 +202,24 @@ export function parseBulletin(pages) {
 }
 export async function fileHash(file) { return [...new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))].map(b => b.toString(16).padStart(2, '0')).join(''); }
 
-export function importProblems(parsed, mappings, targetClass, year, pupils, { testMode = false } = {}) {
+export const importClassKey = value => norm(value).replace(/^([3456])e\s+([a-z])(?=\s|$)/,'$1 $2').replace(/^([3456])e([a-z])$/,'$1$2').replace(/\s/g,'');
+export const importClassMatches = (source,target) => !source || importClassKey(target).includes(importClassKey(source));
+export function importClassDifferences(parsed,mappings,targetClass) {
+  if(!targetClass)return [];
+  return [...new Set([parsed.sourceClass,...parsed.rows.filter((_,i)=>mappings[i]!=='skip').map(r=>r.sourceClass)].filter(source=>source&&!importClassMatches(source,targetClass.name)))];
+}
+export function importProblems(parsed, mappings, targetClass, year, pupils, { testMode = false, classCorrespondence = null } = {}) {
   const problems = [];
   if (!targetClass) return ['Choisissez une classe PP.'];
   if (testMode !== true && parsed.year && yearKey(parsed.year) !== yearKey(year)) problems.push(`Année du document : ${parsed.year}. Le suivi actif est ${year}. Ce document ne sera pas classé dans la mauvaise année.`);
   if (parsed.profile === 'bulletin' && (!parsed.year || ![1, 2, 3].includes(parsed.trimester))) problems.push('Année scolaire ou trimestre non reconnu : import bloqué.');
-  const classKey = s => norm(s).replace(/\s/g, '').replace(/^([3456])e(?=[a-z])/, '$1');
-  if (testMode !== true && parsed.sourceClass && !classKey(targetClass.name).includes(classKey(parsed.sourceClass))) problems.push(`Classe du bulletin : ${parsed.sourceClass}. Vérifiez la classe choisie (${targetClass.name}).`);
+  const matches = source => importClassMatches(source,targetClass.name)||(classCorrespondence?.classId===targetClass.id&&Array.isArray(classCorrespondence.sourceClasses)&&classCorrespondence.sourceClasses.some(label=>norm(label)===norm(source)));
+  if (testMode !== true && parsed.sourceClass && !matches(parsed.sourceClass)) problems.push(`Classe du document : ${parsed.sourceClass}. Vérifiez la classe choisie (${targetClass.name}) et confirmez sa correspondance si elle a un nom personnalisé.`);
   const ids = new Set(pupils.map(p => p.id)), used = new Set();
   if (mappings.length !== parsed.rows.length) problems.push('Correspondances incomplètes : vérifiez toutes les lignes.');
   mappings.forEach((id, i) => {
     if (id === 'skip') return;
-    if (testMode !== true && parsed.rows[i]?.sourceClass && !classKey(targetClass.name).includes(classKey(parsed.rows[i].sourceClass))) problems.push(`Ligne ${i+1} : la classe source ne correspond pas à la classe choisie. Ignorez cette ligne ou corrigez le contexte.`);
+    if (testMode !== true && parsed.rows[i]?.sourceClass && !matches(parsed.rows[i].sourceClass)) problems.push(`Ligne ${i+1} : confirmez la correspondance de la classe source avec la classe choisie, ou ignorez cette ligne.`);
     if (!ids.has(id)) problems.push(`Ligne ${i + 1} : choisissez l’élève ou « Ignorer ». `);
     else if (used.has(id)) problems.push(`Ligne ${i + 1} : cet élève est déjà associé à une autre ligne du fichier.`);
     else used.add(id);
