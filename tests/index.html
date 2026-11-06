@@ -63,8 +63,10 @@ import { tests as councilExportTests } from './pp-council-export.test.js';
 import { tests as taskTests } from './pp-task.test.js';
 import { tests as comparisonTests } from './pp-comparison.test.js';
 import { tests as csvTests } from './pp-csv.test.js';
+import { tests as mergeTests } from './pp-import-merge.test.js';
 const tests = [...taskTests,...comparisonTests,...csvTests,...councilExportTests,...councilReviewTests,...councilProgressTests,...writingTests,...speechTests,...audioTests,...familyTests,...meetingTests,...alertTests,...icalTests, ...planningTests, ...syncTests, ...driveTests, ...pronoteTests, ...archivesTests, ...sallesTests, ...laboBlocsTests, ...ppTests, ...importTests,...recapTests];
 import { parseICS, STATUTS } from '../js/ical.js';
+tests.push(...mergeTests);
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 

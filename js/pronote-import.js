@@ -1,4 +1,5 @@
 // Lecture locale uniquement ; aucune requête réseau vers Pronote ou un service d'OCR.
+import {reportGroups,mergeConfirmed} from './pp-import-merge.js';
 export const norm = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 export const yearKey = value => String(value || '').replace(/\D/g, '');
 export function readCSV(text, delimiter = ';') {
@@ -208,7 +209,7 @@ export function importClassDifferences(parsed,mappings,targetClass) {
   if(!targetClass)return [];
   return [...new Set([parsed.sourceClass,...parsed.rows.filter((_,i)=>mappings[i]!=='skip').map(r=>r.sourceClass)].filter(source=>source&&!importClassMatches(source,targetClass.name)))];
 }
-export function importProblems(parsed, mappings, targetClass, year, pupils, { testMode = false, classCorrespondence = null } = {}) {
+export function importProblems(parsed, mappings, targetClass, year, pupils, { testMode = false, classCorrespondence = null, mergeGroups = [] } = {}) {
   const problems = [];
   if (!targetClass) return ['Choisissez une classe PP.'];
   if (testMode !== true && parsed.year && yearKey(parsed.year) !== yearKey(year)) problems.push(`Année du document : ${parsed.year}. Le suivi actif est ${year}. Ce document ne sera pas classé dans la mauvaise année.`);
@@ -216,12 +217,13 @@ export function importProblems(parsed, mappings, targetClass, year, pupils, { te
   const matches = source => importClassMatches(source,targetClass.name)||(classCorrespondence?.classId===targetClass.id&&Array.isArray(classCorrespondence.sourceClasses)&&classCorrespondence.sourceClasses.some(label=>norm(label)===norm(source)));
   if (testMode !== true && parsed.sourceClass && !matches(parsed.sourceClass)) problems.push(`Classe du document : ${parsed.sourceClass}. Vérifiez la classe choisie (${targetClass.name}) et confirmez sa correspondance si elle a un nom personnalisé.`);
   const ids = new Set(pupils.map(p => p.id)), used = new Set();
+  const grouped=new Map(reportGroups(parsed,mappings).map(group=>[group.studentId,group]));
   if (mappings.length !== parsed.rows.length) problems.push('Correspondances incomplètes : vérifiez toutes les lignes.');
   mappings.forEach((id, i) => {
     if (id === 'skip') return;
     if (testMode !== true && parsed.rows[i]?.sourceClass && !matches(parsed.rows[i].sourceClass)) problems.push(`Ligne ${i+1} : confirmez la correspondance de la classe source avec la classe choisie, ou ignorez cette ligne.`);
     if (!ids.has(id)) problems.push(`Ligne ${i + 1} : choisissez l’élève ou « Ignorer ». `);
-    else if (used.has(id)) problems.push(`Ligne ${i + 1} : cet élève est déjà associé à une autre ligne du fichier.`);
+    else if (used.has(id)&&!mergeConfirmed(parsed,grouped.get(id),{mergeGroups})) problems.push(`Ligne ${i + 1} : cet élève est déjà associé à une autre ligne du fichier. Confirmez le regroupement si ces lignes se complètent.`);
     else used.add(id);
   });
   if (!used.size) problems.push('Sélectionnez au moins un élève à traiter.');

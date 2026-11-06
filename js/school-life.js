@@ -21,6 +21,7 @@ export function schoolHistory(studentId, detailViews = []) {
       const conflicts=reports.filter(x=>x.entityId===r.entityId).length>1;
       return html`<article class="pp-record"><strong>${periodText(r)}</strong><span class="muted small">${r.sourceSchool||''} · ${r.sourceClass||''}${r.testMode?' · TEST':''}${n===0?' · période la plus récente':''}</span>
         ${conflicts?html`<span class="chip warn">Versions concurrentes : vérifier les relevés</span>`:''}
+        ${r.merged&&r.sourceRows?.length?html`<details><summary>${r.sourceRows.length} lignes source regroupées</summary>${r.sourceRows.map(row=>html`<p class="muted small">Ligne ${row.sourceRow}${row.sourcePage?' · page '+row.sourcePage:''} · ${row.label}</p>`)}<p class="muted small">Compteurs additionnés dans ce relevé uniquement. Le taux d’absence n’est pas recalculé.</p></details>`:''}
         ${profile==='attendance'?ATTENDANCE.map(([key,label,unit])=>html`<span>${label} : <strong>${r.metrics[key]??'—'}</strong> ${unit}</span>`):r.columns.filter(c=>disciplineColumnInfo(c).category||r.metrics[c.id]>0||details.some(d=>d.reportEntityId===r.entityId&&d.columnId===c.id)).map(c=>{
           const count=new Set(details.filter(d=>d.reportEntityId===r.entityId&&d.columnId===c.id).map(d=>d.entityId||d.id)).size;
           const info=disciplineColumnInfo(c);

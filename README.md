@@ -1,5 +1,13 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.23.8 · Regrouper les lignes d’un même élève · 6 novembre 2026
+
+Dans Imports Pronote, plusieurs lignes d’un relevé d’assiduité ou de punitions peuvent être associées au même élève, puis additionnées après confirmation explicite du groupe. L’aperçu affiche le total avant validation. Une copie identique doit être ignorée ; le regroupement est destiné aux lignes complémentaires. Les compteurs entiers sont additionnés colonne par colonne ; les taux d’absence ne sont ni additionnés ni reconstruits, et une valeur manquante reste inconnue. Les dépassements de précision numérique sont refusés.
+
+Un seul relevé par élève est enregistré, avec les métriques de chaque ligne source, son libellé, sa page et son numéro. Le lot garde toutes les correspondances, mais compte une seule fois l’élève. La fiche Vie scolaire signale le regroupement et permet d’identifier les lignes sources. Les confirmations sont réinitialisées quand les associations, le fichier ou la classe changent. Aucune addition automatique entre fichiers ou périodes ; un nouvel import de la même période suit le remplacement versionné existant. Bulletins et listes d’élèves restent exclus de cette addition. Les contrôles de classe, d’année et d’appartenance des élèves sont conservés.
+
+Fichiers : pp-import-merge.js, pronote-import.js, pp-import-store.js, screens/imports-pp.js, school-life.js, tests, nav.js et sw.js (nouveau module précaché pour le mode hors connexion). Vérifications : 229 tests réussis ; parcours navigateur isolé à partir du PDF fourni, deux lignes associées à un élève fictif, blocage sans confirmation, aperçu, invalidation au changement de correspondance, sommes exactes, un seul relevé, deux sources conservées, relecture après redémarrage. Aucun document ou élève réel n’est ajouté au dépôt.
+
 ## Version 1.23.7 · Relevés d’assiduité compacts avec internat · 6 novembre 2026
 
 L’import PDF reconnaît aussi la variante portrait à onze colonnes avec les titres abrégés Rep., Inter., Reta/rds, en . et Infir/meri/e. Les deux colonnes d’internat sont prises en compte pour positionner et contrôler les cellules ; les métriques conservées restent les absences et retards. Le nombre de retards n’est pas confondu avec les minutes. L’intitulé en . doit être accompagné du fragment de titre de retards à la même position. Une colonne d’internat isolée, une cellule absente ou des totaux incohérents restent refusés ; un changement de modèle entre pages est également refusé.

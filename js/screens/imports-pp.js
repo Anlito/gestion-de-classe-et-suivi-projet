@@ -3,6 +3,7 @@ import * as model from '../model.js';
 import * as pp from '../pp.js';
 import { parseFile, fileHash, suggestStudent, importProblems, importClassDifferences, renderPDFPage, isMasteryLayout, previousResultText } from '../pronote-import.js';
 import { alreadyImported, buildImport, commitImport } from '../pp-import-store.js';
+import {canMergeReport,reportGroups,mergeGroupKey} from '../pp-import-merge.js';
 import { html, toast, fmtDate } from '../ui.js';
 import { backLink, saveStatus } from '../components.js';
 import { go, refresh } from '../nav.js';
@@ -11,9 +12,10 @@ let st = { classId: '', key: null, file: null, parsed: null, preview: null, hash
 let url = null;
 let generation = 0;
 let classSources = [];
-const importOptions=()=>({testMode:st.testMode,classCorrespondence:{classId:st.classId,sourceClasses:classSources}});
+let mergeKeys=[];
+const importOptions=()=>({testMode:st.testMode,mergeGroups:mergeKeys,classCorrespondence:{classId:st.classId,sourceClasses:classSources}});
 function proposeMappings() {
-  classSources=[];
+  classSources=[];mergeKeys=[];
   const pupils = model.studentsOf(st.classId);
   st.mappings = (st.parsed?.rows || []).map(row => {
     if (!row.identityCandidates) return suggestStudent(row.label, pupils, row.ambiguous);
@@ -67,6 +69,10 @@ export default {
       <section class="panel"><div class="panel-head"><span class="panel-title">3. Vérifier et valider</span></div><div class="panel-scroll" data-scroll="import-details">
         ${st.result ? html`<div class="info-box" role="status"><strong>Import enregistré sur cet appareil</strong>${st.result.testMode ? html`<span class="chip warn">TEST</span>` : ''}<p>${st.result.matched} correspondance(s), ${st.result.batch.reportRows ? st.result.batch.reportRows+' relevé(s) élève enregistré(s).' : st.result.batch.avisAdded+' avis ajoutés.'} ${st.result.conflicts.length} avis retouché(s) conservé(s) sans remplacement.</p></div>` : ''}
         ${details()}
+        ${st.parsed&&canMergeReport(st.parsed)&&!st.result?reportGroups(st.parsed,st.mappings).filter(group=>group.indexes.length>1).map(group=>{
+          const key=mergeGroupKey(group),merged=plan?.records.find(r=>r.kind==='periodReport'&&r.studentId===group.studentId);
+          return html`<div class="info-box pp-source-title"><strong>Plusieurs lignes pour ${model.fullName(pupils.find(p=>p.id===group.studentId)||{nom:'Élève à vérifier'})}</strong><p>Lignes ${group.indexes.map(i=>st.parsed.rows[i].sourceRow).join(', ')} : ${group.indexes.map(i=>st.parsed.rows[i].label).join(' / ')}</p><label class="check-row"><input type="checkbox" data-change="mergeRows" data-key="${key}" ${mergeKeys.includes(key)?'checked':''} ${st.busy?'disabled':''}> Ces lignes concernent le même élève et se complètent : additionner leurs compteurs.</label><p class="muted small">Les taux ne sont pas additionnés. Si une ligne est une copie identique, choisissez plutôt Ignorer pour cette ligne.</p>${merged?html`<p><strong>Total regroupé</strong></p>${st.parsed.columns.filter(c=>c.id!=='absenceRate').map(c=>html`<div class="small">${c.label} : ${merged.metrics[c.id]??'—'} ${c.unit}</div>`)}`:''}</div>`;
+        }):''}
         ${st.parsed&&st.classId&&!st.testMode&&!st.result?importClassDifferences(st.parsed,st.mappings,db.get('classes',st.classId)).map(source=>html`<div class="info-box pp-source-title"><label class="check-row"><input type="checkbox" data-change="classCorrespondence" data-source="${source}" ${classSources.includes(source)?'checked':''} ${st.busy?'disabled':''}> La classe « ${source} » du document correspond bien à « ${db.get('classes',st.classId)?.name} » dans mon Carnet.</label><p class="muted small">Vérifiez le collège et les élèves. Cette correspondance vaut uniquement pour ce fichier et cette classe ; les classes ne sont pas fusionnées.</p></div>`):''}
         ${st.parsed?.warnings.map(w => html`<p class="muted small pp-source-title">${w}</p>`) || ''}
         ${errors.length && !st.result ? html`<div class="info-box pp-source-title" role="status">${errors.slice(0, 4).map(e => html`<p>${e}</p>`)}${errors.length > 4 ? html`<p>${errors.length - 4} autre(s) ligne(s) à vérifier.</p>` : ''}</div>` : ''}
@@ -77,13 +83,14 @@ export default {
         <div class="pp-import-submit"><span class="muted small">${st.testMode ? 'Mode TEST · validation obligatoire' : 'Enregistrement après validation uniquement.'}</span><button class="btn accent" data-click="validate" ${!plan || !st.confirmed || st.busy ? 'disabled' : ''}>Valider l’import</button></div></div></section>
       </main></div>`;
   },
-  leave() { generation++;classSources=[]; if (url) URL.revokeObjectURL(url); url = null; st = { ...st, busy: false, error: '', file: null, parsed: null, preview: null, result: null, hash: '', mappings: [], confirmed: false, testMode: false, key: null }; },
+  leave() { generation++;classSources=[];mergeKeys=[]; if (url) URL.revokeObjectURL(url); url = null; st = { ...st, busy: false, error: '', file: null, parsed: null, preview: null, result: null, hash: '', mappings: [], confirmed: false, testMode: false, key: null }; },
   actions: {
     ignoreUnmatched() { if(st.busy)return;st.mappings=st.mappings.map(id=>id||'skip');st.confirmed=false;st.result=null;refresh(); },
     target(el) { st.classId = el.value; st.result = null; st.testMode = false; if (st.parsed) proposeMappings(); refresh(); },
     classCorrespondence(el){if(st.busy)return;classSources=classSources.filter(s=>s!==el.dataset.source);if(el.checked)classSources.push(el.dataset.source);st.confirmed=false;refresh();},
     testMode(el) { if (st.busy) return; st.testMode = el.checked; st.confirmed = false; st.result = null; refresh(); },
-    mapping(el) { st.mappings[Number(el.dataset.index)] = el.value; st.confirmed = false; refresh(); },
+    mapping(el) { st.mappings[Number(el.dataset.index)] = el.value;mergeKeys=[]; st.confirmed = false; refresh(); },
+    mergeRows(el){if(st.busy)return;mergeKeys=mergeKeys.filter(key=>key!==el.dataset.key);if(el.checked)mergeKeys.push(el.dataset.key);st.confirmed=false;refresh();},
     confirm(el) { st.confirmed = el.checked; const b = document.querySelector('[data-click="validate"]'); if (b) b.disabled = !st.confirmed || !!proposal().errors.length; },
     async file(el) {
       if (!el.files?.[0]) return;

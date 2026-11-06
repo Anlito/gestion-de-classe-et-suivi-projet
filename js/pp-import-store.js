@@ -2,6 +2,7 @@ import * as db from './db.js';
 import * as model from './model.js';
 import * as pp from './pp.js';
 import { norm, importProblems } from './pronote-import.js';
+import {canMergeReport,reportImportRows} from './pp-import-merge.js';
 
 export function alreadyImported(hash, classId, { testMode = false } = {}) {
   return db.where('ppRecords', r => r.kind === 'importBatch' && r.fingerprint === hash && r.classId === classId && r.year === model.schoolYear() && (r.testMode === true) === (testMode === true))[0] || null;
@@ -13,19 +14,18 @@ export function buildImport(parsed, mappings, classId, hash, options = {}) {
   if (['attendance','discipline'].includes(parsed.profile) && !pp.enabled('vieScolaire')) throw new Error('Activez l’outil Vie scolaire pour importer ce relevé.');
   if (alreadyImported(hash, classId, { testMode })) throw new Error('Ce fichier a déjà été validé pour cette classe. Aucun doublon créé.');
   const c = db.get('classes', classId), pupils = model.studentsOf(classId);
-  const problems = importProblems(parsed, mappings, c, model.schoolYear(), pupils, { testMode, classCorrespondence:options.classCorrespondence });
+  const problems = importProblems(parsed, mappings, c, model.schoolYear(), pupils, { ...options, testMode });
   if (problems.length) throw new Error(problems[0]);
   if (parsed.profile === 'bulletin' && (!pp.enabled('conseils') || !pp.enabled('documents'))) throw new Error('Activez les outils Conseils et Documents pour importer un bulletin et sa pièce jointe.');
   const records = [], conflicts = [], batchId = db.uid(), now = new Date().toISOString();
   const base = { classId, year: model.schoolYear(), at: now, source: 'pronote', importBatchId: batchId, testMode, sourceYear: parsed.year || null, sourceClass: parsed.sourceClass || null };
   const heads = pp.latest({ classId });
-  parsed.rows.forEach((row, index) => {
-    if (mappings[index] === 'skip') return;
-    const studentId = mappings[index];
+  const importRows=canMergeReport(parsed)?reportImportRows(parsed,mappings,options):parsed.rows.map((row,index)=>({row,studentId:mappings[index]})).filter(r=>r.studentId!=='skip');
+  importRows.forEach(({row,studentId}) => {
     if (['attendance','discipline'].includes(parsed.profile)) {
       if (!parsed.totalsChecked) throw new Error('Les compteurs et contrôles du relevé doivent être vérifiés avant import.');
       const entityId = [testMode?'test-recap':'recap',classId,studentId,model.schoolYear(),parsed.profile,parsed.sourceSchool,parsed.period.join('|')].join('|');
-      records.push({...base,id:db.uid(),entityId,parents:heads.filter(r=>r.entityId===entityId).map(r=>r.id),kind:'periodReport',studentId,profile:parsed.profile,period:parsed.period,columns:parsed.columns,metrics:row.metrics,sourceFormat:parsed.sourceFormat||'pdf',sourceRow:row.sourceRow,sourcePage:row.sourcePage,sourceClass:row.sourceClass||parsed.sourceClass,sourceSchool:parsed.sourceSchool});
+      records.push({...base,id:db.uid(),entityId,parents:heads.filter(r=>r.entityId===entityId).map(r=>r.id),kind:'periodReport',studentId,profile:parsed.profile,period:parsed.period,columns:parsed.columns,metrics:row.metrics,sourceFormat:parsed.sourceFormat||'pdf',sourceRow:row.sourceRow,sourcePage:row.sourcePage,sourceRows:row.sourceRows,merged:row.merged===true,sourceClass:row.sourceClass||parsed.sourceClass,sourceSchool:parsed.sourceSchool});
     }
     if (parsed.profile === 'bulletin') {
       const occurrences = new Map();
@@ -47,7 +47,7 @@ export function buildImport(parsed, mappings, classId, hash, options = {}) {
     }
   });
   return { batchId, records, conflicts, mappings: parsed.rows.map((r, i) => ({ sourceRow: r.sourceRow, studentId: mappings[i] === 'skip' ? null : mappings[i] })),
-    matched: mappings.filter(id => id && id !== 'skip').length, profile: parsed.profile, trimester: parsed.trimester || null, fingerprint: hash, testMode, sourceYear: parsed.year || null, sourceClass: parsed.sourceClass || null,
+    matched: new Set(mappings.filter(id => id && id !== 'skip')).size, profile: parsed.profile, trimester: parsed.trimester || null, fingerprint: hash, testMode, sourceYear: parsed.year || null, sourceClass: parsed.sourceClass || null,
     classCorrespondence:options.classCorrespondence?.classId===classId&&Array.isArray(options.classCorrespondence.sourceClasses)?{classId,sourceClasses:[...options.classCorrespondence.sourceClasses]}:null };
 }
 export async function commitImport(parsed, mappings, classId, hash, file, options = {}) {
