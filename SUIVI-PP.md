@@ -1,0 +1,159 @@
+# Suivi PP — Version 1.23.0
+
+Cette version est intégrée au Carnet à son adresse habituelle : https://anlito.github.io/gestion-de-classe-et-suivi-projet/. Les données actuelles restent conservées. Le jeu fictif de recette reste dans sa copie séparée. Les parcours locaux ci-dessous peuvent également être utilisés depuis une archive de l’application.
+
+## Parcours d’essai
+1. Extraire l’archive puis double-cliquer **ESSAYER-SUIVI-PP.cmd** sous Windows. Le lanceur utilise Python fourni avec Codex s’il est disponible, sinon Python installé avec la commande « py ». Il ouvre Chrome sur cette copie locale. Garder la fenêtre du lanceur ouverte pendant l’essai. L’ouverture directe du fichier index.html ne suffit pas.
+2. Utiliser les données de démonstration du Carnet pour les premiers essais, ou créer une classe avec des élèves fictifs.
+3. Dans **Administration**, ouvrir la classe et cocher **Je suis professeur principal de cette classe**, puis **Enregistrer**.
+4. Ouvrir **Suivi PP** depuis l’accueil ou depuis la barre de navigation de cette classe. Une classe ouvre toujours son **Récap classe**, placé en premier dans la liste, avant les élèves. Avec plusieurs classes PP, l’accueil commun permet d’abord de choisir la classe ; avec une seule, son récap s’ouvre directement. Sélectionner ensuite un élève pour sa fiche.
+5. Ajouter une note, un progrès, une observation du carnet ou une action. Cliquer sur **Enregistrer** pour conserver la saisie. Une modification d’un texte crée une version et conserve son historique ; deux branches concurrentes restent visibles.
+6. Dans **Documents**, choisir la catégorie puis joindre un fichier ou une photo. Plusieurs catégories et pièces peuvent coexister. L’aperçu ouvre le document dans un panneau, le téléchargement conserve son nom d’origine.
+7. Dans la fiche d’un élève, **Conseils** concerne uniquement cet élève : sélectionner T1, T2 ou T3 pour ses avis et sa synthèse. Pour les avis collectifs et la conclusion de classe, revenir à **Récap classe** puis **Préparer le conseil de la classe**. Il n’y a plus de case « La classe ». Cette version fournit la saisie et la conservation des textes ; une rédaction guidée est maintenant disponible via Préparer une appréciation.
+8. Depuis **+ Réunion liée**, remplir l’événement du Carnet et enregistrer. Le même événement apparaît dans l’agenda et le suivi individuel, sans copie indépendante. Dans son détail, **Ouvrir le suivi de l’élève** permet de revenir directement à la fiche. En cas de modifications non enregistrées de l’événement, rester pour les enregistrer ou choisir explicitement de les abandonner.
+9. Dans **Administration → Mes outils**, masquer un outil non utilisé. Il disparaît des onglets et de l’accueil, avec conservation de ses données ; le réglage vaut pour toutes les classes.
+10. Depuis une fiche élève, le grand bouton coloré **Récap classe** donne un accès unique au récapitulatif.
+11. Dans le récap, ouvrir **Importer Pronote**, puis choisir la liste CSV ou le bulletin PDF. Les correspondances apparaissent à gauche, le document au centre et les textes proposés à droite. Choisir explicitement les élèves manquants ou ignorer une ligne, vérifier l’aperçu, puis cocher la confirmation et cliquer **Valider l’import**. La lecture seule ne modifie aucune fiche.
+12. Pour un bulletin, retrouver les appréciations dans **Conseils**, au trimestre détecté, et le PDF dans **Documents**. L’appréciation globale est conservée dans les données source et l’original, sans écraser votre conclusion. Un fichier déjà importé est bloqué ; une correction manuelle d’un avis est conservée lors d’un nouvel import et signalée dans son bilan.
+
+13. Pour essayer les exemples sur des élèves fictifs, sélectionner le bulletin puis l’élève fictif, cocher **Essai avec des élèves fictifs** près du bouton de validation, puis confirmer l’association et cliquer **Valider l’import**. Cette option autorise les écarts entre année/classe du document et du suivi, en conservant leur provenance. Les avis et documents sont marqués **TEST**, y compris après modification d’un avis, et sont enregistrés dans les fiches choisies. Ils sont inclus dans les sauvegardes et dans Drive si activé. Pour le deuxième bulletin, refaire ces choix : le mode d’essai ne reste pas activé automatiquement. Les avis ordinaires ne sont pas remplacés par les essais.
+14. Importer T1, T2 et T3 successivement en choisissant le même élève. Le trimestre est lu dans chaque bulletin ; ses avis rejoignent uniquement la période correspondante. Dans **Conseils**, ouvrir **Évolution sur les 3 trimestres** pour comparer les résultats, puis **Données du dernier bulletin importé** pour le détail du trimestre sélectionné. Les notes et niveaux sur 4 restent distincts ; les mentions NR et N.Not sont conservées. Les changements d’enseignants sont affichés sur des lignes distinctes.
+15. Pour un bulletin de plusieurs pages, utiliser les flèches sous **Document source**. Les matières de chaque page sont analysées avant validation. Mentions, engagements et orientation, lorsqu’ils sont présents dans les modèles vérifiés, restent des textes source distincts de votre synthèse personnelle. Les graphiques et le détail des évaluations par couleur se consultent dans le PDF.
+16. Dans **Importer Pronote**, choisir le récapitulatif d’absences/retards ou de punitions/sanctions. Vérifier chaque correspondance ; ignorer les lignes qui ne concernent pas la classe. L’effectif et les sommes du rapport complet sont vérifiés avant la proposition. Après validation, ouvrir **Vie scolaire** dans la fiche de l’élève pour retrouver ses cumuls et le PDF source. Les relevés restent séparés par période, y compris quand elles se chevauchent.
+17. Pour documenter une punition déjà comptée, choisir **Déjà comprise** et la colonne exacte du relevé dans **Compléter une mesure**, puis renseigner le type, l’auteur/rôle, le motif et les informations connues. La durée est facultative, en minutes ; laisser vide si inconnue. Cliquer **Enregistrer**. Le compteur affiche le nombre importé et le nombre de mesures documentées, sans les additionner. Une correction du relevé conserve les détails déjà saisis et signale les écarts.
+18. Pour une nouvelle mesure sans lien confirmé avec un relevé, choisir **Mesure indépendante**. Elle reste dans l’historique, séparée des cumuls Pronote ; il faudra vérifier son rapprochement lors d’un prochain relevé. Dans **Administration → Mes outils**, **Vie scolaire** peut être masqué pour toutes les classes sans suppression des données.
+19. Pour tester un relevé avec quelques élèves fictifs, associer d’abord les lignes choisies, puis cliquer **Ignorer les lignes sans correspondance**. Les choix déjà faits sont conservés. Vérifier ensuite le bilan, activer TEST si nécessaire et confirmer. Il faut toujours au moins un élève associé.
+
+Les scans sans texte et les structures inconnues sont refusés. Les exemples fournis couvrent plusieurs années : en mode ordinaire, un document d’une autre année reste bloqué. Le mode TEST est disponible pour les relevés également. Les listes CSV servent pour l’instant à conserver les correspondances et leur rapport ; elles ne créent ni ne remplacent les élèves. Chaque bulletin doit concerner un seul élève ; un récapitulatif peut en regrouper plusieurs. La compatibilité multipage reste limitée aux modèles vérifiés et, pour les relevés, à un total global final. Les alertes par seuil sont l’étape suivante.
+
+## Sauvegarde et reprise
+Les données enregistrées restent disponibles sur cet appareil hors connexion ; le service worker doit avoir terminé une première installation en ligne. Un fichier doit exister localement pour être consultable sans Internet.
+
+Les notes, actions, avis et documents font partie de la sauvegarde JSON complète. La connexion Drive existante prend également en charge le nouveau suivi et ses pièces. Les essais ont vérifié le stockage et la restauration locaux et les règles de fusion ; ils n’ont pas utilisé votre compte Google réel.
+
+Le format de sauvegarde est nouveau : les deux appareils doivent utiliser cette version avant toute synchronisation avec Drive. Ne pas faire synchroniser une ancienne version du Carnet avec les nouveaux dossiers PP. Prévoir une sauvegarde manuelle de l’ancien Carnet avant une future mise en service.
+
+## Rappels des réunions
+Le calcul des rappels tient compte du fuseau Europe/Paris : veille à 16 h, puis une heure avant. Si la liaison Google Agenda est activée, les événements liés aux élèves portent ces deux rappels. La réception sur les appareils dépend de la configuration et des permissions Google Agenda ; elle doit être essayée sur la tablette et le portable. Aucun système indépendant de notification n’est déployé dans cette copie.
+
+## État de livraison
+Le code est une branche locale de travail issue du dépôt GitHub. Aucune publication, aucun formulaire public et aucune synchronisation vers votre Drive n’ont été déclenchés. Les lectures des exemples fournis ont été vérifiées localement ; les essais d’enregistrement utilisent des élèves et fichiers fictifs. Les autres profils d’import et modules du cahier des charges seront intégrés aux étapes suivantes.
+
+## Alertes PP d’assiduité
+Depuis le récap classe, ouvrez « Alertes PP · seuils et suivi ». Ajoutez vos limites (strictement supérieur ou supérieur ou égal). Elles sont communes à vos classes PP pour l’année active. Chaque dépassement précise sa période et son établissement ; le bouton ouvre la fiche élève. Notez votre démarche puis marquez le dépassement traité. Une modification de valeur ou de seuil demande un nouvel examen. Désactiver un seuil conserve les notes. Les périodes ne sont pas additionnées ; sans relevé exploitable, aucune conclusion automatique. Les mesures et le carnet disposent maintenant des indicateurs ci-dessous.
+
+## Alertes sur les mesures et le carnet
+- **Compteur du relevé choisi** : importer d’abord le PDF, puis choisir sa colonne et son établissement dans « Période des saisies / colonne du relevé ». Les abréviations similaires ne sont pas regroupées. Le calcul garde la dernière période du PDF, sans ajouter les détails saisis. Un changement de présentation demande de vérifier le seuil.
+- **Mesures indépendantes saisies** : nombre de mesures datées sans lien avec un relevé, hors annulations, dans la période choisie.
+- **Retenues documentées · minutes connues** : somme des durées renseignées des retenues datées, hors annulations. Une retenue liée au PDF compte une fois dans cette somme. Ce montant ne représente pas toutes les heures du relevé. Pour deux heures, saisir un seuil de 120 minutes.
+- **Observations / défauts de carnet** : catégories explicites des notes de carnet dans la période choisie. Les encouragements et appréciations des bulletins ne sont pas des observations.
+Ouvrir « Période des saisies / colonne du relevé » pour régler les dates, début et fin inclus. Les entrées sans date et les durées inconnues sont signalées, sans valeur inventée. Si des versions d’une même saisie sont en conflit, le calcul correspondant est suspendu.
+
+## Campagnes de rencontres parents–PP
+Depuis le récap d’une classe, ouvrir **Rencontres parents–PP**, puis **Nouvelle campagne**. Choisir la classe, le titre, la date et le lieu. Renseigner une tranche par ligne, par exemple `17:30-18:30` puis `18:50-20:00`. Choisir la durée et la pause entre les rendez-vous ; créer les créneaux.
+Cliquer sur un créneau, choisir l’élève et l’origine de la demande, puis réserver. Le rendez-vous apparaît dans l’agenda et la fiche élève. Les créneaux chevauchant un cours ou un événement sont refusés lors de la réservation. Le détail de l’agenda permet d’ouvrir la fiche élève.
+Fermer une campagne empêche de nouvelles réservations et conserve les rendez-vous. Annuler une réservation retire son événement et garde la trace dans la campagne. Pour changer d’horaire, annuler puis réserver à nouveau ; un déplacement direct dans l’agenda est signalé dans la campagne. Après rechargement, cliquer sur le titre de la campagne pour la retrouver.
+Les campagnes et réservations suivent la sauvegarde du Carnet et la synchronisation existante. Les rappels veille à 16 h et H−1 nécessitent Google Agenda activé. Deux appareils ayant réservé hors connexion peuvent produire un conflit : vérifier les indications après synchronisation.
+**Ce lot permet la saisie par le professeur. Le formulaire public des familles n’est pas encore raccordé et aucun lien de réservation public n’est créé.** L’ancien outil et son Google Sheet sont conservés sans modification.
+
+## Formulaire des familles · installation Google à effectuer
+Le service Google et son formulaire sont maintenant fournis. Installer les fichiers du dossier `google-rencontres` dans un nouveau projet Apps Script, en suivant **INSTALLATION.md**. Aucun déploiement n’a été effectué automatiquement.
+Dans une campagne, ouvrir **Formulaire familles · demandes**, configurer l’adresse /exec et la clé professeur, puis publier. Le lien familles apparaît seulement après une publication confirmée. Les familles transmettent leurs disponibilités ; vous confirmez chaque élève et horaire. Aucun message n’est envoyé à votre place.
+Le circuit **Échanger par fichier avec Google** permet aussi de publier une campagne et d’importer les réponses sans liaison directe depuis le Carnet. Les imports répétés conservent les traitements déjà faits. Après annulation d’un rendez-vous, sa demande peut être remise à traiter. Une fermeture locale hors connexion ne ferme pas à elle seule le formulaire Google : vérifier la confirmation ou publier sa fermeture ensuite. Masquer le module conserve les données et ne ferme pas les formulaires déjà publiés.
+Conserver la clé professeur dans votre sauvegarde privée, jamais dans le lien transmis aux familles. Le serveur et les échanges ont été testés avec un service Google simulé ; l’essai réel dans votre compte reste à faire après installation.
+
+## Confirmation après réponse des familles
+La confirmation affiche le nom de l’élève, la date, les disponibilités cochées et les précisions. Elle rappelle que le professeur confirmera l’heure et que toute modification de disponibilités se demande directement auprès de lui. Pour activer cette évolution dans Google, remplacer le contenu de Formulaire.html par le fichier fourni, enregistrer, puis Déployer → Gérer les déploiements → crayon → Nouvelle version → Déployer. Le lien existant est conservé.
+
+## Archives et liens courts
+Dans une campagne, **Archiver la campagne** la retire de la liste courante. Les rendez-vous, réponses et notes restent conservés. Utiliser **Archives** pour la retrouver ; **Restaurer la campagne** la remet dans la liste avec les réservations fermées. Vérifier la fermeture du formulaire Google si l’application signale un échec de publication ; les fichiers d’échange restent utilisables depuis la campagne archivée.
+Dans **Formulaire familles · demandes → Lien court pour les familles**, coller le lien court créé pour cette campagne puis l’enregistrer. **Copier le lien court** apparaît. Vérifier la destination avant diffusion. Chaque campagne conserve son propre lien ; changer de service ne ferme pas les anciens formulaires.
+
+Après confirmation d’une réponse famille, le bloc de contexte et les consignes précédant le formulaire sont désormais masqués. Le reçu et la consigne de contact sont conservés.
+
+## Notes audio d’un élève
+Depuis la fiche PP, ouvrir **Notes audio →**. Cliquer sur **Démarrer l’enregistrement**, puis autoriser le microphone dans Chrome. Un indicateur et le temps écoulé sont visibles. **Arrêter et sauvegarder** conserve l’audio sur cet appareil : attendre la confirmation avant de fermer l’onglet. Quitter cet écran ou passer l’application en arrière-plan arrête la capture et tente de la sauvegarder. La limite est de 30 minutes et 20 Mo. Un arrêt brutal du navigateur avant sauvegarde peut perdre la capture en cours.
+Sélectionner un enregistrement pour le réécouter, le télécharger, modifier son titre et écrire/coller une transcription ou un compte rendu personnel. **Enregistrer le texte** crée une nouvelle version du texte tout en conservant le son original. Une transcription automatique locale est maintenant proposée, selon les étapes ci-dessous.
+Il est aussi possible d’importer un fichier WebM, Ogg, M4A, MP3 ou WAV de 20 Mo maximum. Les audios font partie de la sauvegarde du Carnet et de la synchronisation Drive si elle est activée. Ils ne sont jamais envoyés au formulaire des familles ni à Google Agenda. Masquer Notes audio dans Mes outils conserve les fichiers. Une suppression confirmée retire l’audio de la fiche et son fichier ; les versions de texte restent dans l’historique technique de la sauvegarde.
+Le microphone nécessite HTTPS (ou localhost pour l’essai sur cet ordinateur). Sur tablette, garder l’application au premier plan. Les tests ont utilisé un microphone virtuel ; un essai avec le microphone de la Galaxy Tab S7 est nécessaire avant un entretien réel.
+
+## Transcrire sans envoyer l’audio
+1. Dans **Notes audio**, sélectionner l’enregistrement. Si le titre ou le texte a été modifié, cliquer d’abord sur **Enregistrer le texte**.
+2. Cliquer sur **Transcrire sur cet appareil**, puis **Installer le modèle sur cet appareil**. Prévoir environ 264 Mo et une connexion Internet pour cette première installation. Elle est à faire une fois sur le portable et une fois sur la tablette ; Chrome peut imposer de la refaire si son stockage a été vidé.
+3. Cliquer sur **Lancer la transcription**. Garder l’écran ouvert ; le calcul peut être long, surtout sur tablette. Commencer par une courte note. Après installation, cette étape fonctionne hors connexion et n’envoie pas l’audio à un service de transcription.
+4. Relire et corriger le **Brouillon à relire**. Vérifier les noms, les nombres et les passages incertains en retournant aux audios pour les réécouter. Le modèle léger peut commettre des erreurs ou inventer des mots.
+5. Cliquer sur **Ajouter ce texte au compte rendu** pour conserver les corrections. Le texte déjà présent est conservé et le nouveau texte est ajouté à la suite. Les transcriptions précédentes restent consultables. Un brouillon déjà utilisé ne peut pas être ajouté deux fois.
+
+**Annuler le traitement**, ou quitter l’écran, interrompt la transcription sans supprimer le son ni le compte rendu. **Retirer le modèle de cet appareil** libère son cache, sans effacer les audios et textes. Les brouillons automatiques enregistrés et les comptes rendus suivent les sauvegardes du Carnet ; le modèle se réinstalle séparément. La synchronisation Drive des audios reste celle que vous avez activée et ne sert pas au calcul de transcription.
+
+Testé dans Chrome sur ordinateur, avec un exemple français public, y compris après coupure réseau. La vitesse et la stabilité sur la Galaxy Tab S7 restent à essayer avant un entretien complet. Aucun changement du formulaire Google des familles n’est nécessaire pour cette évolution.
+
+## Correction de la transcription · version 15
+Le premier modèle trop léger a été remplacé par Whisper Small. Après mise à jour et rechargement du Carnet, ouvrir l’audio puis **Transcrire sur cet appareil → Installer le modèle sur cet appareil**. Cette nouvelle installation d’environ 264 Mo est nécessaire même si l’ancien modèle était déjà présent. Elle ne transmet pas l’audio. Une fois le nouveau modèle prêt, l’ancien cache est retiré automatiquement. Cliquer ensuite sur **Lancer la transcription**.
+
+Les répétitions anormales sont désormais interrompues et signalées comme un échec, sans nouvel ajout au compte rendu. Un ancien brouillon répétitif ne peut plus être ajouté tel quel : le corriger ou relancer le traitement. Le texte erroné que vous avez déjà ajouté reste présent pour vous permettre de le vérifier ; il n’est pas effacé automatiquement. Supprimer manuellement ce passage dans le compte rendu, puis **Enregistrer le texte**, avant d’ajouter une nouvelle transcription relue.
+
+Le résultat est meilleur sur l’enregistrement de test, mais certains mots restent mal reconnus. Vérifier chaque brouillon à la réécoute. Le modèle plus précis est aussi plus lourd : garder l’application ouverte et commencer par une courte note sur la tablette. L’essai physique Galaxy Tab S7 reste à faire.
+
+## Préparer une appréciation · élève ou classe
+Dans **Conseils**, choisir le trimestre puis **Préparer une appréciation**. Pour la classe, partir de **Récap classe → Préparer le conseil de la classe**.
+1. Cocher les avis des professeurs à retenir, affichés à gauche.
+2. Choisir votre bilan, renseigner les constats, les nuances éventuelles et les conseils concrets. Ajouter des félicitations uniquement si vous les souhaitez.
+3. Cliquer sur **Préparer le brouillon**, puis relire et modifier librement le texte proposé. La structure suit vos exemples : bilan, nuances, conseils et félicitations facultatives.
+4. Cliquer sur **Enregistrer ce nouveau brouillon**. Le retrouver dans Conseils pour la validation finale. Vos autres synthèses restent conservées. Les sauvegardes suivantes depuis l’écran de préparation créent une nouvelle version du même brouillon.
+
+Cette aide fonctionne localement sans téléchargement supplémentaire. Elle assemble vos formulations ; elle n’analyse pas seule les avis pour juger l’élève. Les avis TEST sont exclus : pour essayer avec un élève fictif, saisir un avis ordinaire fictif dans Conseils. Ne pas fermer l’application avant d’enregistrer les modifications que vous souhaitez conserver.
+
+## Avancement du conseil
+Dans **Récap classe**, choisir le trimestre puis **Avancement du conseil**. Le même accès est disponible dans la rubrique Conseils de chaque élève et dans le conseil collectif.
+
+- **À préparer** : aucune synthèse non vide enregistrée.
+- **Brouillon** : une synthèse existe et reste à valider dans Conseils.
+- **Validée** : une synthèse validée, sans conflit ni changement connu d’un avis utilisé pour sa rédaction.
+- **À vérifier** : plusieurs versions d’un avis ou plusieurs synthèses à départager.
+- **À relire** : un avis utilisé pour préparer le texte a changé ou n’est plus disponible.
+
+Utiliser le filtre d’état et la recherche, puis **Ouvrir** pour accéder directement aux Conseils du bon élève et trimestre. La conclusion de classe figure séparément à gauche. Le nombre d’avis indique seulement les éléments enregistrés : il ne mesure pas la participation de toutes les matières. Les avis TEST sont exclus.
+
+Cette vue ne valide, ne remplace et n’efface aucun texte. Les relectures et conflits restent des indications à examiner dans Conseils ; cette version n’ajoute pas d’acquittement ou de fusion automatique.
+
+## Relire et retenir une synthèse
+Dans **Avancement du conseil**, cliquer sur **Relire** pour l’élève concerné, ou **Relire la conclusion** pour la classe. Dans Conseils, utiliser **Relire les synthèses**.
+1. Lire les avis actuels à gauche. Si plusieurs versions d’un même avis sont proposées, cocher celle à retenir.
+2. À droite, choisir la synthèse de départ. Ouvrir **Lire cette version** pour comparer les textes. S’il n’existe pas de synthèse, saisir un premier texte.
+3. Corriger librement le texte retenu, puis cocher **J’ai relu les avis actuels et le texte retenu**.
+4. Choisir **Garder en brouillon** ou **Valider le texte retenu**. Attendre la confirmation. Les anciennes versions restent consultables dans les deux volets d’historique.
+
+Une arrivée ou correction d’avis après cette relecture fera réapparaître **À relire**. Une nouvelle branche concurrente fera réapparaître **À vérifier**. Si les données changent pendant la saisie, la sauvegarde est bloquée : **Recharger la relecture** propose de repartir des versions actuelles et vous demande confirmation avant d’abandonner un texte non enregistré. Les avis TEST ne sont pas inclus. Rien n’est envoyé à Pronote.
+
+## Dossier du conseil : aperçu, conservation et PDF
+Depuis **Avancement du conseil**, cliquer sur **Dossier / PDF**. Le même lien est disponible dans Conseils.
+1. Choisir le trimestre, puis cocher les élèves souhaités. **Toute la classe** et **Aucun élève** s’appliquent à toute la liste, même si une recherche est active.
+2. Choisir le récapitulatif de classe et, si nécessaire, les avis détaillés ou les brouillons/textes à vérifier. Les synthèses validées sont seules reproduites par défaut. Les états et conflits restent indiqués.
+3. Vérifier l’aperçu. **Une nouvelle page par élève** permet d’obtenir des fiches séparées à l’impression ; sinon le dossier est compact.
+4. **Imprimer / PDF** ouvre l’impression de Chrome : choisir **Enregistrer au format PDF** pour conserver un PDF. **Conserver le dossier** télécharge un fichier HTML autonome, à ouvrir dans un navigateur, y compris sans connexion.
+
+Les notes personnelles PP, documents joints, audios et données TEST ne sont pas inclus. Les avis et synthèses choisis restent des textes à relire avant utilisation du dossier. Le fichier téléchargé ne se met pas à jour automatiquement. Il n’est ni envoyé aux familles ni ajouté automatiquement au Drive. Les écrans restent utilisables en paysage avec un défilement dans les panneaux ; l’impression sur la Galaxy Tab S7 reste à essayer physiquement.
+
+
+## Compléments de suivi · version 20
+
+- **Actions** : indiquer qui doit agir, l’état en cours, le lien vers un document/démarche/rencontre, le bilan prévu, le résultat observé et la suite. « Fait » date la réalisation ; rouvrir garde les versions précédentes. Ces informations constituent votre suivi personnel, pas un envoi au responsable.
+- **Démarches et renouvellements**, depuis une fiche : enregistrer l’objet, le document attendu, l’état et les dates. Associer les pièces existantes ou joindre la pièce reçue. Réception, validité et renouvellement sont indépendants. Enregistrer les changements avant de programmer une relance ; modifier la relance actualise la même action. Si deux versions existent, les départager avant de joindre une pièce ou relancer.
+- **Préparer / suivre une rencontre** : partir de la fiche ou du détail de l’événement. Choisir la période, actualiser, sélectionner les faits utiles et noter ses questions. Après la rencontre, compléter le compte rendu, les décisions et la suite. Enregistrer, puis créer l’action du prochain point si souhaité. Les anciens faits retenus restent consultables comme versions exactes. Aucun texte n’est envoyé aux parents.
+- **Qualité des données et évolution**, depuis Récap classe : vérifier les derniers imports, les éléments de conseil absents et les démarches à suivre. Choisir un élève et deux relevés pour les comparer. Les périodes qui se chevauchent ou de durées différentes restent côte à côte sans écart calculé. Une différence ne permet pas à elle seule de conclure à l’effet d’une action.
+- **Configurer un autre CSV**, depuis Importer Pronote : pour un tableau de cumuls par élève, choisir le séparateur, les colonnes et la période exacte. Vérifier l’aperçu, les unités et chaque association avant les deux confirmations. Les cellules vides ne deviennent jamais zéro. Un export contenant le détail des événements ou des coordonnées nécessite encore son adaptation ; ne pas le faire passer pour un cumul. Les colonnes administratives de la liste élèves ne modifient pas automatiquement les fiches.
+- **Mes outils** : si des réglages différents arrivent des deux appareils, choisir explicitement la version à retenir. Le masquage conserve tous les contenus.
+
+L’aide aux appréciations reste guidée pour cette mise en production, conformément à votre choix. Les essais réels sur Galaxy Tab S7 et Drive restent nécessaires avant publication.
+
+
+## Mise en production · 6 novembre 2026
+
+Ouvrir le Carnet à son adresse habituelle sur les deux appareils. Dans Administration → Réglages, rechercher la mise à jour, puis choisir Redémarrer lorsqu’elle est prête. Vérifier la version **1.23.0**. Fermer les autres onglets du Carnet si la base est signalée comme bloquée. Activer ensuite vos véritables classes PP dans Administration → ouvrir la classe → Je suis professeur principal → Enregistrer.
+
+Enregistrer et synchroniser avant de changer d’appareil. L’essai d’éditions simultanées n’a pas permis de retrouver les deux textes ; ce défaut reste à corriger après cette publication, conformément à votre choix d’un usage en alternance. La synchronisation ordinaire, le hors connexion, les pièces et les audios ont été confirmés sur les deux appareils.
+
+Google Agenda se trouve dans **Administration → Emploi du temps**. Les rappels veille à 16 h et H−1, y compris après changement d’heure, ont été vérifiés dans le calendrier de recette. Le Carnet principal conserve son agenda habituel. Le service familles Google déjà installé reste le même : saisir si nécessaire son URL et sa clé existantes dans Rencontres. La classe, les fichiers et les réglages de recette ne sont pas copiés automatiquement vers le Carnet principal.
+
+La sauvegarde réelle du 5 novembre est conservée séparément en privé. Un paquet de repli compatible conserve les données PP et leur format tout en masquant cet espace. Ne pas écraser les données ni utiliser directement l’ancien programme 1.22.1 comme retour arrière.

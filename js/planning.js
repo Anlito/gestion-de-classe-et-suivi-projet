@@ -12,6 +12,7 @@
 //   jours          { etabId, du, au, type: 'vacances'|'ferie', label }
 // Réglage meta.matiereRoles = { MATIÈRE: 'suivi'|'appel'|'grise'|'masque' } (seulement les choix modifiés).
 import * as db from './db.js';
+import { isPPClass } from './pp-rules.js';
 import { normClasse, parseICS, STATUTS } from './ical.js';
 
 // ---------- Rôle des matières ----------
@@ -570,12 +571,15 @@ export function chevauchementsTout(placements, { ignoreCours = [], ignoreEvt = [
 export const emailsDe = text => [...new Set(String(text || '').toLowerCase().split(/[\s,;]+/).filter(s => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(s)))];
 // invites : personnes invitées (Google Agenda leur envoie l'invitation), 1.21.1.
 const champsEvt = f => ({ type: TYPES_EVT[f.type] ? f.type : 'autre', titre: (f.titre || '').trim(), lieu: (f.lieu || '').trim(),
+  studentId: f.studentId || undefined,
+  ppRemindersManaged: !!f.studentId,
   classId: f.classId || undefined, note: (f.note || '').trim() || undefined, debut: f.debut, fin: f.fin,
   invites: emailsDe(f.invites).length ? emailsDe(f.invites) : undefined,
   // Une fois des invités choisis dans l'app, c'est l'app qui gère la liste (même vidée) ; sinon Google garde les siens.
   ...(emailsDe(f.invites).length ? { invitesGeres: true } : {}) });
 // Ajout ; repeat : chaque semaine jusqu'à la fin de l'année (vacances et fériés sautés).
 export function addEvenement(f, repeat = false) {
+  validatePPEvent(f);
   const dates = datesAjout(f.date, repeat);
   const serieId = repeat ? db.uid() : undefined;
   const undo = db.commit(w => { for (const d of dates) w.put('evenements', { ...champsEvt(f), date: d, serieId }); });
@@ -585,14 +589,22 @@ export function addEvenement(f, repeat = false) {
 export const suivantsEvt = ev => (ev.serieId ? db.where('evenements', x => x.serieId === ev.serieId && x.id !== ev.id && x.date > ev.date) : []);
 // Modification ; serie = true : aussi les semaines suivantes (décalées du même nombre de jours).
 export function editEvenement(ev, f, serie = false) {
+  validatePPEvent(f, ev);
   const shift = dayDiff(ev.date, f.date);
   const targets = serie ? suivantsEvt(ev) : [];
   return db.commit(w => {
-    w.update('evenements', ev.id, { ...champsEvt(f), date: f.date, serieId: serie ? ev.serieId : undefined });
-    for (const t of targets) w.update('evenements', t.id, { ...champsEvt(f), note: t.note, date: shift ? addDays(t.date, shift) : t.date });
+    w.update('evenements', ev.id, { ...champsEvt(f), ppRemindersManaged: !!(f.studentId || ev.studentId || ev.ppRemindersManaged), date: f.date, serieId: serie ? ev.serieId : undefined });
+    for (const t of targets) w.update('evenements', t.id, { ...champsEvt(f), ppRemindersManaged: !!(f.studentId || t.studentId || t.ppRemindersManaged), note: t.note, date: shift ? addDays(t.date, shift) : t.date });
   });
 }
 export function deleteEvenement(ev, serie = false) {
   const targets = serie ? suivantsEvt(ev) : [];
   return db.commit(w => { w.del('evenements', ev.id); for (const t of targets) w.del('evenements', t.id); });
+}
+
+function validatePPEvent(f, previous = null) {
+  if (!f.studentId) return;
+  const s = db.get('students', f.studentId), c = s && db.get('classes', s.classId);
+  const unchanged = previous?.studentId === f.studentId && previous?.classId === f.classId;
+  if (!s || s.classId !== f.classId || (!unchanged && !isPPClass(c, db.getMeta('schoolYear')))) throw new Error('L’élève doit appartenir à la classe PP sélectionnée.');
 }

@@ -1,0 +1,13 @@
+import {FAMILY_PROTOCOL,campaignExport,familyRequests,serviceURL,slotSignature} from '../js/pp-family-rules.js';
+export const tests=[];const test=(name,fn)=>tests.push({name,fn});const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw Error(JSON.stringify([a,b]));};const bad=fn=>{let failed=false;try{fn();}catch{failed=true;}eq(failed,true);};
+const c={entityId:'campaign-example',title:'Rencontres',classId:'PRIVATE_CLASS',date:'2026-11-17',location:'Collège',status:'open',slots:[{date:'2026-11-17',debut:'17:30',fin:'17:40'},{date:'2026-11-17',debut:'17:40',fin:'17:50'}],privateNote:'PRIVATE_NOTE',students:['PRIVATE_STUDENT']};
+const row={id:'request-example',pupilName:'Élève EXEMPLE',note:'Disponible',receivedAt:'2026-11-04T17:00:00Z',slotIndices:[1,0,1]};
+const payload={protocol:FAMILY_PROTOCOL,campaignId:c.entityId,slotSignature:slotSignature(c.slots),requests:[row]};
+test('Familles : export sans identité ni dossier',()=>{const result=campaignExport(c,'5e B');eq(JSON.stringify(result).includes('PRIVATE'),false);eq(result.slots[1].index,1);});
+test('Familles : campagne archivée publiée comme fermée sans modifier ses créneaux',()=>{const result=campaignExport({...c,status:'archived'},'5e B');eq(result.status,'closed');eq(result.slotSignature,slotSignature(c.slots));});
+test('Familles : créneaux dédupliqués sans association élève',()=>{const result=familyRequests(payload,c)[0];eq(result.slotIndices,[0,1]);eq(result.studentId,undefined);});
+test('Familles : autre campagne ou autre période refusée',()=>{bad(()=>familyRequests({...payload,campaignId:'other'},c));bad(()=>familyRequests({...payload,slotSignature:'changed'},c));});
+test('Familles : indices, dates et contenus invalides refusés en bloc',()=>{for(const patch of [{id:'short'},{slotIndices:[]},{slotIndices:[-1]},{slotIndices:[2]},{slotIndices:['0']},{receivedAt:'invalid'},{pupilName:''},{note:'x'.repeat(1001)}])bad(()=>familyRequests({...payload,requests:[row,{...row,id:'other-request',...patch}]},c));});
+test('Familles : identifiants dupliqués refusés',()=>bad(()=>familyRequests({...payload,requests:[row,row]},c)));
+test('Familles : texte potentiellement HTML reste un texte',()=>eq(familyRequests({...payload,requests:[{...row,note:'<script>test</script>'}]},c)[0].note,'<script>test</script>'));
+test('Familles : seul un endpoint de déploiement Google est accepté',()=>{eq(serviceURL('https://script.google.com/macros/s/DEMO_TEST/exec'),'https://script.google.com/macros/s/DEMO_TEST/exec');for(const url of ['https://example.org/exec','http://script.google.com/macros/s/test/exec','https://script.google.com/macros/s/test/dev','https://script.google.com/macros/s/test/exec?key=private'])bad(()=>serviceURL(url));});

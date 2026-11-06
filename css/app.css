@@ -1063,3 +1063,9 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .lb-eleve { display: flex; flex-direction: column; gap: 4px; }
 .lb-a-choisir { color: #8a5a00; font-weight: 700; }
 .lb-probleme { background: #fff1d0; color: #4a2f00; border-radius: 8px; padding: 8px 12px; font-weight: 600; }
+
+/* Actions groupées : espacement commun, retour à la ligne et cibles tactiles. */
+.button-group {display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0;min-width:0;}
+.button-group>.btn {flex:0 1 auto;min-width:0;max-width:100%;height:auto;min-height:48px;padding-top:10px;padding-bottom:10px;white-space:normal;text-align:center;}
+.button-group>.btn svg {flex-shrink:0;}
+.stack>.button-group {margin:0;}

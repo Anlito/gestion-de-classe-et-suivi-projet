@@ -1,0 +1,14 @@
+import {sameIds,reviewPlan,scopeStamp} from '../js/pp-council-review-rules.js';
+export const tests=[];const test=(name,fn)=>tests.push({name,fn});const eq=(a,b)=>{if(a!==b)throw Error(`${a} ≠ ${b}`);};const bad=fn=>{let rejected=false;try{fn();}catch{rejected=true;}eq(rejected,true);};
+const a={id:'a',entityId:'avis'},b={id:'b',entityId:'avis'},s={id:'s',entityId:'synth'};
+const scope={classId:'c',year:'2026–2027',trimester:1,studentId:'p'};
+const data={scope,heads:[a,b,s],groups:[{entityId:'avis',rows:[a,b]}],syntheses:[s]};
+const input={expectedScope:scopeStamp(scope),expectedIds:['a','b','s'],reviewed:true,status:'validated',text:'Texte relu.',choices:{avis:'b'},synthesisId:'s'};
+test('Relecture : choix explicite de la branche et de la synthèse',()=>{const p=reviewPlan(data,input);eq(p.advice[0].row.id,'b');eq(p.advice[0].parents.length,2);eq(p.advice[0].merge,true);eq(p.synthesis.id,'s');});
+test('Relecture : sources changées ou ajoutées bloquent la sauvegarde',()=>{bad(()=>reviewPlan(data,{...input,expectedIds:['a','s']}));bad(()=>reviewPlan(data,{...input,expectedIds:['a','b','s','new']}));});
+test('Relecture : doublons d’identifiants refusés, ordre indifférent',()=>{eq(sameIds(['s','a','b'],['a','b','s']),true);eq(sameIds(['a','a'],['a','b']),false);eq(sameIds(null,[]),false);});
+test('Relecture : confirmation obligatoire et validation explicite',()=>{bad(()=>reviewPlan(data,{...input,reviewed:false}));bad(()=>reviewPlan(data,{...input,status:'done'}));eq(reviewPlan(data,{...input,status:'draft'}).status,'draft');});
+test('Relecture : choix manquant ou étranger refusé',()=>{bad(()=>reviewPlan(data,{...input,choices:{}}));bad(()=>reviewPlan(data,{...input,choices:{avis:'other'}}));bad(()=>reviewPlan(data,{...input,synthesisId:'other'}));});
+test('Relecture : texte vide ou trop long refusé',()=>{bad(()=>reviewPlan(data,{...input,text:' '}));bad(()=>reviewPlan(data,{...input,text:'x'.repeat(20001)}));});
+test('Relecture : premier texte possible sans synthèse préexistante',()=>{const p=reviewPlan({scope,heads:[],groups:[],syntheses:[]},{expectedScope:scopeStamp(scope),expectedIds:[],reviewed:true,status:'draft',text:'Premier texte.',choices:{},synthesisId:''});eq(p.synthesis,undefined);eq(p.text,'Premier texte.');});
+test('Relecture : changement de classe ou année bloqué même sans sources',()=>{bad(()=>reviewPlan({...data,scope:{...scope,year:'2027–2028'}},input));bad(()=>reviewPlan({...data,scope:{...scope,classId:'other'}},input));});

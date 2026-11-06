@@ -19,6 +19,22 @@ import imprimer from './screens/imprimer.js';
 import emploiDuTemps from './screens/emploi-du-temps.js';
 import archives from './screens/archives.js';
 import salles from './screens/salles.js';
+import suiviPP from './screens/suivi-pp.js';
+import outils from './screens/outils.js';
+import ppAlerts from './screens/pp-alerts.js';
+import ppMeetings from './screens/pp-meetings.js';
+import ppFamilies from './screens/pp-families.js';
+import ppAudio from './screens/pp-audio.js';
+import ppProcedures from './screens/pp-procedures.js';
+import ppDataQuality from './screens/pp-data-quality.js';
+import ppCSV from './screens/pp-csv.js';
+import ppPreparation from './screens/pp-meeting-preparation.js';
+import ppTranscription from './screens/pp-transcription.js';
+import ppWriting from './screens/pp-writing.js';
+import ppCouncilProgress from './screens/pp-council-progress.js';
+import ppCouncilReview from './screens/pp-council-review.js';
+import ppCouncilExport from './screens/pp-council-export.js';
+import importsPP from './screens/imports-pp.js';
 import { initLock } from './lock.js';
 import { initAlertes, render as renderAlertes } from './alertes.js';
 import { lierAppels } from './planning.js';
@@ -30,6 +46,34 @@ import { initUpdates } from './update.js';
 
 // Adresse (après #) → écran. Les parties entre parenthèses deviennent des paramètres.
 const ROUTES = [
+  [/^#\/pp\/imports\/([^/]+)\/csv$/, ppCSV, ['classId']],
+  [/^#\/pp\/classe\/([^/]+)\/qualite$/, ppDataQuality, ['classId']],
+  [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv\/evenement\/([^/]+)$/, ppPreparation, ['studentId','eventId']],
+  [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv\/note\/([^/]+)$/, ppPreparation, ['studentId','preparationId']],
+  [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv$/, ppPreparation, ['studentId']],
+  [/^#\/pp\/eleve\/([^/]+)\/demarches\/([^/]+)$/, ppProcedures, ['studentId','procedureId']],
+  [/^#\/pp\/eleve\/([^/]+)\/demarches$/, ppProcedures, ['studentId']],
+  [/^#\/pp\/eleve\/([^/]+)\/(actions|documents|vie|journal)$/, suiviPP, ['studentId','section']],
+  [/^#\/pp\/classe\/([^/]+)\/dossier\/([123])$/, ppCouncilExport, ['classId','trimester']],
+  [/^#\/pp\/classe\/([^/]+)\/relecture\/([123])$/, ppCouncilReview, ['classId','trimester']],
+  [/^#\/pp\/eleve\/([^/]+)\/relecture\/([123])$/, ppCouncilReview, ['studentId','trimester']],
+  [/^#\/pp\/classe\/([^/]+)\/avancement\/([123])$/, ppCouncilProgress, ['classId','trimester']],
+  [/^#\/pp\/classe\/([^/]+)\/(conseils)\/([123])$/, suiviPP, ['classId','section','trimester']],
+  [/^#\/pp\/eleve\/([^/]+)\/(conseils)\/([123])$/, suiviPP, ['studentId','section','trimester']],
+  [/^#\/pp\/eleve\/([^/]+)\/appreciation\/([123])$/, ppWriting, ['studentId','trimester']],
+  [/^#\/pp\/classe\/([^/]+)\/appreciation\/([123])$/, ppWriting, ['classId','trimester']],
+  [/^#\/pp\/eleve\/([^/]+)\/audio\/([^/]+)\/transcription$/, ppTranscription, ['studentId','audioId']],
+  [/^#\/pp\/eleve\/([^/]+)\/audio$/, ppAudio, ['studentId']],
+  [/^#\/pp\/rencontres\/familles\/([^/]+)$/, ppFamilies, ['campaignId']],
+  [/^#\/pp\/rencontres$/, ppMeetings, []],
+  [/^#\/pp\/alertes$/, ppAlerts, []],
+  [/^#\/pp\/imports$/, importsPP, []],
+  [/^#\/pp\/imports\/([^/]+)$/, importsPP, ['classId']],
+  [/^#\/pp$/, suiviPP, []],
+  [/^#\/pp\/classe\/([^/]+)$/, suiviPP, ['classId']],
+  [/^#\/pp\/classe\/([^/]+)\/(conseils)$/, suiviPP, ['classId', 'section']],
+  [/^#\/pp\/eleve\/([^/]+)$/, suiviPP, ['studentId']],
+  [/^#\/admin\/outils$/, outils, []],
   [/^#?\/?$/, semaine, []],
   [/^#\/classes$/, accueil, []],
   [/^#\/classe\/([^/]+)\/trombi$/, trombi, ['classId']],
@@ -120,7 +164,7 @@ async function boot() {
   // Appels faits avant l'emploi du temps (ou hors planning) : rattachés au cours correspondant s'il existe.
   try { lierAppels(); } catch (e) { console.error(e); }
   setRenderer(render);
-  ['click', 'input', 'change'].forEach(delegate);
+  ['click', 'input', 'change', 'submit'].forEach(delegate);
   addEventListener('hashchange', render);
   render();
   initAlertes();

@@ -12,13 +12,14 @@
 //   chiffré déposé sur Google Drive.
 
 const DB_NAME = 'carnet-de-classe';
-const DB_VERSION = 9; // 2 : absences · 3 : appels · 4 : retards · 5 : emploi du temps · 6 : effacements (synchronisation) · 7 : événements · 8 : archives · 9 : salles
-export const SNAPSHOT_FORMAT = 1;
+const DB_VERSION = 10; // 10 : suivi PP ; binaires partagés avec photos, identifiants pp-file-…
+export const SNAPSHOT_FORMAT = 2;
 // Réglages propres à cet appareil, jamais synchronisés (voir sync.js).
 export const LOCAL_META = new Set(['lastBackupAt', 'lastModified', 'sync']);
 export const TOMBS = 'effacements';
 
 export const STORES = [
+  'ppRecords',     // suivi PP, textes versionnés et métadonnées des pièces jointes
   'meta',          // réglages : année scolaire, trimestre en cours, dernière sauvegarde…
   'classes',       // { name, level, segpa, year }
   'students',      // { classId, nom, prenom, photoId, besoins:['PAP'…], amenagements }
@@ -168,20 +169,32 @@ function dropPhotoURL(id) {
 
 function write(ops) {
   pending = pending.then(() => new Promise(resolve => {
-    const stores = [...new Set(ops.map(o => o.store))];
-    const tx = idb.transaction(stores, 'readwrite');
-    for (const op of ops) {
-      const os = tx.objectStore(op.store);
-      if (op.after) os.put(op.after); else os.delete(op.id);
-    }
-    tx.oncomplete = () => resolve();
-    tx.onerror = tx.onabort = () => { emitError(tx.error); resolve(); };
+    let tx;
+    try{
+      const stores = [...new Set(ops.map(o => o.store))];
+      tx = idb.transaction(stores, 'readwrite');
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => { emitError(tx.error); resolve(); };
+      for (const op of ops) {
+        const os = tx.objectStore(op.store);
+        if (op.after) os.put(op.after); else os.delete(op.id);
+      }
+    }catch(e){try{tx?.abort();}catch{}emitError(e);resolve();}
   }));
   return pending;
 }
 
 // Attendre que toutes les écritures soient faites (avant un export, par exemple).
 export const flush = () => pending;
+
+// Contrôle après écriture pour les nouveaux contenus PP : ne pas annoncer une
+// pièce sauvegardée si IndexedDB a refusé la transaction (quota, par exemple).
+export async function verifyStored(store, id, updatedAt) {
+  await flush();
+  const saved = await req(idb.transaction([store], 'readonly').objectStore(store).get(id));
+  if (!saved || (updatedAt != null && saved.updatedAt !== updatedAt)) throw new Error('Enregistrement local non confirmé. Vérifiez l’espace disponible et réessayez avant de fermer l’application.');
+  return saved;
+}
 
 // ---------- Abonnements ----------
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }

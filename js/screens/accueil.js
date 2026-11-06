@@ -3,7 +3,7 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import { html, toast } from '../ui.js';
-import { icon, saveStatus, backLink } from '../components.js';
+import { icon, saveStatus, backLink, ppLink } from '../components.js';
 import { refresh } from '../nav.js';
 import { loadDemo } from '../demo.js';
 
@@ -49,6 +49,7 @@ export default {
           <span class="sub">${model.schoolYear()} · Trimestre ${model.trimester()}</span></div>
         <div class="spacer"></div>
         ${saveStatus()}
+        ${ppLink()}
         <a class="btn accent" href="#/admin">${icon.sliders}<span class="hide-narrow">Administration</span></a>
       </header>
       <main class="content home-main" data-scroll="home">

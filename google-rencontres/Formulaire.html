@@ -1,0 +1,45 @@
+<!doctype html><html lang="fr"><head><base target="_top"><meta charset="utf-8"><style>
+body{font:17px/1.5 system-ui,sans-serif;color:#253047;background:#faf7f2;margin:0}main{max-width:640px;margin:24px auto;padding:24px;background:white;border-radius:20px}label{display:block;margin:16px 0}input[type=text],textarea,button{font:inherit;box-sizing:border-box;width:100%;padding:14px;border:1px solid #d9d4e2;border-radius:12px}button{background:#cec3fa;font-weight:bold;cursor:pointer;min-height:48px}fieldset{border:1px solid #ddd;border-radius:12px}.slot{background:#faf7f2;padding:12px;border-radius:10px}.slot input{width:22px;height:22px;vertical-align:middle;margin-right:12px}#message{white-space:pre-wrap}button:disabled{opacity:.6}
+</style></head><body><main><h1 id="title">Rencontre avec le professeur principal</h1><p id="context">Chargement…</p><p id="instructions">Indiquez vos disponibilités. Le professeur vous confirmera ensuite l’heure du rendez-vous. Pour modifier votre réponse, contactez-le directement.</p>
+<form id="form" hidden><label>Prénom et nom de l’élève<input type="text" name="pupilName" maxlength="120" required autocomplete="off"></label><fieldset><legend>Vos disponibilités · plusieurs choix possibles</legend><div id="slots"></div></fieldset><label>Précisions (facultatif)<textarea name="note" maxlength="1000" rows="3"></textarea></label><button id="send" type="submit">Envoyer mes disponibilités</button></form><p id="message" role="status"></p></main>
+<div id="campaign-token" data-token="<?= token ?>" hidden></div><script>
+const token=document.getElementById('campaign-token').dataset.token;
+const form=document.getElementById('form'),message=document.getElementById('message'),send=document.getElementById('send');let campaign=null,requestId=null,submitted=false;
+google.script.run.withSuccessHandler(c=>{campaign=c;document.getElementById('title').textContent=c.title;document.getElementById('context').textContent=c.className+' · '+c.date+' · '+c.location;if(!c.open){message.textContent='Cette campagne ne reçoit plus de réponses. Contactez le professeur.';return;}for(const s of c.slots){const label=document.createElement('label');label.className='slot';const check=document.createElement('input');check.type='checkbox';check.value=s.index;check.name='slot';label.append(check,document.createTextNode(s.debut+'–'+s.fin));document.getElementById('slots').append(label);}form.hidden=false;}).withFailureHandler(err=>{message.textContent=err.message||'Impossible de charger cette rencontre.';}).getPublicCampaign(token);
+function showReceipt(data){
+  document.getElementById('context').hidden=true;
+  document.getElementById('instructions').hidden=true;
+  const slots=data.slotIndices.map(i=>campaign.slots.find(s=>s.index===i)).filter(Boolean);
+  const date=new Date(campaign.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  message.textContent=[
+    'Merci, vos disponibilités sont enregistrées.',
+    '',
+    'Récapitulatif de votre réponse',
+    'Élève : '+data.pupilName,
+    'Date de la rencontre : '+date,
+    'Disponibilités indiquées :',
+    ...slots.map(s=>'• '+s.debut+'–'+s.fin),
+    'Précisions : '+(data.note||'Aucune précision'),
+    '',
+    'Le professeur vous confirmera l’heure précise du rendez-vous.',
+    'Pour modifier vos disponibilités ou la plage horaire souhaitée, contactez directement le professeur principal.'
+  ].join('\n');
+}
+form.addEventListener('submit',e=>{
+  e.preventDefault();if(submitted)return;
+  const indices=[...form.querySelectorAll('[name=slot]:checked')].map(el=>Number(el.value));
+  if(!indices.length){message.textContent='Choisissez au moins une disponibilité.';return;}
+  const pupilName=form.elements.pupilName.value.trim();
+  if(!pupilName){message.textContent='Indiquez le nom de l’élève.';return;}
+  requestId=requestId||crypto.randomUUID();
+  // Le récap reprend exactement les données envoyées, même si un champ change pendant l’envoi.
+  const data={id:requestId,pupilName,note:form.elements.note.value.trim(),slotIndices:indices,slotSignature:campaign.slotSignature};
+  send.disabled=true;message.textContent='Envoi en cours…';
+  google.script.run.withSuccessHandler(result=>{
+    if(!result?.ok){send.disabled=false;message.textContent='Réponse non confirmée. Réessayez.';return;}
+    submitted=true;form.hidden=true;showReceipt(data);
+  }).withFailureHandler(err=>{
+    send.disabled=false;message.textContent=(err.message||'Envoi non confirmé.')+' Vous pouvez réessayer sans créer de doublon.';
+  }).submitRequest(token,data);
+});
+</script></body></html>

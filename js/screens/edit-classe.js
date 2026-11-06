@@ -12,11 +12,11 @@ const ORDER = ['cours', 'avenir', 'fini'];
 const blobURLs = new WeakMap();
 
 function load(id) {
-  if (id === 'new') return { id: null, name: '', level: '4e', segpa: false, year: model.schoolYear(), assigned: [], students: [] };
+  if (id === 'new') return { id: null, name: '', level: '4e', segpa: false, year: model.schoolYear(), ppYear: null, assigned: [], students: [] };
   const c = db.get('classes', id);
   if (!c) return null;
   return {
-    id: c.id, name: c.name, level: c.level, segpa: !!c.segpa, year: c.year || model.schoolYear(),
+    id: c.id, name: c.name, level: c.level, segpa: !!c.segpa, year: c.year || model.schoolYear(), ppYear: c.ppYear || null,
     assigned: model.assignmentsOf(c.id)
       .sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status) || (b.endedAt || '').localeCompare(a.endedAt || ''))
       .map(a => ({ id: a.id, projectId: a.projectId, status: a.status, endedAt: a.endedAt, isNew: false })),
@@ -131,6 +131,8 @@ export default {
             </div>
           </div>
           <div class="set-row"><strong class="grow">Année scolaire</strong><span class="muted">${draft.year}</span></div>
+          <label class="check-row"><input type="checkbox" data-change="ppRole" ${draft.ppYear === draft.year ? 'checked' : ''}> Je suis professeur principal de cette classe</label>
+          <div class="muted small">Active le Suivi PP pour cette année. Décocher conserve le suivi déjà enregistré.</div>
 
           <div class="stack">
             <div class="row-center"><span class="section-title grow">Projets associés</span>
@@ -182,6 +184,7 @@ export default {
     name(el) { draft.name = el.value; },
     level(el) { draft.level = el.dataset.k; refresh(); },
     segpa() { draft.segpa = !draft.segpa; refresh(); },
+    ppRole(el) { draft.ppYear = el.checked ? draft.year : null; },
     nom(el) { upper(el); stu(el.dataset.id).nom = el.value; },
     prenom(el) { stu(el.dataset.id).prenom = el.value; },
 
@@ -327,7 +330,7 @@ export default {
       }))) return;
       const d = draft;
       const undo = db.commit(w => {
-        const cls = w.put('classes', { ...(d.id ? db.get('classes', d.id) : {}), id: d.id || undefined, name, level: d.level, segpa: d.segpa, year: d.year });
+        const cls = w.put('classes', { ...(d.id ? db.get('classes', d.id) : {}), id: d.id || undefined, name, level: d.level, segpa: d.segpa, year: d.year, ppYear: d.ppYear });
         const classId = cls.id;
         for (const s of keep) {
           const cur = db.get('students', s.id);
