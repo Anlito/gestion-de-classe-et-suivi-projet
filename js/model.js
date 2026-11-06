@@ -313,8 +313,8 @@ export const absencesInAssignment = (aid, sid) =>
   db.where('absences', a => a.assignmentId === aid && a.studentId === sid).sort((a, b) => a.date.localeCompare(b.date));
 
 // ---------- Notes libres ----------
-export const notesOf = studentId =>
-  db.where('notes', n => n.studentId === studentId).sort((a, b) => b.at.localeCompare(a.at));
+export const notesOf = (studentId,{archived=false}={}) =>
+  db.where('notes', n => n.studentId === studentId && !!n.archivedAt===archived).sort((a, b) => b.at.localeCompare(a.at));
 export const addNote = (studentId, text) => db.commit(w => w.put('notes', { studentId, text, at: new Date().toISOString() }));
 export const updateNote = (id, text) => db.commit(w => w.update('notes', id, { text }));
 export const deleteNote = id => db.commit(w => w.del('notes', id));

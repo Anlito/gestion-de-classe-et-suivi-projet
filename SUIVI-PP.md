@@ -1,4 +1,4 @@
-# Suivi PP — Version 1.23.0
+# Suivi PP — Version 1.23.1
 
 Cette version est intégrée au Carnet à son adresse habituelle : https://anlito.github.io/gestion-de-classe-et-suivi-projet/. Les données actuelles restent conservées. Le jeu fictif de recette reste dans sa copie séparée. Les parcours locaux ci-dessous peuvent également être utilisés depuis une archive de l’application.
 
@@ -157,3 +157,10 @@ Enregistrer et synchroniser avant de changer d’appareil. L’essai d’éditio
 Google Agenda se trouve dans **Administration → Emploi du temps**. Les rappels veille à 16 h et H−1, y compris après changement d’heure, ont été vérifiés dans le calendrier de recette. Le Carnet principal conserve son agenda habituel. Le service familles Google déjà installé reste le même : saisir si nécessaire son URL et sa clé existantes dans Rencontres. La classe, les fichiers et les réglages de recette ne sont pas copiés automatiquement vers le Carnet principal.
 
 La sauvegarde réelle du 5 novembre est conservée séparément en privé. Un paquet de repli compatible conserve les données PP et leur format tout en masquant cet espace. Ne pas écraser les données ni utiliser directement l’ancien programme 1.22.1 comme retour arrière.
+
+
+## Fiche et notes · version 1.23.1
+
+Les boutons de la fiche sont regroupés : Préparer une rencontre, Créer RDV, Notes audio, Démarches et Fiche Carnet. L’identité et les dispositifs précèdent la recherche ; la liste des élèves conserve son propre défilement.
+
+Dans Notes, utiliser **Archiver** pour retirer une note devenue peu utile du suivi actif tout en la gardant. **Archives** affiche les notes conservées ; **Restaurer** les remet dans le suivi actif. Les notes marquées Carnet · note libre viennent de la fiche du Carnet : ce sont les mêmes notes dans les deux espaces. Archiver les masque aussi dans cette fiche, sans les effacer. Pour les retirer réellement, **Supprimer** demande confirmation ; cette action s’applique aussi à la fiche d’origine et aux autres appareils après synchronisation. Pour une note PP, elle retire toutes les versions de cette note. Le message propose Annuler. Les copies déjà faites dans un compte rendu ou une ancienne sauvegarde ne sont pas effacées.

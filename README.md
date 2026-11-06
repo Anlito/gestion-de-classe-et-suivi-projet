@@ -1,5 +1,17 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.23.1 · Fiche élève et gestion des notes · 6 novembre 2026
+
+La colonne d’un élève PP regroupe ses actions en une grille : Préparer une rencontre en premier, puis Créer RDV, Notes audio, Démarches et Fiche Carnet. Boutons tactiles d’au moins 48 px, icônes et libellés courts, retours à la ligne contrôlés, identité et dispositifs séparés de la recherche et de la liste. Seule la liste d’élèves défile dans cette colonne. La grille centrale est ajustée à 1024 px pour garder les noms et les boutons lisibles. Les outils masqués restent absents.
+
+Dans Notes, **Suivi actif / Archives** permet d’archiver et restaurer les notes PP, les progrès et les notes libres du Carnet. Ces dernières existaient déjà dans le stockage partagé : elles ne sont pas créées par la mise à jour. Le texte d’origine le précise. L’archivage d’une note du Carnet la masque aussi de sa fiche d’origine, sans l’effacer ; restauration depuis Archives. Supprimer demande confirmation et supprime aussi la note d’origine, puis les copies lors de la synchronisation. Pour une note PP, toutes ses versions sont retirées ensemble ; les autres éléments de suivi ne sont pas supprimés. Annuler est proposé dans le message de résultat. Les sauvegardes et copies de texte faites ailleurs ne sont pas réécrites.
+
+L’archivage PP crée une version conservant l’ancienne ; les notes libres conservent leur identifiant et reçoivent une date d’archivage. Sauvegarde et Drive transportent ces champs sans migration. Les notes archivées ne sont plus proposées comme nouveaux faits de préparation ni comme nouvelles cibles d’action ; les références déjà enregistrées sont conservées. Suppressions transmises avec les traces du stockage existant. Origine, élève, classe, année et type contrôlés avant écriture ; lecture seule des archives annuelles respectée. Contrôle du stockage et retour à l’état initial en cas d’échec. Aucune note existante n’est archivée ou supprimée automatiquement.
+
+Fichiers : suivi-pp.js, pp.css, pp-note-lifecycle.js, model.notesOf, contrôles de stockage db.js, filtrage des sources de préparation/actions, cache et version. Parcours navigateur dédié : notes du Carnet actives/archivées/restaurées, annulation du dialogue de suppression, suppression confirmée, notes PP versionnées et suppression de toutes leurs versions, sauvegarde/restauration, refus d’un autre élève/type, transactions d’archivage et suppression interrompues sans perte ; liens de profil et géométrie 1280 × 752 / 1024 × 640 vérifiés, cibles ≥48 px sans chevauchement et liste d’élèves visible. 208 tests de règles et 52 contrôles habituels relancés et réussis. Données fictives uniquement.
+
+Le défaut d’éditions simultanées reporté dans 1.23.0 reste inchangé ; utiliser les appareils en alternance avec synchronisation.
+
 ## Version 1.23.0 · Suivi PP · 6 novembre 2026
 
 Application principale : https://anlito.github.io/gestion-de-classe-et-suivi-projet/

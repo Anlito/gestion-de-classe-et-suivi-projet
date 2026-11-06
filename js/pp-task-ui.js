@@ -4,7 +4,7 @@ import {TASK_STATES} from './pp-task-rules.js';
 export function taskLinkOptions(studentId,entityId){
   const student=pp.requireStudent(studentId);
   const events=pp.meetingsOf(studentId).filter(e=>!e.cancelled&&(!e.classId||e.classId===student.classId)).map(e=>({value:'event:'+e.id,label:(e.titre||'Réunion')+' · '+e.date}));
-  const records=pp.latest({studentId}).filter(r=>r.classId===student.classId&&r.entityId!==entityId&&['council','document','note','progress','measure','procedure','meetingPreparation','alertState'].includes(r.kind)).map(r=>({value:'record:'+r.entityId,label:(r.title||r.subject||r.category||'Suivi')+' · '+(r.date||String(r.at||'').slice(0,10))}));
+  const records=pp.latest({studentId}).filter(r=>r.classId===student.classId&&!r.archivedAt&&r.entityId!==entityId&&['council','document','note','progress','measure','procedure','meetingPreparation','alertState'].includes(r.kind)).map(r=>({value:'record:'+r.entityId,label:(r.title||r.subject||r.category||'Suivi')+' · '+(r.date||String(r.at||'').slice(0,10))}));
   return [...events,...records];
 }
 export function taskExtraFields(form,studentId){

@@ -20,12 +20,10 @@
 .pp-recap-metrics strong { font-size:28px; }
 .pp-recap-metrics span { font-size:13px;color:var(--ink2); }
 .pp-profile { padding:16px 14px 8px;display:flex;gap:12px;align-items:center; }
-.pp-profile>div { display:flex;gap:4px;flex-direction:column;min-width:0;overflow-wrap:anywhere; }
+.pp-profile-identity { display:flex;gap:4px;flex-direction:column;min-width:0;overflow-wrap:anywhere; }
 .pp-profile strong { font-size:20px; }
 .pp-profile .photo.big { width:64px;height:96px; }
 .pp-profile .upper { font-size:12px;color:var(--ink2); }
-.pp-profile-links { padding:4px 14px;display:flex;flex-wrap:wrap;gap:8px; }
-.pp-profile-links .link-btn { min-height:40px; }
 .pp-search { padding:10px; }
 .pp-sidebar .panel-scroll { padding:4px 10px 12px; }
 .pp-pupil { display:block;padding:12px 10px;border-radius:10px;min-height:46px;overflow-wrap:anywhere; }
@@ -110,8 +108,6 @@
 
 /* Conserver de l’air entre les actions, y compris en bas et dans les aperçus. */
 .pp-panel-foot {flex-wrap:wrap;gap:12px;}
-.pp-profile-links {gap:12px;}
-.pp-profile-links .link-btn {min-height:48px;}
 .pp-import-submit {flex-wrap:wrap;gap:12px;}
 .pp-preview .drawer-head {height:auto;min-height:64px;flex-wrap:wrap;gap:12px;padding:8px 12px;}
 .pp-preview .drawer-title {min-width:0;overflow-wrap:anywhere;}
@@ -147,3 +143,33 @@
 .pp-export-preview{background:white;color:#202434;padding:24px;}
 .pp-council-export .pp-export-pupil[hidden]{display:none!important;}
 @media(max-width:780px){.pp-council-export{display:flex;flex-direction:column;overflow:auto}.pp-council-export>.panel{flex:none;min-height:300px}.pp-council-export .panel-scroll{max-height:500px}}
+
+.pp-notes-toolbar {display:flex;flex-wrap:wrap;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:12px;}
+.pp-note-actions {flex-wrap:wrap;gap:8px;}
+/* Fiche élève : identité et actions fixes, seule la liste des élèves défile. */
+.pp-student-sidebar .pp-profile { flex:none;padding:12px 12px 10px;gap:10px;align-items:flex-start; }
+.pp-student-sidebar .pp-profile .photo.big { width:48px;height:72px;border-radius:10px; }
+.pp-student-sidebar .pp-profile strong { font-size:18px;line-height:1.2; }
+.pp-student-sidebar .pp-profile-identity { gap:3px;flex:1; }
+.pp-student-sidebar .pp-profile .upper { font-size:11px;line-height:1.25; }
+.pp-student-sidebar .pp-profile .chip { align-self:flex-start;font-size:11px;padding:2px 6px;line-height:1.2; }
+.pp-profile-actions { flex:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 12px 12px; }
+.pp-profile-action { min-width:0;min-height:48px;display:flex;align-items:center;gap:7px;padding:9px 8px;background:var(--bg);border:1px solid var(--line);border-radius:11px;color:var(--ink);font-size:13px;line-height:1.25;font-weight:700;text-align:left;white-space:normal;text-decoration:none; }
+.pp-profile-action svg { width:18px;height:18px;flex:none; }
+.pp-profile-action span { min-width:0;overflow-wrap:normal; }
+.pp-profile-action:not(.primary) { flex-direction:column;justify-content:center;gap:3px;padding:6px 4px;text-align:center; }
+.pp-profile-action.primary,.pp-profile-action.wide { grid-column:1 / -1; }
+.pp-profile-action.primary { background:var(--accentTint);border-color:var(--accentTint);font-size:14px;padding-inline:10px; }
+.pp-profile-action.primary span { flex:1; }
+.pp-profile-action:focus-visible { outline:2px solid var(--ink);outline-offset:2px; }
+.pp-profile-action:active { background:var(--accentTint); }
+@media(hover:hover){.pp-profile-action:hover{border-color:var(--accent);background:var(--accentTint);}}
+.pp-profile-support { flex:none;display:flex;flex-wrap:wrap;gap:4px 8px;padding:8px 12px;border-block:1px solid var(--line);font-size:12px;line-height:1.35; }
+.pp-profile-support>span { color:var(--ink2); }
+.pp-profile-support strong { font-weight:600;overflow-wrap:anywhere; }
+.pp-student-sidebar .pp-search { flex:none;padding:10px 12px 8px; }
+.pp-profile-search { display:flex;flex-direction:column;gap:6px;min-width:0;font-size:12px;font-weight:700; }
+.pp-profile-search>span { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap; }
+.pp-profile-search .input { width:100%;min-width:0;font-size:14px; }
+.pp-student-sidebar .panel-scroll { flex:1;min-height:0;padding:0 8px 8px; }
+@media(max-width:1100px) and (min-width:781px){.pp-detail{grid-template-columns:216px minmax(230px,1fr) minmax(270px,1.1fr);}}

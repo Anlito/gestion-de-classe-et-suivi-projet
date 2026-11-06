@@ -195,6 +195,10 @@ export async function verifyStored(store, id, updatedAt) {
   if (!saved || (updatedAt != null && saved.updatedAt !== updatedAt)) throw new Error('Enregistrement local non confirmé. Vérifiez l’espace disponible et réessayez avant de fermer l’application.');
   return saved;
 }
+export async function verifyAbsent(store,id){
+  await flush();const saved=await req(idb.transaction([store],'readonly').objectStore(store).get(id));
+  if(saved)throw Error('Suppression locale non confirmée. Réessayez avant de fermer l’application.');
+}
 
 // ---------- Abonnements ----------
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }

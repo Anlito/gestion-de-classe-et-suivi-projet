@@ -5,7 +5,7 @@ export function preparations(studentId){const scope=followupScope(studentId,'pre
 export function preparationSources(studentId,from='',to=''){
   const scope=followupScope(studentId,'preparation');checkedDate(from,'le début de période');checkedDate(to,'la fin de période');if(from&&to&&from>to)throw Error('La fin de période précède le début.');
   const tools={note:'notes',progress:'notes',carnet:'carnet',measure:'vieScolaire',task:'actions',council:'conseils',periodReport:'vieScolaire',meetingPreparation:'preparation'};
-  return pp.latest({studentId}).filter(r=>r.classId===scope.classId&&!r.testMode&&pp.enabled(tools[r.kind])).filter(r=>{if(r.kind==='periodReport'&&Array.isArray(r.period))return (!from||r.period[1]>=from)&&(!to||r.period[0]<=to);const date=r.date||'';return !date||(!from||date>=from)&&(!to||date<=to);});
+  return pp.latest({studentId}).filter(r=>r.classId===scope.classId&&!r.testMode&&!r.archivedAt&&pp.enabled(tools[r.kind])).filter(r=>{if(r.kind==='periodReport'&&Array.isArray(r.period))return (!from||r.period[1]>=from)&&(!to||r.period[0]<=to);const date=r.date||'';return !date||(!from||date>=from)&&(!to||date<=to);});
 }
 export function preparationEvents(studentId){const s=pp.requireStudent(studentId);return pp.meetingsOf(studentId).filter(e=>!e.cancelled&&(!e.classId||e.classId===s.classId));}
 export async function savePreparation(studentId,data,previousId=null){
