@@ -5,18 +5,18 @@ import {archiveNote,deleteNote} from '../pp-note-lifecycle.js';
 import {taskExtraFields,taskExtraView} from '../pp-task-ui.js';
 import { isOverdue } from '../pp-rules.js';
 import { isMasteryLayout, previousResultText, annualBulletinRows } from '../pronote-import.js';
-import { schoolHistory, measureEditor, measureExtras, classReportSummary } from '../school-life.js';
+import { schoolHistory, measureEditor, measureExtras, classReportSummary, disciplineColumnInfo } from '../school-life.js';
 import { html, raw, toast, todayISO, fmtDate, confirmDialog } from '../ui.js';
 import { icon, photo, backLink, saveStatus } from '../components.js';
 import { go, refresh } from '../nav.js';
 
-let st = { classId: '', studentId: '', tab: 'journal', filter: '', trimester: 1, collective: false, notesView:'active', editId: null, form: {}, file: null, busy: false };
+let st = { classId: '', studentId: '', tab: 'journal', filter: '', trimester: 1, collective: false, notesView:'active', editId: null, form: {}, file: null, busy: false, editorOpen:false };
 const drafts = new Map();
 let recapPeriod = 1;
 let previewUrl = null;
 const draftKey = () => [st.studentId, st.classId, st.tab, st.trimester, st.collective].join('|');
-const keepDraft = () => drafts.set(draftKey(), { form: { ...st.form }, editId: st.editId, file: st.file });
-function restoreDraft() { const d = drafts.get(draftKey()); st.form = { ...(d?.form || {}) }; st.editId = d?.editId || null; st.file = d?.file || null; }
+const keepDraft = () => drafts.set(draftKey(), { form: { ...st.form }, editId: st.editId, file: st.file, editorOpen:st.editorOpen });
+function restoreDraft() { const d = drafts.get(draftKey()); st.form = { ...(d?.form || {}) }; st.editId = d?.editId || null; st.file = d?.file || null; st.editorOpen=d?.editorOpen===true; }
 const panel = (title, body, footer = '') => html`<section class="panel pp-panel"><div class="panel-head row"><span class="panel-title grow">${title}</span></div><div class="panel-scroll" data-scroll="${title}">${body}</div>${footer ? html`<div class="pp-panel-foot">${footer}</div>` : ''}</section>`;
 const field = (key, label, type = 'text') => html`<label class="lbl">${label}<input class="input" type="${type}" value="${st.form[key] || ''}" data-input="form" data-key="${key}" ${type === 'text' ? raw('maxlength="240"') : ''}></label>`;
 const textField = label => html`<label class="lbl pp-text-field">${label}<textarea class="field" rows="5" data-input="form" data-key="text">${st.form.text || ''}</textarea></label>`;
@@ -190,12 +190,12 @@ export default {
       <div class="spacer"></div>${saveStatus()}<a class="btn soft" href="#/admin/outils">${icon.sliders}<span class="hide-narrow">Mes outils</span></a></header>
       ${s || classCouncil ? html`<div class="pp-toolbar">${s ? html`<a class="btn accent pp-recap-access" href="#/pp/classe/${c.id}">${icon.grid}<span>Récap classe <strong>${c.name}</strong></span></a>` : html`<span class="grow muted">Avis et synthèses collectifs</span>`}${classCouncil ? '' : html`<div class="segmented">${tabs().map(([key, label]) => html`<button class="seg${st.tab === key ? ' on' : ''}" data-click="tab" data-key="${key}">${label}</button>`)}</div>`}
         ${st.tab === 'conseils' ? html`<select class="input pp-trimester" data-change="trimester" aria-label="Trimestre">${[1, 2, 3].map(t => html`<option value="${t}" ${t === st.trimester ? 'selected' : ''}>Trimestre ${t}</option>`)}</select>` : ''}</div>
-      <main class="content pp-detail">${classCouncil ? classSidebar(c, 'conseil') : profile(s, c)}
+      <main class="content pp-detail${st.editorOpen?'':' pp-editor-closed'}">${classCouncil ? classSidebar(c, 'conseil') : profile(s, c)}
       ${panel(st.collective ? `Conseil · ${c.name}` : st.tab==='vie'?'Vie scolaire':st.tab === 'documents' ? 'Documents associés' : st.tab === 'conseils' ? `Conseil · trimestre ${st.trimester}` : st.tab === 'actions' ? 'Actions de suivi' : 'Historique personnel', html`
         ${notesToolbar()}${st.tab==='conseils'?html`<div class="button-group"><a class="btn" href="#/pp/classe/${st.classId}/dossier/${st.trimester}">Dossier / PDF</a><a class="btn" href="#/pp/${st.collective?'classe/'+st.classId:'eleve/'+st.studentId}/relecture/${st.trimester}">Relire les synthèses</a><a class="btn" href="#/pp/classe/${st.classId}/avancement/${st.trimester}">Avancement du conseil</a><a class="btn accent" href="#/pp/${st.collective?'classe/'+st.classId:'eleve/'+st.studentId}/appreciation/${st.trimester}">Préparer une appréciation</a></div>`:''}${s && st.tab === 'journal' && st.notesView!=='archived' ? pp.meetingsOf(s.id).map(e => html`<article class="pp-record"><span class="chip">Réunion liée à l’agenda</span><strong>${e.titre || 'Réunion'}</strong><span class="muted small">${fmtDate(e.date)} · ${e.debut} · ${e.lieu || ''}</span><button class="btn soft small" data-click="meeting" data-id="${e.id}">Ouvrir la réunion</button></article>`) : ''}
-        ${st.tab==='vie'?schoolHistory(st.studentId):''}${bulletinEvolution()}${bulletinResults()}${list.length ? list.map(entryView) : !builtin.length?html`<p class="muted">${st.tab==='journal'&&st.notesView==='archived'?'Aucune note archivée.':'Aucun élément dans cette rubrique.'}</p>`:''}
-        ${builtin.length ? html`<h3 class="pp-source-title">Notes du Carnet${st.notesView==='archived'?' · archives':''}</h3><p class="muted small">Notes partagées avec la fiche du Carnet. Les actions s’appliquent aux deux espaces.</p>${builtin.map(legacyNoteView)}` : ''}`, html`<button class="btn soft small" data-click="newEntry">${icon.plus}Nouvel élément</button>`)}
-      ${panel(st.editId ? 'Modifier · nouvelle version' : st.tab==='vie'?'Compléter une mesure':'Ajouter au suivi', editor(), html`<span class="muted small">${st.file ? 'Fichier prêt à joindre' : 'Enregistrement local, puis Drive si activé'}</span><button class="btn accent" data-click="save" ${st.busy || st.tab === 'none' ? 'disabled' : ''}>${st.busy ? 'Enregistrement…' : 'Enregistrer'}</button>`)}
+        ${st.tab==='vie'?schoolHistory(st.studentId):''}${bulletinEvolution()}${bulletinResults()}${list.length ? list.map(entryView) : !builtin.length&&!(st.tab==='vie'&&pp.records({studentId:st.studentId,kind:'periodReport'}).length)?html`<p class="muted">${st.tab==='journal'&&st.notesView==='archived'?'Aucune note archivée.':'Aucun élément dans cette rubrique.'}</p>`:''}
+        ${builtin.length ? html`<h3 class="pp-source-title">Notes du Carnet${st.notesView==='archived'?' · archives':''}</h3><p class="muted small">Notes partagées avec la fiche du Carnet. Les actions s’appliquent aux deux espaces.</p>${builtin.map(legacyNoteView)}` : ''}`, html`<button class="btn accent small" data-click="toggleEditor" aria-expanded="${String(st.editorOpen)}" aria-controls="pp-editor">${st.editorOpen?'Masquer le formulaire':st.editId||Object.keys(st.form).length||st.file?'Reprendre le brouillon':st.tab==='vie'?'Ajouter une mesure':st.tab==='documents'?'Ajouter un document':st.tab==='actions'?'Ajouter une action':st.tab==='conseils'?'Ajouter une appréciation':'Ajouter une note'}</button>`)}
+      ${st.editorOpen?html`<section class="panel pp-panel" id="pp-editor"><div class="panel-head row"><span class="panel-title grow">${st.editId?'Modifier':st.tab==='vie'?'Compléter une mesure':'Ajouter au suivi'}</span><button class="btn soft small" data-click="toggleEditor" aria-label="Masquer le formulaire">Fermer</button></div><div class="panel-scroll" data-scroll="pp-editor">${editor()}</div><div class="pp-panel-foot"><button class="btn soft small" data-click="newEntry">Nouveau</button><button class="btn accent" data-click="save" ${st.busy || st.tab === 'none' ? 'disabled' : ''}>${st.busy ? 'Enregistrement…' : 'Enregistrer'}</button></div></section>`:''}
       </main>` : html`<main class="content pp-home">${home()}</main>`}
     </div>`;
   },
@@ -205,11 +205,20 @@ export default {
   },
   leave() { keepDraft(); if (previewUrl) URL.revokeObjectURL(previewUrl); previewUrl = null; },
   actions: {
+    toggleEditor(){if(st.busy)return;st.editorOpen=!st.editorOpen;keepDraft();refresh();document.querySelector(st.editorOpen?'#pp-editor .panel-head button':'[data-click="toggleEditor"]')?.focus({preventScroll:true});},
     notesView(el){st.notesView=el.dataset.mode;refresh();},
     async noteArchive(el){await changeNote(el);},
     async noteDelete(el){await changeNote(el,true);},
     taskResolve(el){st.form.resolveConcurrent=el.checked;keepDraft();},
     schoolReport(el) { st.form.reportEntityId=el.value;st.form.columnId='';keepDraft();refresh(); },
+    async completeReportMeasure(el) {
+      if(st.busy)return;
+      const report=pp.latest({studentId:st.studentId,kind:'periodReport'}).find(r=>r.id===el.dataset.id&&r.profile==='discipline'),column=report?.columns.find(c=>c.id===el.dataset.column),info=column&&disciplineColumnInfo(column);
+      if(!report||!info?.category||!pp.enabled('vieScolaire')||!pp.active(st.classId)||pp.latest({studentId:st.studentId,kind:'periodReport'}).filter(r=>r.entityId===report.entityId).length!==1){toast({text:'Rouvrez le relevé de cet élève avant de le compléter.'});return;}
+      if((st.editId||Object.keys(st.form).length)&&!await confirmDialog({title:'Compléter cette mesure ?',text:'Le formulaire non enregistré sera remplacé.',ok:'Compléter'}))return;
+      st.editId=null;st.editorOpen=true;st.form={kind:'measure',reportEntityId:report.entityId,columnId:column.id,category:info.category};keepDraft();refresh();
+      document.querySelector('[data-key="reason"]')?.focus({preventScroll:true});
+    },
     form(el) { st.form[el.dataset.key] = el.value; keepDraft(); },
     search(el) {
       st.filter = el.value;
@@ -225,12 +234,12 @@ export default {
     file(el) { st.file = el.files?.[0] || null; keepDraft(); const msg = document.createElement('span'); msg.className = 'muted small'; msg.textContent = st.file?.name || ''; el.parentElement.querySelector('.pp-file-picked')?.remove(); msg.classList.add('pp-file-picked'); el.parentElement.append(msg); },
     async newEntry() {
       if ((st.form.text || st.form.title || st.file) && !(await confirmDialog({ title: 'Commencer un nouvel élément ?', text: 'Le contenu non enregistré de cet éditeur sera remplacé.', ok: 'Nouvel élément' }))) return;
-      st.form = {}; st.editId = null; st.file = null; keepDraft(); refresh();
+      st.form = {}; st.editId = null; st.file = null; st.editorOpen=true; keepDraft(); refresh();
     },
     async edit(el) {
       const r = db.get('ppRecords', el.dataset.id); if (!r) return;
       if ((st.form.text || st.form.title || st.file) && !(await confirmDialog({ title: 'Ouvrir cet élément ?', text: 'Le contenu non enregistré de cet éditeur sera remplacé.', ok: 'Ouvrir' }))) return;
-      st.editId = r.id; st.form = { ...r,...(r.kind==='task'?{resolveConcurrent:false,expectedHeads:pp.latest({studentId:st.studentId,kind:'task'}).filter(other=>other.entityId===r.entityId).map(other=>other.id)}:{}) }; keepDraft(); refresh();
+      st.editorOpen=true;st.editId = r.id; st.form = { ...r,...(r.kind==='task'?{resolveConcurrent:false,expectedHeads:pp.latest({studentId:st.studentId,kind:'task'}).filter(other=>other.entityId===r.entityId).map(other=>other.id)}:{}) }; keepDraft(); refresh();
     },
     async save() {
       if (st.busy) return;
@@ -251,7 +260,7 @@ export default {
           await db.flush();
           await db.verifyStored('ppRecords', result.entry.id, result.entry.updatedAt);
         }
-        if(draftKey()===context&&JSON.stringify(st.form)===formSnapshot&&st.file===fileSnapshot&&st.editId===originalEdit){st.form = {}; st.editId = null; st.file = null; keepDraft();}else if(draftKey()!==context){const draft=drafts.get(context);if(draft&&JSON.stringify(draft.form)===formSnapshot&&draft.file===fileSnapshot&&draft.editId===originalEdit)drafts.delete(context);}
+        if(draftKey()===context&&JSON.stringify(st.form)===formSnapshot&&st.file===fileSnapshot&&st.editId===originalEdit){st.form = {}; st.editId = null; st.file = null; st.editorOpen=false; keepDraft();}else if(draftKey()!==context){const draft=drafts.get(context);if(draft&&JSON.stringify(draft.form)===formSnapshot&&draft.file===fileSnapshot&&draft.editId===originalEdit)drafts.delete(context);}
         if(draftKey()===context&&['note','progress'].includes(result.entry?.kind))st.notesView='active';
         refresh();
         toast({ text: 'Enregistré sur cet appareil. Drive prend le relais si la synchronisation est activée.', undo: async () => { await result.undo(); refresh(); }, ms: 6000 });

@@ -1,5 +1,13 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.23.4 · Lecture et saisie des fiches PP · 6 novembre 2026
+
+Les formulaires des cinq rubriques Notes, Actions, Documents, Conseils et Vie scolaire sont masqués par défaut. Ajouter ouvre la colonne, Fermer la masque et agrandit l’historique. Le brouillon et le fichier sélectionné restent en mémoire pendant cette navigation ; ils ne constituent pas une sauvegarde après fermeture de l’application. Modifier et Ajouter les détails d’une mesure ouvrent directement le formulaire ; une sauvegarde réussie le referme. Nouveau demande confirmation avant de remplacer un brouillon textuel ou une pièce.
+
+Les trois premières colonnes reconnues du relevé de punitions s’affichent comme Exclusions de cours, Retenues et Devoirs supplémentaires, y compris à zéro. Les autres colonnes gardent leurs libellés source. Le nombre de mesures importées est distinct des détails saisis et des durées renseignées manuellement. Un bouton lie directement un complément à la bonne colonne du relevé, avec vérification de l’élève et des versions concurrentes. Le faux message Aucun élément est retiré en présence d’un relevé. Les imports existants sont concernés sans réimport ni modification de leurs données, signatures de colonnes ou compteurs.
+
+Fichiers : school-life.js, screens/suivi-pp.js, pp.css, nav.js et sw.js. Vérifications : 212 tests réussis ; parcours navigateur sur un élève fictif avec une retenue, zéro exclusion et zéro devoir ; ajout d’une durée de 60 minutes sans augmenter le cumul, ouverture/fermeture et reprise de brouillon dans les cinq rubriques, géométrie 1280 × 752 et 1024 × 640 sans débordement global. Les inconnues des relevés restent à compléter ; aucune durée ou sanction abrégée non reconnue n’est déduite.
+
 ## Version 1.23.3 · Relevés Pronote en portrait · 6 novembre 2026
 
 L’importeur reconnaît aussi les relevés compacts en portrait : titres de mesures abrégés, deux derniers titres fusionnés dans le texte PDF, titres d’assiduité sur plusieurs lignes et variante sans colonnes d’internat. Les classes accolées à l’identité sont séparées. Les identités tronquées demandent une correspondance manuelle ; les taux d’absence tronqués restent absents avec avertissement. Les suffixes de minutes abrégés sont lus seulement dans la colonne de durée ; effectifs, cellules et sommes du rapport restent contrôlés avant import. Aucun compteur ne devient une durée de retenue. Les documents privés et données administratives ne sont pas ajoutés au dépôt.

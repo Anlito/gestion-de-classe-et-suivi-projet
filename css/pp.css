@@ -173,3 +173,9 @@
 .pp-profile-search .input { width:100%;min-width:0;font-size:14px; }
 .pp-student-sidebar .panel-scroll { flex:1;min-height:0;padding:0 8px 8px; }
 @media(max-width:1100px) and (min-width:781px){.pp-detail{grid-template-columns:216px minmax(230px,1fr) minmax(270px,1.1fr);}}
+.pp-detail.pp-editor-closed { grid-template-columns:240px minmax(0,1fr); }
+.pp-school-counter { padding-block:8px;border-bottom:1px solid var(--line);gap:6px; }
+.pp-school-counter .btn { align-self:flex-start; }
+#pp-editor .panel-head { flex-wrap:wrap;gap:8px; }
+@media(max-width:1100px) and (min-width:781px){.pp-detail.pp-editor-closed{grid-template-columns:216px minmax(0,1fr);}}
+@media(max-width:780px){.pp-detail.pp-editor-closed{grid-template-columns:minmax(0,1fr);}}
