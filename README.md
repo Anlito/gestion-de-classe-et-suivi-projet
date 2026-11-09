@@ -1,5 +1,11 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.23.9 · Tirage au sort d’un groupe · 9 novembre 2026
+
+Demande du professeur : en plus du tirage individuel, pouvoir tirer au sort un groupe. La fenêtre Tirage du trombinoscope propose Élève ou Groupe (choix mémorisé sur l’appareil). En mode Groupe, le tirage se fait parmi les groupes du projet en cours (celui choisi dans les onglets, sinon le plus récemment actif) qui ont au moins un élève présent ; le groupe tiré s’affiche avec les photos et prénoms de ses membres, les absents grisés. Comme pour les élèves, un groupe déjà tiré pendant ce cours n’est pas retiré avant que tous soient passés, puis un nouveau tour commence ; « Recommencer à zéro » oublie les groupes tirés. Sans projet ou sans groupes, la fenêtre renvoie vers l’onglet Groupes. Aucune donnée n’est enregistrée (mémoire des tirages sur l’appareil seulement, clé `carnet-tirage-g-`).
+
+Fichiers : screens/trombi.js, app.css, nav.js et sw.js. Vérifications : 229 tests réussis ; parcours navigateur sur la démonstration (classe à 7 groupes) : 7 groupes tirés sans répétition puis nouveau tour, membres affichés, retour au mode Élève.
+
 ## Version 1.23.8 · Regrouper les lignes d’un même élève · 6 novembre 2026
 
 Dans Imports Pronote, plusieurs lignes d’un relevé d’assiduité ou de punitions peuvent être associées au même élève, puis additionnées après confirmation explicite du groupe. L’aperçu affiche le total avant validation. Une copie identique doit être ignorée ; le regroupement est destiné aux lignes complémentaires. Les compteurs entiers sont additionnés colonne par colonne ; les taux d’absence ne sont ni additionnés ni reconstruits, et une valeur manquante reste inconnue. Les dépassements de précision numérique sont refusés.

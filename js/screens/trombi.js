@@ -112,13 +112,14 @@ function presenceView(classId) {
 // ---------- Élèves déjà interrogés pendant ce cours (mémorisés sur l'appareil) ----------
 // Remis à zéro à chaque nouvel appel (nouveau cours), ou chaque jour si aucun appel n'a été fait.
 const sessionKey = classId => { const ap = model.currentAppel(classId); return ap ? 'A:' + ap.id : 'D:' + todayISO(); };
-function drawnGet(classId) {
+// prefix : 'carnet-tirage-' (élèves) ou 'carnet-tirage-g-' (groupes, 1.23.9).
+function drawnGet(classId, prefix = 'carnet-tirage-') {
   const key = sessionKey(classId);
-  try { const o = JSON.parse(localStorage.getItem('carnet-tirage-' + classId) || 'null'); if (o && o.session === key) return o.ids; } catch (e) { /* rien */ }
+  try { const o = JSON.parse(localStorage.getItem(prefix + classId) || 'null'); if (o && o.session === key) return o.ids; } catch (e) { /* rien */ }
   return [];
 }
-function drawnSet(classId, ids) {
-  try { localStorage.setItem('carnet-tirage-' + classId, JSON.stringify({ session: sessionKey(classId), ids })); } catch (e) { /* rien */ }
+function drawnSet(classId, ids, prefix = 'carnet-tirage-') {
+  try { localStorage.setItem(prefix + classId, JSON.stringify({ session: sessionKey(classId), ids })); } catch (e) { /* rien */ }
 }
 const sessionTitle = classId => model.appelTitle(model.currentAppel(classId));
 
@@ -332,7 +333,82 @@ function drawPool(classId) {
   return { present, absent, done, pool: present.filter(s => !done.has(s.id)) };
 }
 
+// ---------- Tirage au sort d'un groupe (1.23.9) ----------
+// Parmi les groupes du projet en cours (onglet Groupes) qui ont au moins un élève présent ; un groupe déjà tiré
+// pendant ce cours n'est pas retiré avant que tous soient passés.
+const GPREFIX = 'carnet-tirage-g-';
+let drawMode = (() => { try { return localStorage.getItem('carnet-tirage-mode') === 'groupe' ? 'groupe' : 'eleve'; } catch (e) { return 'eleve'; } })();
+function groupPool(classId) {
+  const a = model.chosenAssignment(classId, ['cours']) || model.activeAssignments(classId)[0] || null;
+  const p = a && db.get('projects', a.projectId);
+  const absent = model.absentNow(classId);
+  const groups = a ? model.groupsOf(a.id).filter(g => (g.members || []).some(id => db.get('students', id))) : [];
+  const present = groups.filter(g => g.members.some(id => db.get('students', id) && !absent.has(id)));
+  const done = new Set(drawnGet(classId, GPREFIX));
+  return { a, p, groups, present, absent, done, pool: present.filter(g => !done.has(g.id)) };
+}
+const groupLabel = g => (/^\d+$/.test(g.code || '') ? 'Groupe ' + g.code : g.code || 'Groupe');
+function groupCard(g, absent) {
+  const members = (g.members || []).map(id => db.get('students', id)).filter(Boolean);
+  return html`<div class="draw-gname">${groupLabel(g)}</div>
+    <div class="draw-members">${members.map(s => html`<span class="draw-member${absent.has(s.id) ? ' absent' : ''}">
+      ${photo(s, { label: false })}<span>${s.prenom}${absent.has(s.id) ? ' (abs.)' : ''}</span></span>`)}</div>`;
+}
+function groupDrawView(classId) {
+  const { a, p, groups, present, absent, done } = groupPool(classId);
+  const g = draw.gid ? db.get('groups', draw.gid) : null;
+  const asked = present.filter(x => done.has(x.id)).length;
+  const left = present.length - asked;
+  const sansPresent = groups.length - present.length;
+  if (!a || !groups.length) {
+    return html`<div class="draw-card"><div class="muted center">${a ? html`Pas encore de groupes pour « ${p ? p.title : 'le projet'} ».` : 'Aucun projet en cours dans cette classe.'}
+      Les groupes se font dans l’onglet <strong>Groupes</strong>.</div>
+      ${a ? html`<a class="btn soft" href="#/classe/${classId}/groupes">Ouvrir l’onglet Groupes</a>` : ''}</div>`;
+  }
+  return html`<div class="draw-card${draw.spinning ? ' spinning' : ''}" data-gcard>${g ? groupCard(g, absent) : html`<div class="draw-gname">…</div>`}</div>
+    ${draw.restarted ? html`<div class="draw-note">Tous les groupes sont passés : nouveau tour.</div>` : ''}
+    <div class="draw-stats">${p ? p.title + ' · ' : ''}${asked} groupe${asked > 1 ? 's' : ''} tiré${asked > 1 ? 's' : ''} pendant ce cours · ${left} restant${left > 1 ? 's' : ''}${sansPresent ? ` · ${sansPresent} sans élève présent exclu${sansPresent > 1 ? 's' : ''}` : ''}</div>`;
+}
+function startGroupDraw(classId) {
+  let { present, pool, absent } = groupPool(classId);
+  if (!present.length) { draw = { ...(draw || {}), classId, mode: 'groupe', gid: null, spinning: false }; refresh(); return; }
+  let restarted = false;
+  if (!pool.length) { drawnSet(classId, [], GPREFIX); pool = present; restarted = true; }
+  const winner = pool[Math.floor(Math.random() * pool.length)];
+  draw = { classId, mode: 'groupe', gid: pool[0].id, spinning: true, restarted };
+  refresh();
+  let i = 0;
+  const tick = setInterval(() => {
+    const b = document.querySelector('[data-gcard]');
+    if (!b || !draw || draw.mode !== 'groupe') { clearInterval(tick); return; }
+    b.innerHTML = groupCard(present[Math.floor(Math.random() * present.length)], absent).s;
+    if (++i >= 12) {
+      clearInterval(tick);
+      drawnSet(classId, [...drawnGet(classId, GPREFIX), winner.id], GPREFIX);
+      draw = { classId, mode: 'groupe', gid: winner.id, spinning: false, restarted };
+      buzz(40);
+      refresh();
+    }
+  }, 90);
+}
+
 function drawView(classId) {
+  const modeSeg = html`<div class="segmented draw-mode">
+    <button type="button" class="seg${draw.mode !== 'groupe' ? ' on' : ''}" data-click="drawMode" data-k="eleve" ${draw.spinning ? 'disabled' : ''}>Élève</button>
+    <button type="button" class="seg${draw.mode === 'groupe' ? ' on' : ''}" data-click="drawMode" data-k="groupe" ${draw.spinning ? 'disabled' : ''}>Groupe</button></div>`;
+  if (draw.mode === 'groupe') {
+    return html`<div class="scrim dim" data-click="closeDraw"></div>
+      <div class="draw-box" role="dialog" aria-modal="true">
+        <div class="draw-title">${icon.dice} Tirage au sort</div>
+        ${modeSeg}
+        ${groupDrawView(classId)}
+        <div class="draw-actions">
+          <button type="button" class="btn soft" data-click="closeDraw">Fermer</button>
+          <button type="button" class="btn accent big" data-click="draw" ${draw.spinning ? 'disabled' : ''}>${icon.dice}Tirer un groupe</button>
+        </div>
+        <button type="button" class="link-btn" data-click="resetDraw">Recommencer à zéro (oublier les groupes déjà tirés)</button>
+      </div>`;
+  }
   const { present, absent, done } = drawPool(classId);
   const s = draw.sid ? db.get('students', draw.sid) : null;
   const asked = present.filter(x => done.has(x.id)).length;
@@ -340,6 +416,7 @@ function drawView(classId) {
   return html`<div class="scrim dim" data-click="closeDraw"></div>
     <div class="draw-box" role="dialog" aria-modal="true">
       <div class="draw-title">${icon.dice} Tirage au sort</div>
+      ${modeSeg}
       <div class="draw-card${draw.spinning ? ' spinning' : ''}">
         <span class="draw-photo">${s ? photo(s, { cls: 'huge' }) : ''}</span>
         <div class="draw-name">${s ? html`${s.prenom} <span class="upper">${s.nom}</span>` : '…'}</div>
@@ -360,21 +437,21 @@ function startDraw(classId) {
   let restarted = false;
   if (!pool.length) { drawnSet(classId, []); pool = present; restarted = true; }
   const winner = pool[Math.floor(Math.random() * pool.length)];
-  draw = { classId, sid: pool[0].id, spinning: true, restarted };
+  draw = { classId, mode: 'eleve', sid: pool[0].id, spinning: true, restarted };
   refresh();
   // Défilement des visages pendant ~1 s, puis arrêt sur l'élève tiré.
   const box = () => document.querySelector('.draw-card');
   let i = 0;
   const tick = setInterval(() => {
     const b = box();
-    if (!b || !draw) { clearInterval(tick); return; }
+    if (!b || !draw || draw.mode === 'groupe' || !b.querySelector('.draw-photo')) { clearInterval(tick); return; }
     const s = present[Math.floor(Math.random() * present.length)];
     b.querySelector('.draw-photo').innerHTML = photo(s, { cls: 'huge' }).s;
     b.querySelector('.draw-name').textContent = s.prenom + ' ' + s.nom;
     if (++i >= 12) {
       clearInterval(tick);
       drawnSet(classId, [...drawnGet(classId), winner.id]);
-      draw = { classId, sid: winner.id, spinning: false, restarted };
+      draw = { classId, mode: 'eleve', sid: winner.id, spinning: false, restarted };
       buzz(40);
       refresh();
     }
@@ -564,13 +641,25 @@ export default {
       toast({ text: 'Plan vidé', undo: async () => { await undo(); refresh(); } });
     },
 
-    draw(el, e, { classId }) { if (!draw || !draw.spinning) startDraw(classId); },
+    // Tirage : élève ou groupe selon le dernier choix (mémorisé sur l'appareil).
+    draw(el, e, { classId }) {
+      if (draw && draw.spinning) return;
+      if ((draw ? draw.mode : drawMode) === 'groupe') startGroupDraw(classId); else startDraw(classId);
+    },
+    drawMode(el, e, { classId }) {
+      if (draw && draw.spinning) return;
+      drawMode = el.dataset.k === 'groupe' ? 'groupe' : 'eleve';
+      try { localStorage.setItem('carnet-tirage-mode', drawMode); } catch (err) { /* stockage indisponible */ }
+      draw = { classId, mode: drawMode, sid: null, gid: null, spinning: false, restarted: false };
+      refresh();
+    },
     closeDraw() { draw = null; refresh(); },
     resetDraw(el, e, { classId }) {
-      drawnSet(classId, []);
+      const groupe = draw && draw.mode === 'groupe';
+      drawnSet(classId, [], groupe ? GPREFIX : undefined);
       if (draw) draw.restarted = false;
       refresh();
-      toast({ text: 'Liste des élèves interrogés remise à zéro' });
+      toast({ text: groupe ? 'Liste des groupes tirés remise à zéro' : 'Liste des élèves interrogés remise à zéro' });
     },
   },
 };
