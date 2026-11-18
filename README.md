@@ -1,5 +1,11 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.24.2 · Encadré des alertes déplaçable · 18 novembre 2026
+
+Retour du professeur : l’encadré des alertes (appels non faits, séances à remplir, cours à préparer) masquait une partie de l’écran, par exemple les dispositifs de la fiche PP, sans pouvoir être déplacé. On le fait maintenant glisser au doigt par sa barre de titre ; la position est mémorisée sur l’appareil (`localStorage` `carnet-alertes-pos`) et l’encadré reste toujours entièrement à l’écran, même liste ouverte ou après rotation. Un simple toucher ouvre ou replie la liste comme avant ; le glissement ne la replie pas.
+
+Fichiers : alertes.js, app.css, nav.js et sw.js. Vérifications : 232 tests réussis ; glissement réel à 1280 × 800 (bas gauche → bas droite), liste non repliée par le glissement, ouverture au toucher, position conservée après rechargement.
+
 ## Version 1.24.1 · Dispositifs cochables depuis le suivi PP · 18 novembre 2026
 
 Demande du professeur : choisir les dispositifs d’un élève (PAP, PPS, PPRE, GEVA-Sco, PAI, AESH, ULIS, UPE2A) directement dans sa fiche PP, sans passer par la fiche Carnet. Le cadre « Dispositifs » de la fiche PP présente les mêmes boutons à cocher que la fiche Carnet (même réglage `students.besoins`, via `model.toggleBesoin`), avec « Annuler ». Cocher PAP fait apparaître aussitôt le bouton PAP.

@@ -51,7 +51,7 @@ function quandLabel(p) {
   return todayISO(t) === p.cours.date ? 'demain' : d.toLocaleDateString('fr-FR', { weekday: 'long' });
 }
 
-export function render() {
+function dessiner() {
   const el = document.getElementById('alerts');
   if (!el) return;
   const hash = location.hash || '#/';
@@ -134,12 +134,56 @@ function clickHandler(e) {
 }
 
 let timer = null;
+// ---------- Encadré déplaçable (1.24.2) ----------
+// On fait glisser l'encadré par sa barre de titre ; sa position est mémorisée sur l'appareil et gardée à l'écran.
+// Un simple toucher (sans glisser) ouvre ou replie la liste comme avant.
+const POS_KEY = 'carnet-alertes-pos';
+let pos = (() => { try { const p = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : null; } catch (e) { return null; } })();
+let sansClic = false; // le « clic » qui suit un glissement ne doit pas replier la liste
+function placer(el) {
+  if (!pos || !el.firstElementChild) { el.style.left = el.style.top = el.style.bottom = ''; return; }
+  const w = el.offsetWidth, h = el.offsetHeight;
+  const x = Math.max(8, Math.min(pos.x, innerWidth - w - 8)), y = Math.max(8, Math.min(pos.y, innerHeight - h - 8));
+  el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.bottom = 'auto';
+}
+function rendreDeplacable(el) {
+  el.addEventListener('pointerdown', e => {
+    const head = e.target.closest('.alerts-head');
+    if (!head || e.target.closest('button[data-a]:not(.alerts-head)') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const r = el.getBoundingClientRect(), start = { x: e.clientX, y: e.clientY, left: r.left, top: r.top };
+    let glisse = false;
+    const move = ev => {
+      if (!glisse && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 8) return;
+      if (!glisse) { glisse = true; try { el.setPointerCapture(e.pointerId); } catch (err) { /* rien */ } el.classList.add('moving'); }
+      pos = { x: start.left + ev.clientX - start.x, y: start.top + ev.clientY - start.y };
+      placer(el);
+    };
+    const fin = () => {
+      removeEventListener('pointermove', move); removeEventListener('pointerup', fin); removeEventListener('pointercancel', fin);
+      el.classList.remove('moving');
+      if (glisse) { sansClic = true; setTimeout(() => { sansClic = false; }, 350); try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch (err) { /* rien */ } }
+    };
+    addEventListener('pointermove', move); addEventListener('pointerup', fin); addEventListener('pointercancel', fin);
+  });
+  // Après un glissement, le clic de fin est ignoré (la liste ne se replie pas).
+  el.addEventListener('click', e => { if (sansClic) { e.stopImmediatePropagation(); e.preventDefault(); sansClic = false; } }, true);
+  addEventListener('resize', () => placer(el));
+}
+
 export function initAlertes() {
   const el = document.getElementById('alerts');
   if (!el) return;
+  rendreDeplacable(el);
   el.addEventListener('click', clickHandler);
   db.onChange(() => render());
   timer = timer || setInterval(render, 30 * 1000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
   render();
+}
+
+// Redessine l'encadré puis le replace à la position choisie (la hauteur change quand la liste s'ouvre).
+export function render() {
+  dessiner();
+  const el = document.getElementById('alerts');
+  if (el) placer(el);
 }

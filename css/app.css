@@ -1078,3 +1078,8 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .draw-member .photo { width: 72px; height: 96px; border-radius: 12px; overflow: hidden; }
 .draw-member.absent { opacity: .45; }
 .draw-member.absent .photo { filter: grayscale(1); }
+
+/* Encadré des alertes déplaçable (1.24.2) */
+#alerts .alerts-head { touch-action: none; cursor: grab; }
+#alerts.moving .alerts-head { cursor: grabbing; }
+#alerts.moving .alerts-box { box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3); }
