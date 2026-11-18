@@ -160,7 +160,7 @@ function profile(s, c) {
   const secondaryCount=actions.filter(a=>!a.primary).length,needs=model.besoinsOf(s);
   return html`<section class="panel pp-sidebar pp-student-sidebar"><div class="pp-profile">${photo(s, { cls: 'big',label:false })}<div class="pp-profile-identity"><strong>${s.prenom}</strong><span class="upper">${s.nom}</span><span class="chip">${c.name} · PP</span></div></div>
     <nav class="pp-profile-actions" aria-label="Actions de suivi de l’élève">${actions.map((a,i)=>{const cls='pp-profile-action'+(a.primary?' primary':i===actions.length-1&&secondaryCount%2?' wide':'');return a.href?html`<a class="${cls}" href="${a.href}" title="${a.description||a.label}">${a.icon}<span>${a.label}</span>${a.primary?icon.chevron:''}</a>`:html`<button type="button" class="${cls}" data-click="${a.click}">${a.icon}<span>${a.label}</span></button>`;})}</nav>
-    <div class="pp-profile-support"><span>Dispositifs</span><strong>${needs.length?needs.join(' · '):'Aucun renseigné'}</strong></div>
+    <div class="pp-profile-support"><span>Dispositifs <span class="muted">· toucher pour cocher</span></span><div class="pp-needs" role="group" aria-label="Dispositifs de l’élève">${model.BESOINS.map(b=>html`<button type="button" class="pill small-pill${needs.includes(b.key)?' on':''}" data-click="besoinPP" data-sid="${s.id}" data-k="${b.key}" title="${b.label}" aria-pressed="${needs.includes(b.key)?'true':'false'}">${needs.includes(b.key)?'✓ ':''}${b.key}</button>`)}</div></div>
     <div class="pp-search"><label class="pp-profile-search"><span>Changer d’élève <span class="muted">· ${model.studentsOf(c.id).length}</span></span><input class="input" aria-label="Rechercher un élève" placeholder="Rechercher un élève" data-input="search" value="${st.filter}"></label></div>
     <div class="panel-scroll" data-scroll="pp-pupils">${pupils.map(p => html`<a class="pp-pupil${p.id === s.id ? ' current' : ''}" data-pp-pupil href="#/pp/eleve/${p.id}" ${p.id === s.id ? raw('aria-current="true"') : ''}>${p.prenom} <span class="upper">${p.nom}</span></a>`)}</div></section>`;
 }
@@ -205,6 +205,8 @@ export default {
   },
   leave() { keepDraft(); if (previewUrl) URL.revokeObjectURL(previewUrl); previewUrl = null; },
   actions: {
+    // Dispositifs de l'élève (PAP, PPS…) cochés directement depuis le suivi PP ; même réglage que la fiche Carnet.
+    besoinPP(el){const sid=el.dataset.sid,k=el.dataset.k,on=!model.besoinsOf(db.get('students',sid)||{}).includes(k);keepDraft();const undo=model.toggleBesoin(sid,k);refresh();toast({text:(on?'Dispositif ajouté : ':'Dispositif retiré : ')+k,undo:async()=>{await undo();refresh();}});},
     toggleEditor(){if(st.busy)return;st.editorOpen=!st.editorOpen;keepDraft();refresh();document.querySelector(st.editorOpen?'#pp-editor .panel-head button':'[data-click="toggleEditor"]')?.focus({preventScroll:true});},
     notesView(el){st.notesView=el.dataset.mode;refresh();},
     async noteArchive(el){await changeNote(el);},

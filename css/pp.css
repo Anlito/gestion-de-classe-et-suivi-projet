@@ -219,3 +219,7 @@
 .pap-table { table-layout: fixed; } .pap-table th:first-child, .pap-table td:first-child { width: auto; }
 .pap-page { display: block; overflow-y: auto; }
 .pap-page > .panel, .pap-page > details.panel { display: block; flex: none; height: auto; min-height: 0; max-height: none; overflow: visible; margin-bottom: 12px; padding: 14px 16px; }
+/* Dispositifs cochables dans la fiche PP (1.24.1) */
+.pp-profile-support { flex-direction: column; align-items: stretch; }
+.pp-needs { display: flex; flex-wrap: wrap; gap: 5px; }
+.pp-needs .pill { min-height: 32px; padding: 4px 9px; font-size: 12px; }

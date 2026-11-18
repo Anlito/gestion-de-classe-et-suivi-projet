@@ -1,5 +1,11 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.24.1 · Dispositifs cochables depuis le suivi PP · 18 novembre 2026
+
+Demande du professeur : choisir les dispositifs d’un élève (PAP, PPS, PPRE, GEVA-Sco, PAI, AESH, ULIS, UPE2A) directement dans sa fiche PP, sans passer par la fiche Carnet. Le cadre « Dispositifs » de la fiche PP présente les mêmes boutons à cocher que la fiche Carnet (même réglage `students.besoins`, via `model.toggleBesoin`), avec « Annuler ». Cocher PAP fait apparaître aussitôt le bouton PAP.
+
+Fichiers : screens/suivi-pp.js, pp.css, nav.js et sw.js. Vérifications : 232 tests réussis ; parcours navigateur à 1280 × 800 sur un élève fictif.
+
 ## Version 1.24.0 · PAP de l’élève, étape 1 : grille officielle et impression · 18 novembre 2026
 
 Demande du professeur : partager un dossier PAP avec les collègues, recueillir leurs retours puis éditer le PAP final. Étape 1 (cette version) : le PAP dans le suivi PP. Étape 2 (1.25.0) : consultation des collègues par un lien, via le service Google déjà prévu pour le formulaire des familles (choix du professeur : même service ; élève présenté par prénom + initiale + classe ; PAP précédent montré par ses cases cochées seulement ; un lien par élève, chaque collègue indique son nom et sa discipline). Les informations du médecin et l’identité complète ne seront jamais transmises.
