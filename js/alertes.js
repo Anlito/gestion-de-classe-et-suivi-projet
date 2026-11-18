@@ -9,6 +9,7 @@ import * as db from './db.js';
 import * as model from './model.js';
 import * as planning from './planning.js';
 import * as prepa from './prepa.js';
+import * as notifs from './pp-notifs.js';
 import { html, toast, todayISO } from './ui.js';
 import { go, refresh } from './nav.js';
 
@@ -71,13 +72,18 @@ function dessiner() {
   const appels = list.filter(a => a.type === 'appel'), seances = list.filter(a => a.type === 'seance');
   let prep = [];
   try { prep = prepa.aPreparerBientot(); } catch (e) { console.error(e); }
-  if (!list.length && !prep.length) { el.innerHTML = ''; return; }
+  // Retours des familles et des collègues (1.25.1).
+  let ret = [];
+  try { ret = notifs.aSignaler(); } catch (e) { console.error(e); }
+  const nRet = ret.reduce((t, r) => t + r.n, 0);
+  if (!list.length && !prep.length && !ret.length) { el.innerHTML = ''; return; }
   el.innerHTML = html`<div class="alerts-box${!list.length ? ' calm' : ''}" role="status">
     <button type="button" class="alerts-head" data-a="toggle">
       <span class="alerts-dot"></span>
       <span class="grow">${[appels.length && `${appels.length} appel${appels.length > 1 ? 's' : ''} non fait${appels.length > 1 ? 's' : ''}`,
         seances.length && `${seances.length} séance${seances.length > 1 ? 's' : ''} à remplir`,
-        prep.length && `${prep.length} cours à préparer`].filter(Boolean).join(' · ')}</span>
+        prep.length && `${prep.length} cours à préparer`,
+        nRet && `${nRet} nouveau${nRet > 1 ? 'x' : ''} retour${nRet > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}</span>
       <span class="alerts-chev">${open ? '▾' : '▸'}</span>
     </button>
     ${open ? html`<div class="alerts-list">
@@ -90,6 +96,11 @@ function dessiner() {
         <span class="grow"><strong>${a.cls.name}</strong><span class="muted small"> · ${a.cours.debut}–${a.cours.fin}</span></span>
         <button type="button" class="btn accent small" data-a="remplir" data-id="${a.cours.id}">Remplir la séance</button>
         <button type="button" class="btn soft small" data-a="pas" data-id="${a.cours.id}">Pas une séance projet</button>
+      </div>`)}
+      ${ret.length ? html`<div class="alert-sec">Retours reçus</div>` : ''}
+      ${ret.map(r => html`<div class="alert-row">
+        <span class="grow"><strong>${r.type === 'pap' ? 'PAP · ' + r.titre : r.titre}</strong><span class="muted small"> · ${r.type === 'pap' ? `${r.n} avis de collègue${r.n > 1 ? 's' : ''}` : `${r.n} demande${r.n > 1 ? 's' : ''} de rendez-vous à traiter`}</span></span>
+        <button type="button" class="btn accent small" data-a="retour" data-href="${r.href}">Voir</button>
       </div>`)}
       ${prep.length ? html`<div class="alert-sec">Matériel à préparer</div>` : ''}
       ${prep.map(p => html`<div class="alert-row">
@@ -105,6 +116,7 @@ function clickHandler(e) {
   if (!b) return;
   const kind = b.dataset.a;
   if (kind === 'quitArchive') { db.closeArchive(); return; }
+  if (kind === 'retour') { go(b.dataset.href); return; }
   if (kind === 'toggle') {
     open = !open;
     try { localStorage.setItem('carnet-alertes', open ? 'ouvertes' : 'repliees'); } catch (err) { /* stockage indisponible */ }

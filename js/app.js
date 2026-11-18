@@ -37,6 +37,7 @@ import ppCouncilReview from './screens/pp-council-review.js';
 import ppCouncilExport from './screens/pp-council-export.js';
 import importsPP from './screens/imports-pp.js';
 import { initLock } from './lock.js';
+import { initNotifs } from './pp-notifs.js';
 import { initAlertes, render as renderAlertes } from './alertes.js';
 import { lierAppels } from './planning.js';
 import { initAutoSync } from './autosync.js';
@@ -171,6 +172,7 @@ async function boot() {
   addEventListener('hashchange', render);
   render();
   initAlertes();
+  initNotifs();
   initAutoSync();
   initPronoteAuto();
   initAgenda();

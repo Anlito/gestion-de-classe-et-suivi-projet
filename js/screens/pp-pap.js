@@ -5,6 +5,7 @@ import * as db from '../db.js';
 import * as model from '../model.js';
 import * as pap from '../pap.js';
 import * as service from '../pap-service.js';
+import * as notifs from '../pp-notifs.js';
 import { SECTIONS, NIVEAUX } from '../pap-items.js';
 import { html, raw, toast, confirmDialog, fmtDayYear } from '../ui.js';
 import { icon, backLink, saveStatus } from '../components.js';
@@ -151,6 +152,8 @@ export default {
     catch (e) { return html`<div class="screen"><header class="topbar">${backLink('#/pp', 'Suivi PP')}<div class="title">PAP</div></header><main class="content"><p>${e.message}</p></main></div>`; }
     const c = db.get('classes', s.classId);
     syn = service.synthese(id);
+    // Ouvrir le PAP vaut lecture des avis reçus (l'alerte « nouveaux retours » disparaît).
+    if (mode !== 'imprimer') setTimeout(() => { try { notifs.marquerVu(id); } catch (e) { /* rien */ } });
     if (mode === 'imprimer') return impression(s, c, draft);
     return saisie(s, c, info);
   },

@@ -74,6 +74,9 @@ export async function recuperer(sid) {
     .map(x => ({ id: String(x.id), receivedAt: String(x.receivedAt), teacher: x.teacher.slice(0, 80), discipline: String(x.discipline || '').slice(0, 60),
       items: x.items.filter(id => typeof id === 'string'), autres: (x.autres || []).map(String).slice(0, 5), comment: String(x.comment || '').slice(0, 2000) }))
     .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
+  // Rien de nouveau : on n'enregistre rien (la vérification automatique ne déclenche pas de synchronisation).
+  const avant = retours(sid);
+  if (avant && JSON.stringify(avant.reponses) === JSON.stringify(reponses)) return avant;
   const value = { at: new Date().toISOString(), reponses };
   setMeta(cle('papRetours', sid), value);
   return value;
