@@ -26,6 +26,7 @@ import ppMeetings from './screens/pp-meetings.js';
 import ppFamilies from './screens/pp-families.js';
 import ppAudio from './screens/pp-audio.js';
 import ppProcedures from './screens/pp-procedures.js';
+import ppPap from './screens/pp-pap.js';
 import ppDataQuality from './screens/pp-data-quality.js';
 import ppCSV from './screens/pp-csv.js';
 import ppPreparation from './screens/pp-meeting-preparation.js';
@@ -53,6 +54,8 @@ const ROUTES = [
   [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv$/, ppPreparation, ['studentId']],
   [/^#\/pp\/eleve\/([^/]+)\/demarches\/([^/]+)$/, ppProcedures, ['studentId','procedureId']],
   [/^#\/pp\/eleve\/([^/]+)\/demarches$/, ppProcedures, ['studentId']],
+  [/^#\/pp\/eleve\/([^/]+)\/pap$/, ppPap, ['studentId']],
+  [/^#\/pp\/eleve\/([^/]+)\/pap\/(imprimer)$/, ppPap, ['studentId', 'mode']],
   [/^#\/pp\/eleve\/([^/]+)\/(actions|documents|vie|journal)$/, suiviPP, ['studentId','section']],
   [/^#\/pp\/classe\/([^/]+)\/dossier\/([123])$/, ppCouncilExport, ['classId','trimester']],
   [/^#\/pp\/classe\/([^/]+)\/relecture\/([123])$/, ppCouncilReview, ['classId','trimester']],

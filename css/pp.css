@@ -186,3 +186,36 @@
 .pp-school-column-body { flex:1;min-height:0;overflow:auto;padding:12px 8px 8px 0;overscroll-behavior:contain; }
 .pp-school-view:not(.pp-editor-closed) .pp-school-history { grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr)); }
 @media(max-width:780px){.pp-school-history{flex:none;min-height:420px;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(2,minmax(180px,1fr));}}
+
+/* PAP (1.24.0) : grille par niveau, colonne de l'année en couleur */
+.pap-page { display: flex; flex-direction: column; gap: 12px; }
+.pap-head .pap-niveau { min-width: 160px; }
+.pap-grid { display: flex; flex-direction: column; gap: 14px; }
+.pap-table { width: 100%; border-collapse: collapse; }
+.pap-table th, .pap-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; }
+.pap-table .pap-sec { text-align: left; font-size: 15px; color: var(--accentInk); background: var(--accentTint); border-radius: 8px 0 0 0; }
+.pap-table.sous .pap-sec { background: color-mix(in srgb, var(--accentTint) 55%, var(--surface)); font-style: italic; }
+.pap-table .pap-niv { width: 56px; text-align: center; font-size: 13px; background: var(--accentTint); }
+.pap-table .pap-niv.actuel, .pap-table .pap-case.actuel { background: color-mix(in srgb, var(--pos) 18%, var(--surface)); }
+.pap-texte { font-size: 14px; line-height: 1.35; }
+.pap-texte .input { width: 100%; }
+.pap-case { text-align: center; }
+.pap-case input { width: 24px; height: 24px; cursor: pointer; accent-color: var(--pos); }
+.pap-plus summary { cursor: pointer; padding: 4px 0; }
+.pap-plus .lbl { margin-top: 10px; }
+/* Impression */
+.pap-doc h2 { font-size: 14px; margin: 14px 0 6px; color: #8a2a6a; }
+.pap-p { margin-top: 8px; font-size: 11.5px; }
+.pap-p th, .pap-p td { padding: 3px 6px; }
+.pap-p .pap-p-sec { color: #8a2a6a; background: #fff; font-weight: 700; }
+.pap-p .pap-p-n { width: 32px; }
+.pap-p .pap-p-case { width: 32px; font-weight: 800; }
+.pap-p .pap-p-case.actuel { background: #f4f0fb; }
+.pap-p tr { break-inside: avoid; }
+.pap-visas td { height: 34px; }
+.pap-visas .pap-v-n { width: 32px; font-weight: 700; }
+.pap-p-box { border: 1px solid #ccc; padding: 8px 10px; margin: 8px 0; }
+.pap-table .pap-x { width: 44px; text-align: center; padding: 0; }
+.pap-table { table-layout: fixed; } .pap-table th:first-child, .pap-table td:first-child { width: auto; }
+.pap-page { display: block; overflow-y: auto; }
+.pap-page > .panel, .pap-page > details.panel { display: block; flex: none; height: auto; min-height: 0; max-height: none; overflow: visible; margin-bottom: 12px; padding: 14px 16px; }

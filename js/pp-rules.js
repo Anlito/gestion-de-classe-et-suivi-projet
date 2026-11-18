@@ -5,6 +5,7 @@ export const PP_TOOLS = [
   {key:'preparation',label:'Préparer les rencontres',description:'Faits à aborder, compte rendu, décisions et suites.'},
   {key:'audio',label:'Notes audio',description:'Enregistrement, réécoute et transcription personnelle par élève.'},
   {key:'rencontres',label:'Rencontres parents–PP',description:'Campagnes, créneaux et réservations manuelles liées à l’agenda.'},
+  {key:'pap',label:'PAP',description:'Plan d’accompagnement personnalisé : grille officielle par niveau, PAP précédent et impression.'},
   { key:'alertes', label:'Alertes PP', description:'Seuils d’assiduité, de mesures et de carnet, avec suivi des dépassements.' },
   { key: 'imports', label: 'Imports Pronote', description: 'Listes CSV, bulletins et relevés PDF vérifiés avant enregistrement.' },
   { key: 'vieScolaire', label: 'Vie scolaire', description: 'Relevés d’assiduité, punitions et compléments manuels.' },
