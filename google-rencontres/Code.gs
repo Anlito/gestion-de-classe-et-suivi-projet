@@ -44,6 +44,8 @@ function adminAction(key,action,payload){
       if(requests.length>2000)throw Error('Trop de demandes : consultez le tableau privé.');
       return {protocol:PROTO_,ok:true,campaignId:c.campaignId,slotSignature:c.slotSignature,requests};
     }
+    if(action==='papPublish')return papPublish_(payload);
+    if(action==='papList')return papList_(payload);
     throw Error('Action inconnue.');
   });
 }
@@ -51,6 +53,7 @@ function doPost(e){try{const p=e?.parameter||{};if(String(p.payload||'').length>
 function doGet(e){
   const p=e?.parameter||{};
   if(p.admin==='1')return HtmlService.createHtmlOutputFromFile('Professeur').setTitle('Rencontres PP · professeur').addMetaTag('viewport','width=device-width, initial-scale=1');
+  if(/^[a-zA-Z0-9_-]{20,100}$/.test(p.pap||'')){const t=HtmlService.createTemplateFromFile('PapFormulaire');t.token=p.pap;return t.evaluate().setTitle('PAP · avis des professeurs').addMetaTag('viewport','width=device-width, initial-scale=1');}
   const template=HtmlService.createTemplateFromFile('Formulaire');template.token=/^[a-zA-Z0-9_-]{20,100}$/.test(p.campaign||'')?p.campaign:'';
   return template.evaluate().setTitle('Disponibilités de rencontre').addMetaTag('viewport','width=device-width, initial-scale=1');
 }
@@ -67,5 +70,62 @@ function submitRequest(token,data){
     if(rows.filter(r=>r[1]===c.campaignId).length>=2000)throw Error('Le formulaire a atteint sa limite. Contactez le professeur.');
     book_().getSheetByName('Demandes').appendRow([data.id,c.campaignId,new Date().toISOString(),JSON.stringify(pupilName),JSON.stringify(unique),JSON.stringify(note)]);
     return {ok:true};
+  });
+}
+
+// ---------- PAP · avis des professeurs (Carnet 1.25.0) ----------
+// Le professeur principal publie, pour un élève, une consultation : grille officielle du PAP, niveau de l'année,
+// cases du PAP précédent. Les collègues répondent par un lien (jeton), sans compte. Liste blanche stricte : seuls le
+// prénom + initiale et la classe sont publiés ; jamais l'identité complète ni les informations du médecin.
+// Les feuilles « PAP » et « RetoursPAP » sont créées au premier usage dans le tableau privé (pas de réinstallation).
+const PAP_NIVEAUX_=['6e','5e','4e','3e'];
+function sheet_(name,header){const b=book_();let s=b.getSheetByName(name);if(!s){s=b.insertSheet(name);s.appendRow(header);}return s;}
+function papRows_(name){const h=name==='PAP'?['Identifiant','Jeton public','Configuration JSON']:['Identifiant','Consultation','Réception','Collègue','Discipline','Items JSON','Autres JSON','Commentaire'];return sheet_(name,h).getDataRange().getValues().slice(1);}
+const papId_=v=>typeof v==='string'&&/^[a-z]{1,3}\d{1,3}$/.test(v);
+function validatePap_(c){
+  if(!c||c.protocol!==PROTO_||!/^[a-zA-Z0-9_-]{8,100}$/.test(c.consultationId||'')||!['open','closed'].includes(c.status)||!PAP_NIVEAUX_.includes(c.niveau))throw Error('Consultation PAP non reconnue.');
+  if(!Array.isArray(c.sections)||!c.sections.length||c.sections.length>20)throw Error('Grille PAP invalide.');
+  const ids=new Set();
+  const sections=c.sections.map(s=>{if(!Array.isArray(s.items)||!s.items.length||s.items.length>40||!/^[a-z]{1,20}$/.test(s.id||''))throw Error('Grille PAP invalide.');
+    return {id:s.id,titre:clean_(s.titre,120),discipline:clean_(s.discipline,60),sous:s.sous===true,items:s.items.map(i=>{if(!papId_(i.id)||ids.has(i.id))throw Error('Grille PAP invalide.');ids.add(i.id);return {id:i.id,texte:clean_(i.texte,300)};})};});
+  const precedent={};PAP_NIVEAUX_.forEach(n=>{const l=(c.precedent||{})[n]||[];if(!Array.isArray(l)||l.length>60||l.some(id=>!ids.has(id)))throw Error('PAP précédent invalide.');if(l.length)precedent[n]=[...new Set(l)];});
+  const autres=(c.precedentAutres||[]);if(!Array.isArray(autres)||autres.length>20)throw Error('PAP précédent invalide.');
+  const disciplines=(c.disciplines||[]);if(!Array.isArray(disciplines)||disciplines.length>30)throw Error('Disciplines invalides.');
+  if(c.echeance&&!/^\d{4}-\d{2}-\d{2}$/.test(c.echeance))throw Error('Date limite invalide.');
+  return {protocol:PROTO_,consultationId:c.consultationId,status:c.status,eleve:clean_(c.eleve,80),className:clean_(c.className,60),niveau:c.niveau,sections,precedent,
+    precedentAutres:autres.map(a=>({texte:clean_(a.texte,300),niveaux:(a.niveaux||[]).filter(n=>PAP_NIVEAUX_.includes(n))})),disciplines:disciplines.map(d=>clean_(d,60)),
+    message:clean_(c.message||'',1000),echeance:c.echeance||''};
+}
+function papPublish_(payload){
+  const c=validatePap_(payload),sheet=sheet_('PAP',['Identifiant','Jeton public','Configuration JSON']),rows=papRows_('PAP'),index=rows.findIndex(r=>r[0]===c.consultationId);
+  const token=index>=0?rows[index][1]:Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
+  sheet.getRange(index>=0?index+2:sheet.getLastRow()+1,1,1,3).setValues([[c.consultationId,token,JSON.stringify(c)]]);
+  return {protocol:PROTO_,ok:true,publicURL:ScriptApp.getService().getUrl()+'?pap='+encodeURIComponent(token)};
+}
+function papList_(payload){
+  const row=papRows_('PAP').find(r=>r[0]===payload?.consultationId);if(!row)throw Error('Consultation PAP non publiée.');
+  const reponses=papRows_('RetoursPAP').filter(r=>r[1]===row[0]).map(r=>({id:String(r[0]),receivedAt:r[2] instanceof Date?r[2].toISOString():String(r[2]),teacher:text_(r[3]),discipline:text_(r[4]),items:JSON.parse(r[5]),autres:JSON.parse(r[6]),comment:text_(r[7])}));
+  return {protocol:PROTO_,ok:true,consultationId:row[0],reponses};
+}
+function publicPap_(token){if(typeof token!=='string'||!/^[a-zA-Z0-9_-]{20,100}$/.test(token))throw Error('Lien PAP inconnu.');const row=papRows_('PAP').find(r=>r[1]===token);if(!row)throw Error('Lien PAP inconnu.');return JSON.parse(row[2]);}
+const papOpen_=c=>c.status==='open'&&(!c.echeance||c.echeance>=Utilities.formatDate(new Date(),'Europe/Paris','yyyy-MM-dd'));
+function getPublicPap(token){const c=publicPap_(token);return {eleve:c.eleve,className:c.className,niveau:c.niveau,sections:c.sections,precedent:c.precedent,precedentAutres:c.precedentAutres,disciplines:c.disciplines,message:c.message,echeance:c.echeance,open:papOpen_(c)};}
+// Une réponse peut être renvoyée depuis le même navigateur (même identifiant) : elle remplace la précédente.
+function submitPap(token,data){
+  return lock_(function(){
+    const c=publicPap_(token);if(!papOpen_(c))throw Error('Cette consultation est close. Contactez le professeur principal.');
+    if(!data||!/^[a-zA-Z0-9_-]{8,100}$/.test(data.id||''))throw Error('Rechargez le formulaire avant de répondre.');
+    const teacher=clean_(data.teacher,80),discipline=clean_(data.discipline,60),comment=clean_(data.comment||'',2000);
+    if(!teacher||!discipline)throw Error('Indiquez votre nom et votre discipline.');
+    const valid=new Set(c.sections.flatMap(s=>s.items.map(i=>i.id)));
+    if(!Array.isArray(data.items)||data.items.length>60||data.items.some(id=>!valid.has(id)))throw Error('Réponse invalide : rechargez le formulaire.');
+    if(!Array.isArray(data.autres)||data.autres.length>5)throw Error('Cinq propositions libres au maximum.');
+    const items=[...new Set(data.items)],autres=data.autres.map(a=>clean_(a,300)).filter(Boolean);
+    const sheet=sheet_('RetoursPAP',['Identifiant','Consultation','Réception','Collègue','Discipline','Items JSON','Autres JSON','Commentaire']),rows=papRows_('RetoursPAP');
+    const values=[data.id,c.consultationId,new Date().toISOString(),JSON.stringify(teacher),JSON.stringify(discipline),JSON.stringify(items),JSON.stringify(autres),JSON.stringify(comment)];
+    const index=rows.findIndex(r=>r[0]===data.id&&r[1]===c.consultationId);
+    if(index>=0)sheet.getRange(index+2,1,1,8).setValues([values]);
+    else{if(rows.filter(r=>r[1]===c.consultationId).length>=200)throw Error('Le formulaire a atteint sa limite. Contactez le professeur principal.');sheet.appendRow(values);}
+    return {ok:true,updated:index>=0};
   });
 }

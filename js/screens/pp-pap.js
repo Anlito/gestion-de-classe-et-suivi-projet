@@ -4,12 +4,15 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import * as pap from '../pap.js';
+import * as service from '../pap-service.js';
 import { SECTIONS, NIVEAUX } from '../pap-items.js';
 import { html, raw, toast, confirmDialog, fmtDayYear } from '../ui.js';
 import { icon, backLink, saveStatus } from '../components.js';
 import { refresh, go } from '../nav.js';
 
 let studentId = '', draft = null, baseId = null, dirty = false, busy = false;
+// Consultation des collègues (1.25.0) : saisies en cours (réglage du service, message, date limite).
+let cfg = { url: '', key: '' }, consult = { message: null, echeance: null }, syn = null;
 addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 function charger(id) {
@@ -23,7 +26,51 @@ function section(s) {
   return html`<table class="pap-table${s.sous ? ' sous' : ''}">
     <thead><tr><th class="pap-sec">${s.titre}</th>${NIVEAUX.map(n => html`<th class="pap-niv${n === draft.niveau ? ' actuel' : ''}">${n}</th>`)}<th class="pap-x"></th></tr></thead>
     <tbody>${s.items.map(it => html`<tr><td class="pap-texte">${it.texte}</td>${NIVEAUX.map(n => html`<td class="pap-case${n === draft.niveau ? ' actuel' : ''}">
-      <input type="checkbox" data-change="case" data-n="${n}" data-id="${it.id}" ${coche(n, it.id) ? 'checked' : ''} aria-label="${n} · ${it.texte}"></td>`)}<td class="pap-x"></td></tr>`)}</tbody></table>`;
+      <input type="checkbox" data-change="case" data-n="${n}" data-id="${it.id}" ${coche(n, it.id) ? 'checked' : ''} aria-label="${n} · ${it.texte}">${n === draft.niveau && syn && syn.parItem.has(it.id) ? html`<span class="pap-vote" title="Proposé par : ${syn.parItem.get(it.id).join(', ')}">${syn.parItem.get(it.id).length}</span>` : ''}</td>`)}<td class="pap-x"></td></tr>`)}</tbody></table>`;
+}
+
+// ---------- Consultation des collègues (1.25.0) ----------
+function consultation(s) {
+  if (!service.configure()) {
+    return html`<details class="panel pap-plus pap-consult" open><summary><strong>Consultation des collègues</strong> <span class="muted small">· recueillir l’avis de l’équipe par un lien</span></summary>
+      <p class="muted small">Le formulaire des collègues passe par le même service Google que le formulaire des familles (dossier <code>google-rencontres</code>, fichier INSTALLATION.md, partie PAP).
+        Collez l’adresse du déploiement (/exec) et la clé professeur obtenues lors de l’installation.</p>
+      <label class="lbl">Adresse du service Google (/exec)<input class="input" value="${cfg.url}" data-input="cfgUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false"></label>
+      <label class="lbl">Clé professeur<input class="input" type="password" value="${cfg.key}" data-input="cfgKey" autocomplete="off"></label>
+      <button type="button" class="btn soft self-start" data-click="cfgSave">Enregistrer le service</button></details>`;
+  }
+  const e = service.etat(s.id), r = service.retours(s.id);
+  const msg = consult.message != null ? consult.message : (e && e.message) || '';
+  const ech = consult.echeance != null ? consult.echeance : (e && e.echeance) || '';
+  const nb = r ? r.reponses.length : 0;
+  const proposes = syn ? [...syn.parItem.keys()].filter(id => !coche(draft.niveau, id)).length : 0;
+  return html`<details class="panel pap-plus pap-consult" open><summary><strong>Consultation des collègues</strong>
+      <span class="muted small">· ${e ? (e.status === 'open' ? 'ouverte' : 'close') + (r ? ` · ${nb} avis reçu${nb > 1 ? 's' : ''}` : '') : 'pas encore de lien'}</span></summary>
+    <p class="muted small">Les collègues voient seulement <strong>${s.prenom} ${(s.nom || '').charAt(0)}.</strong>, la classe, le niveau ${draft.niveau}, la grille et les cases du PAP précédent.
+      Ni le nom complet, ni les informations du médecin, ni le bilan ne sont transmis. Chacun indique son nom et sa discipline.</p>
+    <div class="row-center wrap">
+      <label class="lbl grow">Message pour les collègues (facultatif)<input class="input" value="${msg}" data-input="consultMsg" maxlength="1000" placeholder="ex. Merci de répondre avant le conseil de classe"></label>
+      <label class="lbl">Date limite (facultatif)<input class="input" type="date" value="${ech}" data-change="consultEch"></label>
+    </div>
+    ${e ? html`<div class="pap-lien"><code>${e.url}</code><button type="button" class="btn accent small" data-click="copier">Copier le lien</button></div>
+      <div class="row-center wrap">
+        <button type="button" class="btn soft small" data-click="publier" ${busy ? 'disabled' : ''}>Mettre à jour le formulaire</button>
+        ${e.status === 'open' ? html`<button type="button" class="btn soft small" data-click="clore" ${busy ? 'disabled' : ''}>Clore la consultation</button>`
+          : html`<button type="button" class="btn soft small" data-click="rouvrir" ${busy ? 'disabled' : ''}>Rouvrir</button>`}
+        <button type="button" class="btn accent small" data-click="recuperer" ${busy ? 'disabled' : ''}>Récupérer les avis</button>
+        ${r ? html`<span class="muted small">Avis récupérés le ${fmtDayYear(r.at)}</span>` : ''}
+      </div>`
+      : html`<button type="button" class="btn accent self-start" data-click="publier" ${busy ? 'disabled' : ''}>Créer le lien pour les collègues</button>
+        <p class="muted small">Enregistrez d’abord le PAP précédent : c’est la version enregistrée qui est montrée aux collègues.</p>`}
+    ${r && nb ? html`<div class="pap-avis">
+      <div class="row-center wrap"><strong class="grow">Avis de l’équipe</strong>
+        ${proposes ? html`<button type="button" class="btn soft small" data-click="cocherProposes">Cocher en ${draft.niveau} les ${proposes} item${proposes > 1 ? 's' : ''} proposé${proposes > 1 ? 's' : ''}</button>` : ''}</div>
+      <p class="muted small">Dans la grille, le nombre à côté d’une case de ${draft.niveau} indique combien de collègues la proposent (touchez-le ou survolez-le pour voir qui). Vous décidez des cases finales.</p>
+      ${r.reponses.map(x => html`<article class="pap-rep"><div><strong>${x.teacher}</strong> · ${x.discipline} <span class="muted small">· ${fmtDayYear(x.receivedAt)} · ${x.items.length} item${x.items.length > 1 ? 's' : ''}</span></div>
+        ${x.autres.map(a => html`<div class="row-center pap-rep-autre"><span class="grow">« ${a} »</span>${draft.autres.some(d => d.texte.trim() === a.trim()) ? html`<span class="chip">déjà ajouté</span>` : html`<button type="button" class="btn soft small" data-click="ajouterAutre" data-t="${a}">Ajouter au PAP</button>`}</div>`)}
+        ${x.comment ? html`<p class="pap-rep-com">${x.comment}</p>` : ''}</article>`)}
+    </div>` : r ? html`<p class="muted small">Aucun avis reçu pour l’instant.</p>` : ''}
+  </details>`;
 }
 
 function saisie(s, c, info) {
@@ -44,6 +91,7 @@ function saisie(s, c, info) {
           <span class="chip accent">${totalActuel} aménagement${totalActuel > 1 ? 's' : ''} en ${draft.niveau}</span>
         </div>
       </section>
+      ${consultation(s)}
       <section class="panel pap-grid">${SECTIONS.map(section)}
         <table class="pap-table"><thead><tr><th class="pap-sec">Autres aménagements et adaptations</th>${NIVEAUX.map(n => html`<th class="pap-niv${n === draft.niveau ? ' actuel' : ''}">${n}</th>`)}<th class="pap-x"></th></tr></thead>
           <tbody>${draft.autres.map(a => html`<tr><td class="pap-texte"><input class="input" value="${a.texte}" data-input="autreTexte" data-id="${a.id}" placeholder="Aménagement" maxlength="500"></td>
@@ -102,6 +150,7 @@ export default {
     try { s = db.get('students', id); if (studentId !== id || !draft) info = charger(id); else info = pap.papDe(id); }
     catch (e) { return html`<div class="screen"><header class="topbar">${backLink('#/pp', 'Suivi PP')}<div class="title">PAP</div></header><main class="content"><p>${e.message}</p></main></div>`; }
     const c = db.get('classes', s.classId);
+    syn = service.synthese(id);
     if (mode === 'imprimer') return impression(s, c, draft);
     return saisie(s, c, info);
   },
@@ -136,8 +185,52 @@ export default {
       busy = false; refresh();
     },
     print() { window.print(); },
+    // ----- Consultation des collègues -----
+    cfgUrl(el) { cfg.url = el.value; },
+    cfgKey(el) { cfg.key = el.value; },
+    cfgSave() {
+      try { service.configurer(cfg.url, cfg.key); cfg = { url: '', key: '' }; refresh(); toast({ text: 'Service Google enregistré' }); }
+      catch (e) { toast({ text: e.message, ms: 7000 }); }
+    },
+    consultMsg(el) { consult.message = el.value; },
+    consultEch(el) { consult.echeance = el.value; },
+    async publier() { await envoyer({}); },
+    async clore() { if (await confirmDialog({ title: 'Clore la consultation ?', text: 'Les collègues ne pourront plus répondre. Les avis déjà reçus restent récupérables. Vous pourrez rouvrir.', ok: 'Clore' })) await envoyer({ status: 'closed' }); },
+    async rouvrir() { await envoyer({ status: 'open' }); },
+    async copier() {
+      const e = service.etat(studentId); if (!e) return;
+      try { await navigator.clipboard.writeText(e.url); toast({ text: 'Lien copié : collez-le dans votre message aux collègues (Pronote, messagerie…)' }); }
+      catch { toast({ text: 'Copie impossible : sélectionnez le lien à la main', ms: 6000 }); }
+    },
+    async recuperer() {
+      if (busy) return; busy = true; refresh();
+      try { const r = await service.recuperer(studentId); toast({ text: `${r.reponses.length} avis récupéré${r.reponses.length > 1 ? 's' : ''}` }); }
+      catch (e) { toast({ text: e.message, ms: 8000 }); }
+      busy = false; refresh();
+    },
+    cocherProposes() {
+      const n = draft.niveau, list = new Set(draft.cases[n] || []), avant = list.size;
+      for (const id of syn.parItem.keys()) list.add(id);
+      draft.cases[n] = [...list]; dirty = true; refresh();
+      toast({ text: `${list.size - avant} item${list.size - avant > 1 ? 's' : ''} coché${list.size - avant > 1 ? 's' : ''} en ${n} : décochez ceux que vous ne retenez pas, puis Enregistrer`, ms: 7000 });
+    },
+    ajouterAutre(el) { draft.autres.push({ id: db.uid(), texte: el.dataset.t, niveaux: [draft.niveau] }); dirty = true; refresh(); toast({ text: 'Ajouté aux autres aménagements : pensez à Enregistrer' }); },
+
   },
 };
 
 // Le bouton « Enregistrer » s'active dès la première modification, sans redessiner l'écran (saisie en cours).
 function refreshSave() { const b = document.querySelector('[data-click="save"]'); if (b) b.disabled = busy || !dirty; }
+
+// Publie (ou met à jour, clôt, rouvre) la consultation, à partir du PAP enregistré.
+async function envoyer(options) {
+  if (busy) return;
+  if (dirty) { toast({ text: 'Enregistrez d’abord le PAP : c’est la version enregistrée qui est montrée aux collègues.', ms: 6000 }); return; }
+  busy = true; refresh();
+  try {
+    const e = await service.publier(studentId, { ...options, ...(consult.message != null ? { message: consult.message } : {}), ...(consult.echeance != null ? { echeance: consult.echeance } : {}) });
+    consult = { message: null, echeance: null };
+    toast({ text: e.status === 'open' ? 'Formulaire des collègues à jour : copiez le lien pour l’envoyer' : 'Consultation close : les avis reçus restent récupérables', ms: 6000 });
+  } catch (err) { toast({ text: err.message, ms: 8000 }); }
+  busy = false; refresh();
+}

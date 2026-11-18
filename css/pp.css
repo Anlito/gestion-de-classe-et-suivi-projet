@@ -223,3 +223,15 @@
 .pp-profile-support { flex-direction: column; align-items: stretch; }
 .pp-needs { display: flex; flex-wrap: wrap; gap: 5px; }
 .pp-needs .pill { min-height: 32px; padding: 4px 9px; font-size: 12px; }
+
+/* PAP · consultation des collègues (1.25.0) */
+.pap-consult { display: block; }
+.pap-consult .row-center { gap: 10px; }
+.pap-lien { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 0; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+.pap-lien code { flex: 1; min-width: 0; font-size: 12px; word-break: break-all; }
+.pap-vote { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-left: 4px; padding: 0 5px; border-radius: 10px; background: var(--accentInk); color: var(--surface); font-size: 11px; font-weight: 800; vertical-align: middle; cursor: help; }
+.pap-case { white-space: nowrap; }
+.pap-avis { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.pap-rep { padding: 10px 12px; border-radius: 12px; background: var(--bg); }
+.pap-rep-autre { margin-top: 6px; gap: 8px; }
+.pap-rep-com { margin: 6px 0 0; font-style: italic; white-space: pre-wrap; }

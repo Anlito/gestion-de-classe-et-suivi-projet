@@ -1,0 +1,86 @@
+<!doctype html><html lang="fr"><head><base target="_top"><meta charset="utf-8"><style>
+body{font:17px/1.5 system-ui,sans-serif;color:#253047;background:#faf7f2;margin:0}
+main{max-width:860px;margin:20px auto;padding:22px;background:#fff;border-radius:20px}
+h1{font-size:24px;margin:0 0 6px}h2{font-size:18px;margin:22px 0 8px;color:#6a3d9a}
+label.f{display:block;margin:14px 0}input[type=text],select,textarea,button{font:inherit;box-sizing:border-box;width:100%;padding:12px;border:1px solid #d9d4e2;border-radius:12px;background:#fff}
+button{background:#cec3fa;font-weight:bold;cursor:pointer;min-height:50px;border:0}button:disabled{opacity:.6}
+.note{background:#f3effc;border-radius:12px;padding:10px 14px;white-space:pre-wrap}
+.sec{border:1px solid #e6e0f0;border-radius:14px;margin:12px 0;overflow:hidden}.sec>summary{cursor:pointer;padding:12px 14px;font-weight:700;background:#f6f3fb}
+.sec.mine{border:2px solid #8d6ad6}.sec.mine>summary{background:#e9e1fb}
+.item{display:flex;gap:12px;align-items:flex-start;padding:10px 14px;border-top:1px solid #f0ecf5;cursor:pointer}
+.item input{width:24px;height:24px;flex:none;margin-top:2px;accent-color:#2f7a4f}
+.prev{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:8px;background:#e3f2e8;color:#22603d;font-size:13px;font-weight:700;white-space:nowrap}
+.muted{color:#6b6f80;font-size:14px}#message{white-space:pre-wrap}.ok{background:#e3f2e8;border-radius:12px;padding:12px 14px}
+</style></head><body><main>
+<h1 id="title">PAP · avis des professeurs</h1><p id="context" class="muted">Chargement…</p>
+<div id="pp-message" class="note" hidden></div>
+<div id="deja" class="note" hidden><span id="deja-txt"></span><p><button type="button" id="modifier">Modifier cette réponse</button></p><p><button type="button" id="autre">Répondre en tant qu’autre professeur</button></p></div>
+<form id="form" hidden>
+  <p>Cochez, pour <strong id="niv"></strong>, les aménagements <strong>indispensables</strong> à l’élève dans votre discipline et en général. Les items marqués en vert figuraient au PAP précédent. Seuls les items utiles sont à cocher.</p>
+  <label class="f">Votre nom<input type="text" name="teacher" maxlength="80" required autocomplete="name"></label>
+  <label class="f">Votre discipline<select name="discipline" required><option value="">— Choisir —</option></select></label>
+  <div id="grid"></div>
+  <div id="prev-autres"></div>
+  <h2>Autres aménagements que vous proposez (facultatif)</h2>
+  <label class="f"><input type="text" name="autre1" maxlength="300" placeholder="Aménagement proposé"></label>
+  <label class="f"><input type="text" name="autre2" maxlength="300" placeholder="Aménagement proposé"></label>
+  <label class="f"><input type="text" name="autre3" maxlength="300" placeholder="Aménagement proposé"></label>
+  <label class="f">Commentaire pour le professeur principal (facultatif)<textarea name="comment" maxlength="2000" rows="3"></textarea></label>
+  <button id="send" type="submit">Envoyer mon avis</button>
+  <p class="muted">Vous pourrez modifier votre avis depuis cet appareil tant que la consultation est ouverte : votre nouvel envoi remplacera le précédent.</p>
+</form>
+<p id="message" role="status"></p>
+</main>
+<div id="pap-token" data-token="<?= token ?>" hidden></div><script>
+const token=document.getElementById('pap-token').dataset.token,store='carnet-pap-'+token;
+const form=document.getElementById('form'),message=document.getElementById('message'),send=document.getElementById('send');
+let pap=null,saved={};try{saved=JSON.parse(localStorage.getItem(store)||'{}');}catch(e){saved={};}
+const el=(tag,props={},...kids)=>{const n=document.createElement(tag);Object.assign(n,props);kids.forEach(k=>n.append(k));return n;};
+function prevLevels(id){return Object.keys(pap.precedent||{}).filter(n=>pap.precedent[n].includes(id));}
+// Rubriques communes ouvertes ; la rubrique de la discipline choisie en premier, ouverte et encadrée ; les autres repliées.
+function drawGrid(){
+  const checked=new Set([...form.querySelectorAll('[name=item]:checked')].map(i=>i.value).concat(saved.items||[]));saved.items=null;
+  const disc=form.elements.discipline.value,grid=document.getElementById('grid');grid.textContent='';
+  const own=pap.sections.filter(s=>s.discipline===disc),common=pap.sections.filter(s=>s.discipline==='tous'),others=pap.sections.filter(s=>s.discipline!=='tous'&&s.discipline!==disc);
+  const section=(s,open,mine)=>{const d=el('details',{className:'sec'+(mine?' mine':''),open});d.append(el('summary',{},s.titre+(mine?' · votre discipline':'')));
+    s.items.forEach(i=>{const c=el('input',{type:'checkbox',name:'item',value:i.id,checked:checked.has(i.id)});const lv=prevLevels(i.id);const lab=el('label',{className:'item'},c,el('span',{},i.texte,...(lv.length?[el('span',{className:'prev'},'PAP '+lv.join(', '))]:[])));d.append(lab);});return d;};
+  own.forEach(s=>grid.append(section(s,true,true)));common.forEach(s=>grid.append(section(s,true,false)));
+  if(others.length){grid.append(el('h2',{},'Autres disciplines'));others.forEach(s=>grid.append(section(s,false,false)));}
+}
+google.script.run.withSuccessHandler(p=>{
+  pap=p;document.getElementById('title').textContent='PAP de '+p.eleve;
+  document.getElementById('context').textContent=p.className+' · niveau '+p.niveau+(p.echeance?' · réponse attendue avant le '+new Date(p.echeance+'T12:00:00').toLocaleDateString('fr-FR'):'');
+  document.getElementById('niv').textContent='la '+p.niveau;
+  if(p.message){const m=document.getElementById('pp-message');m.textContent=p.message;m.hidden=false;}
+  if(!p.open){message.textContent='Cette consultation est close. Contactez le professeur principal.';return;}
+  const sel=form.elements.discipline;p.disciplines.forEach(d=>sel.append(el('option',{value:d},d)));
+  if(p.precedentAutres&&p.precedentAutres.length){const box=document.getElementById('prev-autres');box.append(el('h2',{},'Autres aménagements du PAP précédent'));const ul=el('ul');p.precedentAutres.forEach(a=>ul.append(el('li',{},a.texte+(a.niveaux.length?' ('+a.niveaux.join(', ')+')':''))));box.append(ul);}
+  if(saved.id&&saved.sentAt){const d=document.getElementById('deja');document.getElementById('deja-txt').textContent='Un avis a déjà été envoyé depuis cet appareil par '+saved.teacher+' ('+saved.discipline+') le '+new Date(saved.sentAt).toLocaleString('fr-FR')+'.';d.hidden=false;return;}
+  ouvrir(false);
+}).withFailureHandler(err=>{message.textContent=err.message||'Impossible de charger ce formulaire.';}).getPublicPap(token);
+// prefill = true : reprendre la réponse envoyée depuis cet appareil ; false : formulaire vierge (autre professeur).
+function ouvrir(prefill){
+  document.getElementById('deja').hidden=true;const sel=form.elements.discipline;
+  if(!prefill){saved={};}
+  form.elements.teacher.value=saved.teacher||'';sel.value=saved.discipline||'';
+  ['autre1','autre2','autre3'].forEach((k,i)=>{form.elements[k].value=(saved.autres||[])[i]||'';});form.elements.comment.value=saved.comment||'';
+  form.querySelectorAll('[name=item]').forEach(i=>{i.checked=false;});drawGrid();form.hidden=false;
+}
+document.getElementById('modifier').onclick=()=>ouvrir(true);
+document.getElementById('autre').onclick=()=>ouvrir(false);
+form.elements.discipline.addEventListener('change',drawGrid);
+form.addEventListener('submit',e=>{
+  e.preventDefault();
+  const teacher=form.elements.teacher.value.trim(),discipline=form.elements.discipline.value;
+  if(!teacher||!discipline){message.textContent='Indiquez votre nom et votre discipline.';return;}
+  const data={id:(saved.id&&saved.teacher===teacher)?saved.id:crypto.randomUUID(),teacher,discipline,items:[...form.querySelectorAll('[name=item]:checked')].map(i=>i.value),
+    autres:['autre1','autre2','autre3'].map(k=>form.elements[k].value.trim()).filter(Boolean),comment:form.elements.comment.value.trim()};
+  send.disabled=true;message.textContent='Envoi en cours…';
+  google.script.run.withSuccessHandler(r=>{
+    send.disabled=false;if(!r||!r.ok){message.textContent='Envoi non confirmé. Réessayez.';return;}
+    saved={...data,sentAt:new Date().toISOString()};try{localStorage.setItem(store,JSON.stringify(saved));}catch(err){}
+    message.className='ok';message.textContent=(r.updated?'Votre avis a été mis à jour.':'Merci, votre avis est enregistré.')+'\n'+data.items.length+' aménagement(s) coché(s)'+(data.autres.length?', '+data.autres.length+' proposition(s) libre(s)':'')+'.\nLe professeur principal rédigera le PAP final à partir des avis de l’équipe.';
+    window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  }).withFailureHandler(err=>{send.disabled=false;message.textContent=(err.message||'Envoi non confirmé.')+' Vous pouvez réessayer sans créer de doublon.';}).submitPap(token,data);
+});
+</script></body></html>

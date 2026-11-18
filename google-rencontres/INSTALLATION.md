@@ -40,3 +40,19 @@ Les demandes écartées restent conservées et peuvent être remises à traiter.
 Le code et les échanges ont été testés localement avec des données fictives et un service simulé. Aucun déploiement réel ni lien familles n’a été créé par Codex. Après votre installation, vérifier dans un onglet privé : ouverture sans compte, envoi d’une réponse fictive, récupération dans le Carnet, puis fermeture du formulaire. Les quotas et permissions Google restent ceux du compte utilisé. Ne pas partager le tableau privé ni la clé professeur.
 
 Références Google : [déployer une application Web](https://developers.google.com/apps-script/guides/web), [communications du formulaire avec le service](https://developers.google.com/apps-script/guides/html/communication), [réponses JSON et redirections](https://developers.google.com/apps-script/guides/content).
+
+## 4. PAP · avis des professeurs (Carnet 1.25.0)
+
+Le même service reçoit aussi les avis des collègues sur le PAP d’un élève. Il faut **mettre à jour** le projet Apps Script déjà installé (ou l’installer d’abord, parties 1 et 2) :
+
+1. Ouvrir le projet « Carnet · Rencontres PP » sur [Google Apps Script](https://script.google.com/home).
+2. Remplacer tout le contenu de **Code.gs** par celui du fichier `Code.gs` de cette version, puis enregistrer. La partie familles est inchangée.
+3. Ajouter un fichier **HTML** nommé exactement **PapFormulaire** et y copier le contenu de `PapFormulaire.html`. Enregistrer.
+4. **Déployer → Gérer les déploiements → crayon → Version : Nouvelle version → Déployer.** L’adresse /exec et la clé professeur restent les mêmes ; les liens familles déjà envoyés continuent de fonctionner.
+5. Les feuilles **PAP** et **RetoursPAP** sont créées automatiquement dans le tableau privé au premier usage. Ne pas modifier leurs cellules.
+
+Dans le Carnet : **Suivi PP → fiche de l’élève → PAP → Consultation des collègues**. Si le service n’est pas encore configuré dans le Carnet (par exemple si vous n’utilisez pas le formulaire des familles), coller l’adresse /exec et la clé professeur. Enregistrer d’abord le PAP précédent, puis **Créer le lien pour les collègues** et **Copier le lien** pour l’envoyer à l’équipe (Pronote, messagerie). Ensuite **Récupérer les avis** autant de fois que nécessaire, puis **Clore la consultation**.
+
+Ce que voient les collègues : prénom + initiale de l’élève, classe, niveau, grille officielle, cases du PAP précédent, votre message et la date limite. Jamais le nom complet, les informations du médecin ni le bilan. Chaque collègue indique son nom et sa discipline ; il peut modifier son avis depuis le même appareil tant que la consultation est ouverte. Sur un ordinateur partagé, le formulaire propose « Répondre en tant qu’autre professeur ». Les avis restent dans votre tableau privé et dans le Carnet ; le PAP final est décidé par vous.
+
+Vérification après mise à jour : dans un onglet privé, ouvrir le lien, répondre avec un nom fictif, puis « Récupérer les avis » dans le Carnet.
