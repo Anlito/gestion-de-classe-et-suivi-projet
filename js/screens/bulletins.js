@@ -40,22 +40,22 @@ function sections(classId, students, a) {
   return out;
 }
 
-function cell(s, rec, f, t) {
-  const v = rec.levels[f.k], n = (rec.details[f.k] || []).length;
+function cell(s, rec, f, t, prev) {
+  const v = rec.levels[f.k], n = (rec.details[f.k] || []).length, p = prev && prev.levels[f.k], ev = B.evolution(p, v);
   return html`<td><button type="button" class="bul-cell${v ? ' bl-' + v : ''}" data-click="cycle" data-sid="${s.id}" data-k="${f.k}"
-    aria-label="${s.prenom}, ${f.label} : ${v ? B.LEVEL_LABEL[v] : 'non renseigné'}">${v ? B.LEVEL_SYMBOL[v] : '+'}${n ? html`<span class="bul-dot" aria-hidden="true"></span>` : ''}</button></td>`;
+    aria-label="${s.prenom}, ${f.label} : ${v ? B.LEVEL_LABEL[v] : 'non renseigné'}">${v ? B.LEVEL_SYMBOL[v] : '+'}${n ? html`<span class="bul-dot" aria-hidden="true"></span>` : ''}${p ? html`<span class="bul-prev${ev ? ' ev-' + ev : ''}" title="Trimestre ${t - 1} : ${B.LEVEL_LABEL[p]}">T${t - 1} ${B.LEVEL_SYMBOL[p]}</span>` : ''}</button></td>`;
 }
 function row(s, t) {
-  const rec = B.recordOf(s, t), st = B.stateOf(rec);
+  const rec = B.recordOf(s, t), st = B.stateOf(rec), prev = B.previousOf(s, t);
   const name = html`<td class="bul-name"><button type="button" class="bul-namebtn" data-click="open" data-sid="${s.id}">
     <span class="grow ellipsis"><strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span></span>
     ${rec.presence === 'partielle' ? html`<span class="chip warn">Présence partielle</span>` : ''}</button></td>`;
   if (rec.presence === 'dispense') {
-    return html`<tr class="bul-disp">${name}<td colspan="${B.FAMILIES.length + 3}" class="muted small bul-disp-txt">Dispensé ce trimestre · non évalué</td>
+    return html`<tr class="bul-disp">${name}<td colspan="${B.families().length + 3}" class="muted small bul-disp-txt">Dispensé ce trimestre · non évalué</td>
       <td><span class="bul-badge b-disp">${B.STATE_LABEL.disp}</span></td></tr>`;
   }
   const note = B.noteOf(s, rec, t);
-  return html`<tr>${name}${B.FAMILIES.map(f => cell(s, rec, f, t))}
+  return html`<tr>${name}${B.families().map(f => cell(s, rec, f, t, prev))}
     <td class="bul-note"><strong>${f1(note.n)}</strong><span class="bul-auto">${note.n == null ? '' : note.manual ? 'corrigée' : 'auto'}</span></td>
     <td class="small">${rec.tendance || '—'}</td>
     <td>${rec.info && rec.info.trim() ? html`<span class="bul-info" title="${rec.info}">✎</span>` : html`<span class="muted">—</span>`}</td>
@@ -69,7 +69,8 @@ function drawer(classId, s, t, mates) {
     h.pos ? h.pos + ' remarque' + (h.pos > 1 ? 's' : '') + ' Aide' + (h.posMotifs.length ? ' (' + h.posMotifs.join(', ') + ')' : '') : '',
     h.absences + ' absence' + (h.absences > 1 ? 's' : ''), h.retards + ' retard' + (h.retards > 1 ? 's' : ''),
   ].filter(Boolean);
-  const disp = rec.presence === 'dispense';
+  const disp = rec.presence === 'dispense', prev = B.previousOf(s, t);
+  const carry = prev && prev.presence !== 'normale' && rec.presence === 'normale' ? prev.presence : null;
   return html`<div class="scrim dim" data-click="close"></div>
     <aside class="drawer bul-drawer" aria-label="Fiche de ${s.prenom}">
       <div class="drawer-head"><span class="drawer-title grow ellipsis">${model.fullName(s)} · T${t}</span>
@@ -79,11 +80,12 @@ function drawer(classId, s, t, mates) {
         <div class="bul-block"><span class="caps">Présence en cours ce trimestre</span>
           <div class="segmented">${Object.entries(B.PRESENCE).map(([k, label]) => html`<button type="button" class="seg${rec.presence === k ? ' on' : ''}" data-click="presence" data-v="${k}">${label}</button>`)}</div>
           <span class="muted small">${rec.presence === 'partielle' ? 'Emploi du temps aménagé, absent certains cours… Remplissez seulement les critères que vous avez pu observer.'
-            : disp ? 'Non évalué ce trimestre : aucune case à remplir.' : 'Suit le cours normalement.'}</span></div>
+            : disp ? 'Non évalué ce trimestre : aucune case à remplir.' : 'Suit le cours normalement.'}</span>
+          ${carry ? html`<button type="button" class="btn soft small bul-carry" data-click="presence" data-v="${carry}">Reprendre « ${B.PRESENCE[carry]} » comme au trimestre ${t - 1}</button>` : ''}</div>
         ${disp ? '' : html`
         <div class="bul-hint"><strong>Ce que le Carnet a noté ce trimestre</strong><span>${facts.join(' · ')}</span>
           <span class="muted small">Pour vous aider : rien n’est coché à votre place.</span></div>
-        ${B.FAMILIES.map(f => html`<div class="bul-fam">
+        ${B.families().map(f => html`<div class="bul-fam">
           <div class="bul-fam-head"><strong class="grow">${f.label}</strong>
             <div class="bul-lv">${B.LEVELS.map(v => html`<button type="button" class="bl-${v}${rec.levels[f.k] === v ? ' on' : ''}" data-click="level" data-k="${f.k}" data-v="${v}">${B.LEVEL_SYMBOL[v]} ${B.LEVEL_LABEL[v]}</button>`)}</div></div>
           <div class="bul-desc">${[...f.pos, ...f.neg].map(d => html`<button type="button" class="${(rec.details[f.k] || []).includes(d) ? 'on' : ''}" data-click="detail" data-k="${f.k}" data-d="${d}">${d}</button>`)}</div>
@@ -108,7 +110,7 @@ function exportPlan(c, t, students, a) {
   const all = students.map(s => ({ student: s, rec: B.recordOf(s, t) }));
   const g = exp.scope.startsWith('g:') ? db.get('groups', exp.scope.slice(2)) : null;
   const inScope = all.filter(e => exp.scope === 'tous' || (g ? g.members.includes(e.student.id) : B.stateOf(e.rec) === 'ok'));
-  const entries = inScope.map(e => ({ ...e, note: B.noteOf(e.student, e.rec, t).n }));
+  const entries = inScope.map(e => { const p = B.previousOf(e.student, t); return { ...e, note: B.noteOf(e.student, e.rec, t).n, prev: p ? p.levels : null }; });
   const projects = B.assignmentsOfTrimester(c.id, t).map(x => db.get('projects', x.projectId).title);
   const built = B.buildExport({ niveau: B.levelLabel(c), trimester: t, year: model.schoolYear(), projects, options: exp, entries, exportId: exp.id });
   const disp = inScope.filter(e => e.rec.presence === 'dispense').length;
@@ -223,7 +225,7 @@ export default {
     const recs = students.map(s => B.recordOf(s, t));
     const disp = recs.filter(r => r.presence === 'dispense').length, ready = recs.filter(r => B.stateOf(r) === 'ok').length, total = students.length - disp;
     const shown = s => !onlyTodo || !['ok', 'disp'].includes(B.stateOf(B.recordOf(s, t)));
-    const cols = B.FAMILIES.length + 5;
+    const cols = B.families().length + 5;
     const open = openSid && students.find(s => s.id === openSid);
     if (openSid && !open) openSid = null;
     const mates = open ? (secs.find(x => x.students.includes(open)) || { students }).students : [];
@@ -259,6 +261,7 @@ export default {
           <button type="button" class="seg${sortMode === 'group' ? ' on' : ''}" data-click="sort" data-v="group">Par groupe</button>
           <button type="button" class="seg${sortMode === 'alpha' ? ' on' : ''}" data-click="sort" data-v="alpha">A → Z</button></div>
         ${sortMode === 'group' && list.length > 1 ? projectSwitch(list, a) : sortMode === 'group' && p ? html`<span class="muted small">${p.title}</span>` : ''}
+        <a class="btn soft small" href="#/admin/bulletins">Critères</a>
         <label class="bul-check"><input type="checkbox" data-change="todo" ${onlyTodo ? 'checked' : ''}> À compléter seulement</label>
         <span class="spacer"></span>
         <span class="bul-legend">${B.LEVELS.map(v => html`<span><i class="bul-sw bl-${v}"></i>${B.LEVEL_LABEL[v]}</span>`)}</span>
@@ -267,7 +270,7 @@ export default {
       </div>
       <main class="content bul-content" data-scroll="bulletins">
         ${students.length ? html`<table class="bul-grid">
-          <thead><tr><th class="bul-name">Élève</th>${B.FAMILIES.map(f => html`<th>${f.label}</th>`)}<th>Note /20</th><th>Tendance</th><th>Remarque</th><th>État</th></tr></thead>
+          <thead><tr><th class="bul-name">Élève</th>${B.families().map(f => html`<th>${f.label}</th>`)}<th>Note /20</th><th>Tendance</th><th>Remarque</th><th>État</th></tr></thead>
           <tbody>${secs.map(sec => {
             const rows = sec.students.filter(shown);
             if (!rows.length) return '';

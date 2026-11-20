@@ -11,6 +11,7 @@ import projet from './screens/projet.js';
 import groupes from './screens/groupes.js';
 import notes from './screens/notes.js';
 import bulletins from './screens/bulletins.js';
+import bulletinsCriteres from './screens/bulletins-criteres.js';
 import admin from './screens/admin.js';
 import reglages from './screens/reglages.js';
 import editClasse from './screens/edit-classe.js';
@@ -87,6 +88,7 @@ const ROUTES = [
   [/^#\/classe\/([^/]+)\/groupes$/, groupes, ['classId']],
   [/^#\/classe\/([^/]+)\/notes$/, notes, ['classId']],
   [/^#\/classe\/([^/]+)\/bulletins$/, bulletins, ['classId']],
+  [/^#\/admin\/bulletins$/, bulletinsCriteres, []],
   [/^#\/admin$/, admin, []],
   [/^#\/admin\/reglages$/, reglages, []],
   [/^#\/admin\/sauvegarde$/, sauvegarde, []],

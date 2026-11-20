@@ -1174,3 +1174,15 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .bul-file { align-self: flex-start; cursor: pointer; }
 .bul-paste { width: 100%; font: 13px/1.5 ui-monospace, Consolas, monospace; }
 @media (max-width: 760px) { .bul-app { grid-template-columns: 1fr; } }
+/* Trimestre précédent et critères (1.29.0) */
+.bul-cell { overflow: hidden; }
+.bul-prev { position: absolute; left: 0; right: 0; bottom: 1px; font-size: 9px; font-weight: 700; color: var(--ink2); line-height: 1; }
+.bul-prev.ev-up { color: var(--pos); } .bul-prev.ev-down { color: var(--neg); }
+.bul-carry { align-self: flex-start; }
+.crit-fam { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px; background: var(--bg); }
+.crit-fam.hidden { opacity: 0.55; }
+.crit-fam-head { display: flex; align-items: center; gap: 8px; }
+.crit-fam-head .input { flex: 1; font-weight: 800; height: 48px; background: var(--surface); }
+.crit-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.crit-cols textarea { width: 100%; background: var(--surface); font-size: 15px; }
+@media (max-width: 700px) { .crit-cols { grid-template-columns: 1fr; } }

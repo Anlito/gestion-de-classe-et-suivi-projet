@@ -46,6 +46,12 @@ export default {
         </div>
 
         <div class="set-block">
+          <div class="set-title">Critères des bulletins</div>
+          <div class="muted small">Colonnes de l’onglet Bulletins et formulations proposées dans la fiche élève : renommer, ajouter, masquer.</div>
+          <a class="btn soft" href="#/admin/bulletins">Modifier les critères</a>
+        </div>
+
+        <div class="set-block">
           <div class="set-title">Apparence</div>
           <div class="segmented">
             <button type="button" class="seg${theme === 'clair' ? ' on' : ''}" data-click="theme" data-k="clair">Clair</button>

@@ -17,6 +17,37 @@ export const FAMILIES = [
   { k: 'autonomie', label: 'Autonomie', pos: ['Autonome', 'Prend des initiatives'], neg: ['Besoin d’être guidé·e', 'Doit gagner en autonomie'] },
   { k: 'organisation', label: 'Organisation', pos: ['Matériel toujours présent', 'Bien organisé·e'], neg: ['Oublis de matériel', 'Doit mieux s’organiser'] },
 ];
+
+// ---------- Critères personnalisés (1.29.0) ----------
+// Réglage synchronisé « bulletinsCriteres » : [{ k, label, hidden, pos:[…], neg:[…] }]. Absent : critères par défaut.
+// La clé k d'une famille ne change jamais (renommer garde les niveaux déjà saisis) ; masquer garde les données.
+const clean = list => [...new Set((list || []).map(x => String(x || '').trim()).filter(Boolean))];
+export function normalizeFamilies(list) {
+  if (!Array.isArray(list) || !list.length) return FAMILIES.map(f => ({ ...f, hidden: false }));
+  const seen = new Set(), out = [];
+  for (const f of list) {
+    const k = String(f && f.k || '').trim(), label = String(f && f.label || '').trim();
+    if (!k || seen.has(k) || !label) continue;
+    seen.add(k);
+    out.push({ k, label: label.slice(0, 40), hidden: !!f.hidden, pos: clean(f.pos), neg: clean(f.neg) });
+  }
+  return out.length ? out : FAMILIES.map(f => ({ ...f, hidden: false }));
+}
+export function allFamilies() {
+  let saved = null;
+  try { saved = db.getMeta('bulletinsCriteres', null); } catch (e) { /* données pas encore chargées (tests) */ }
+  return normalizeFamilies(saved);
+}
+export const families = () => allFamilies().filter(f => !f.hidden);
+export const familiesCustomized = () => { try { return db.getMeta('bulletinsCriteres', null) !== null; } catch (e) { return false; } };
+export function saveFamilies(list) {
+  const norm = normalizeFamilies(list);
+  if (!norm.some(f => !f.hidden)) throw new Error('Gardez au moins un critère affiché.');
+  return db.commit(w => w.meta('bulletinsCriteres', norm));
+}
+export const resetFamilies = () => db.commit(w => w.del('meta', 'bulletinsCriteres'));
+export const newFamilyKey = () => 'c-' + db.uid().slice(0, 8);
+
 export const LEVELS = ['pos', 'mid', 'neg'];
 export const LEVEL_LABEL = { pos: 'Point fort', mid: 'Correct', neg: 'À améliorer' };
 export const LEVEL_SYMBOL = { pos: '▲', mid: '●', neg: '▼' };
@@ -32,12 +63,12 @@ export function nextLevel(v) {
   return cycle[(cycle.indexOf(v ?? null) + 1) % cycle.length];
 }
 // État d'une fiche. Présence partielle : critères facultatifs, prête dès qu'un constat est posé.
-export function stateOf(rec) {
+export function stateOf(rec, fams = families()) {
   if (!rec) return 'todo';
   if (rec.presence === 'dispense') return 'disp';
-  const n = FAMILIES.filter(f => rec.levels && rec.levels[f.k]).length;
+  const n = fams.filter(f => rec.levels && rec.levels[f.k]).length;
   if (rec.presence === 'partielle') return n || (rec.info && rec.info.trim()) ? 'ok' : 'todo';
-  return n === FAMILIES.length ? 'ok' : n ? 'part' : 'todo';
+  return n === fams.length ? 'ok' : n ? 'part' : 'todo';
 }
 // Période d'un trimestre d'après les dates de début enregistrées ({ 1:'AAAA-MM-JJ', 2:…, 3:… }).
 // Trimestre 1 : depuis toujours (sa date de début enregistrée est celle de la première ouverture de l'app, souvent
@@ -152,7 +183,8 @@ export const levelLabel = c => (c.level || '') + (c.segpa ? ' SEGPA' : '');
 export const exportFileName = (c, t) => ('bulletins-' + levelLabel(c) + '-T' + t).toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]/g, '') + '.json';
 
 // entries : [{ student:{ id, prenom }, rec, note }] dans l'ordre de la classe. Renvoie { data, codes:{ E01: studentId } }.
-export function buildExport({ niveau, trimester, year, projects = [], options, entries, exportId }) {
+// e.prev (facultatif) : niveaux du trimestre précédent, exportés comme « trimestre_precedent » pour parler des progrès.
+export function buildExport({ niveau, trimester, year, projects = [], options, entries, exportId, fams = families() }) {
   const kept = entries.filter(e => e.rec.presence !== 'dispense');
   const seen = new Map(), total = new Map();
   for (const e of kept) { const p = (e.student.prenom || '').trim() || 'Élève'; total.set(p, (total.get(p) || 0) + 1); }
@@ -166,9 +198,10 @@ export function buildExport({ niveau, trimester, year, projects = [], options, e
     if (e.rec.presence === 'partielle') o.presence = 'partielle';
     o.note = typeof e.note === 'number' ? e.note : null;
     const criteres = {};
-    for (const f of FAMILIES) {
+    for (const f of fams) {
       const v = e.rec.levels && e.rec.levels[f.k], d = (e.rec.details && e.rec.details[f.k] || []).filter(Boolean);
-      if (v || d.length) criteres[f.label] = { ...(v ? { niveau: LEVEL_LABEL[v] } : {}), ...(d.length ? { formulations: d } : {}) };
+      const p = v && e.prev && e.prev[f.k];
+      if (v || d.length) criteres[f.label] = { ...(v ? { niveau: LEVEL_LABEL[v] } : {}), ...(p ? { trimestre_precedent: LEVEL_LABEL[p] } : {}), ...(d.length ? { formulations: d } : {}) };
     }
     o.criteres = criteres;
     if (e.rec.tendance) o.tendance = e.rec.tendance;
@@ -231,3 +264,17 @@ export function importAppreciations(parsed) {
 export const DISPENSE_TEXT = 'Dispensé(e).';
 export const setAppreciation = (student, t, text) => save(student, t, cur => ({ appreciation: String(text || '').slice(0, 2000), pronote: cur.appreciation === text ? cur.pronote : false }));
 export const setPronote = (student, t, done, text) => save(student, t, cur => ({ pronote: !!done, ...(text != null && !cur.appreciation ? { appreciation: text } : {}) }));
+
+// ---------- Trimestre précédent (1.29.0) ----------
+// Fiche du trimestre précédent (même année), ou null au premier trimestre / sans fiche.
+export function previousOf(student, t) {
+  if (t <= 1) return null;
+  const r = db.get('bulletins', recordId(student.id, model.schoolYear(), t - 1));
+  return r ? { ...emptyRecord(student, t - 1), ...r } : null;
+}
+// Évolution d'un critère d'un trimestre à l'autre : 'up', 'down', 'same' ou null.
+export function evolution(prev, cur) {
+  if (!prev || !cur) return null;
+  const rank = { neg: 0, mid: 1, pos: 2 };
+  return rank[cur] > rank[prev] ? 'up' : rank[cur] < rank[prev] ? 'down' : 'same';
+}

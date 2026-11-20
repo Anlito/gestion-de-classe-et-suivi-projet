@@ -76,3 +76,25 @@ test('Retour : export inconnu ou mauvais format refusés', () => {
   for (const t of ['pas de json', '{"format":"autre","appreciations":[]}', '{"format":"carnet-appreciations-v1","export_id":"zz","appreciations":[]}']) { try { parseReturn(t, mapOf); } catch { n++; } }
   eq(n, 3);
 });
+
+import { normalizeFamilies, evolution } from '../js/bulletins.js';
+test('Critères : liste vide ou absente → critères par défaut', () => {
+  eq(normalizeFamilies(null).length, 7); eq(normalizeFamilies([]).length, 7);
+});
+test('Critères : clés en double, libellés vides et formulations vides écartés', () => {
+  const r = normalizeFamilies([{ k: 'a', label: ' Oral ', pos: ['Clair', ' ', 'Clair'], neg: [] }, { k: 'a', label: 'Doublon' }, { k: 'b', label: '' }, { k: 'c', label: 'Sécurité', hidden: 1 }]);
+  eq(r.length, 2); eq(r[0].label, 'Oral'); eq(r[0].pos.join(), 'Clair'); eq(r[1].hidden, true);
+});
+test('Critères : un critère masqué ne compte plus pour « prêt »', () => {
+  const fams = [{ k: 'a', label: 'A' }, { k: 'b', label: 'B' }];
+  eq(stateOf({ presence: 'normale', levels: { a: 'pos' } }, fams), 'part');
+  eq(stateOf({ presence: 'normale', levels: { a: 'pos' } }, fams.slice(0, 1)), 'ok');
+});
+test('Trimestre précédent : évolution d’un critère', () => {
+  eq(evolution('neg', 'pos'), 'up'); eq(evolution('pos', 'mid'), 'down'); eq(evolution('mid', 'mid'), 'same'); eq(evolution(null, 'pos'), null);
+});
+test('Export : niveau du trimestre précédent indiqué', () => {
+  const { data } = buildExport({ niveau: '4e', trimester: 2, year: 'y', options: opts, exportId: 'x', fams: [{ k: 'travail', label: 'Travail' }],
+    entries: [{ student: { id: 'a', prenom: 'Léa' }, rec: { presence: 'normale', levels: { travail: 'pos' }, details: {} }, prev: { travail: 'neg' }, note: 14 }] });
+  eq(data.eleves[0].criteres.Travail.trimestre_precedent, 'À améliorer');
+});
