@@ -4,7 +4,7 @@ import * as db from '../db.js';
 import * as model from '../model.js';
 import * as B from '../bulletins.js';
 import { html, toast, openMenu } from '../ui.js';
-import { backLink, tabBar, projectSwitch, icon } from '../components.js';
+import { backLink, tabBar, projectSwitch, icon, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
 import { giveFile, givenMessage } from '../backup.js';
 
@@ -25,6 +25,9 @@ addEventListener('pagehide', flush);
 
 const trimester = classId => trimOf[classId] || model.trimester();
 const f1 = model.f1;
+
+// Photo affichée au survol du prénom (ordinateur) ; rien si l'élève n'a pas de photo.
+const hoverPhoto = s => (s.photoId && db.photoURL(s.photoId) ? photo(s, { cls: 'big bul-pop', label: false }) : '');
 
 // Lignes du tableau : par groupe (projet choisi), élèves sans groupe à la fin ; ou par ordre alphabétique.
 function sections(classId, students, a) {
@@ -48,7 +51,7 @@ function cell(s, rec, f, t, prev) {
 function row(s, t) {
   const rec = B.recordOf(s, t), st = B.stateOf(rec), prev = B.previousOf(s, t);
   const name = html`<td class="bul-name"><button type="button" class="bul-namebtn" data-click="open" data-sid="${s.id}">
-    <span class="grow ellipsis"><strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span></span>
+    <span class="grow ellipsis"><strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span></span>${hoverPhoto(s)}
     ${rec.presence === 'partielle' ? html`<span class="chip warn">Présence partielle</span>` : ''}</button></td>`;
   if (rec.presence === 'dispense') {
     return html`<tr class="bul-disp">${name}<td colspan="${B.families().length + 3}" class="muted small bul-disp-txt">Dispensé ce trimestre · non évalué</td>
@@ -76,6 +79,8 @@ function drawer(classId, s, t, mates) {
       <div class="drawer-head"><span class="drawer-title grow ellipsis">${model.fullName(s)} · T${t}</span>
         <button type="button" class="btn accent" data-click="close">Terminé</button></div>
       <div class="drawer-body" data-scroll="bul-drawer">
+        <div class="bul-who">${photo(s, { cls: 'big' })}<div class="bul-who-txt"><strong>${model.fullName(s)}</strong>
+          <span class="muted small">${[note.n == null ? '' : 'Note ' + f1(note.n), rec.presence === 'partielle' ? 'Présence partielle' : rec.presence === 'dispense' ? 'Dispensé' : ''].filter(Boolean).join(' · ')}</span></div></div>
         <div class="chips-row bul-mates">${mates.map(m => html`<button type="button" class="pill${m.id === s.id ? ' on' : ''}" data-click="open" data-sid="${m.id}">${m.prenom}</button>`)}</div>
         <div class="bul-block"><span class="caps">Présence en cours ce trimestre</span>
           <div class="segmented">${Object.entries(B.PRESENCE).map(([k, label]) => html`<button type="button" class="seg${rec.presence === k ? ' on' : ''}" data-click="presence" data-v="${k}">${label}</button>`)}</div>
@@ -157,7 +162,7 @@ function appreciationsView(students, t) {
   return html`<div class="bul-apps">${rows.map(({ s, rec }) => {
     const text = appText(rec), note = rec.presence === 'dispense' ? null : B.noteOf(s, rec, t).n, n = text.length;
     return html`<div class="bul-app${rec.pronote ? ' done' : ''}" data-row="${s.id}">
-      <div class="bul-app-who"><strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span>
+      <div class="bul-app-who">${hoverPhoto(s)}<strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span>
         <span class="muted small">${rec.presence === 'dispense' ? 'Dispensé' : 'Note ' + f1(note)}${rec.presence === 'partielle' ? ' · présence partielle' : ''}</span></div>
       <div class="bul-app-text"><textarea class="input" rows="3" data-input="app" data-sid="${s.id}"
           placeholder="Pas encore d’appréciation : exportez pour Claude puis importez le retour, ou écrivez-la ici.">${text}</textarea>

@@ -1,5 +1,9 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.29.1 · Photo de l’élève dans les Bulletins · 20 novembre 2026
+
+Demande du professeur : voir la photo de l’élève au survol ou au toucher du prénom. Sur ordinateur, passer la souris sur un prénom (grille Constats et liste Appréciations) affiche sa photo à côté, sans rien ouvrir ; rien ne s’affiche pour un élève sans photo. Toucher ou cliquer le prénom ouvre la fiche, qui commence maintenant par la photo, le nom complet, la note et la présence. Fichiers : screens/bulletins.js, app.css, nav.js et sw.js. Vérifications : parcours navigateur sur la démonstration à 1280 × 800 (survol puis ouverture de la fiche).
+
 ## Version 1.29.0 · Onglet Bulletins, étape 4 : critères modifiables et trimestre précédent · 20 novembre 2026
 
 Nouvel écran **Critères des bulletins** (`#/admin/bulletins`), ouvert depuis Réglages (« Modifier les critères ») ou le bouton **Critères** de la grille. Commun à toutes les classes et synchronisé (`meta.bulletinsCriteres`) : renommer un critère (les cases déjà remplies sont gardées, la clé ne change pas), le monter ou le descendre, le **masquer** (il disparaît de la grille, de la fiche et de l’export et ne compte plus pour « prêt » ; ses données restent), **ajouter un critère** (ex. Oral, Sécurité à l’atelier), modifier les formulations positives et à améliorer (une par ligne ; lignes vides et doublons retirés). Au moins un critère reste affiché. **Rétablir les critères par défaut** (avec confirmation et Annuler).
