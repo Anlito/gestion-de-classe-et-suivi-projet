@@ -61,3 +61,18 @@ test('Export : dispensés non envoyés, présence partielle signalée sans motif
 test('Export : nom de fichier sans accent ni espace', () => {
   eq(exportFileName({ level: '4e', segpa: true }, 1), 'bulletins-4e-segpa-t1.json');
 });
+
+import { parseReturn } from '../js/bulletins.js';
+const maps = { x1: { classId: 'c', year: 'y', trimester: 1, codes: { E01: 'a', E02: 'b', E03: 'c' } } };
+const mapOf = id => maps[id] || null;
+test('Retour : texte collé avec ```json, codes rattachés, trop long signalé', () => {
+  const long = 'x'.repeat(301);
+  const r = parseReturn('Voici :\n```json\n{"format":"carnet-appreciations-v1","export_id":"x1","appreciations":[{"code":"E01","texte":"  Bon   trimestre. "},{"code":"E02","texte":"' + long + '"},{"code":"E09","texte":"?"}]}\n```', mapOf);
+  eq(r.items.length, 2); eq(r.items[0].studentId, 'a'); eq(r.items[0].texte, 'Bon trimestre.'); eq(r.items[1].tooLong, true);
+  eq(r.unknown.join(), 'E09'); eq(r.missing.join(), 'E03');
+});
+test('Retour : export inconnu ou mauvais format refusés', () => {
+  let n = 0;
+  for (const t of ['pas de json', '{"format":"autre","appreciations":[]}', '{"format":"carnet-appreciations-v1","export_id":"zz","appreciations":[]}']) { try { parseReturn(t, mapOf); } catch { n++; } }
+  eq(n, 3);
+});

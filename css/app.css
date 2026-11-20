@@ -1157,3 +1157,20 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .bul-json { margin: 0; flex: 1; min-height: 240px; max-height: 100%; overflow: auto; padding: 12px 14px; border-radius: 12px; background: var(--bg);
   font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
 @media (max-width: 760px) { .bul-export-body { grid-template-columns: 1fr; } }
+/* Retour des appréciations (1.28.0) */
+.bul-apps { display: flex; flex-direction: column; padding: 8px 16px 24px; }
+.bul-app { display: grid; grid-template-columns: 200px 1fr 190px; gap: 16px; align-items: start; padding: 14px 8px; border-bottom: 1px solid var(--line); border-radius: 12px; }
+.bul-app > * { min-width: 0; }
+.bul-app.done { opacity: 0.6; }
+.bul-app.next { background: var(--accentTint); opacity: 1; }
+.bul-app-who { display: flex; flex-direction: column; gap: 2px; padding-top: 8px; }
+.bul-app-text { display: flex; flex-direction: column; gap: 4px; }
+.bul-app-text textarea { width: 100%; font-size: 16px; line-height: 1.45; }
+.bul-count { font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.bul-count.over { color: var(--neg); font-weight: 700; }
+.bul-app-act { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+.bul-import { height: auto; max-height: calc(100dvh - 32px); width: min(680px, calc(100vw - 32px)); }
+.bul-import-body { flex: 1; min-height: 0; overflow: auto; padding: 18px 24px; display: flex; flex-direction: column; gap: 14px; }
+.bul-file { align-self: flex-start; cursor: pointer; }
+.bul-paste { width: 100%; font: 13px/1.5 ui-monospace, Consolas, monospace; }
+@media (max-width: 760px) { .bul-app { grid-template-columns: 1fr; } }

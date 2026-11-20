@@ -64,7 +64,7 @@ export function validNote(v) {
 export const recordId = (studentId, year, t) => 'bul:' + studentId + ':' + year + ':' + t;
 export function emptyRecord(student, t, year = model.schoolYear()) {
   return { id: recordId(student.id, year, t), studentId: student.id, classId: student.classId, year, trimester: t,
-    presence: 'normale', levels: {}, details: {}, tendance: '', info: '', note: null };
+    presence: 'normale', levels: {}, details: {}, tendance: '', info: '', note: null, appreciation: '', pronote: false };
 }
 export function recordOf(student, t, year = model.schoolYear()) {
   const r = db.get('bulletins', recordId(student.id, year, t));
@@ -190,3 +190,44 @@ export function buildExport({ niveau, trimester, year, projects = [], options, e
 // Correspondance code → élève, gardée dans le Carnet (synchronisée, jamais exportée) pour relire le fichier retour.
 export const saveExportMapping = (classId, t, exportId, file, codes) =>
   db.commit(w => w.meta('bulletinsExport:' + exportId, { classId, year: model.schoolYear(), trimester: t, file, codes, at: new Date().toISOString() }));
+
+// ---------- Retour des appréciations (1.28.0) ----------
+// Fichier renvoyé par Claude : { format:'carnet-appreciations-v1', export_id, appreciations:[{ code, texte }] }.
+// Accepte aussi le texte collé depuis la conversation (entouré de ```json … ``` ou d'autres phrases).
+export function parseReturn(text, mappingOf) {
+  const s = String(text || ''), a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a < 0 || b < a) throw new Error('Aucune donnée lisible : choisissez le fichier renvoyé par Claude ou collez son contenu.');
+  let data;
+  try { data = JSON.parse(s.slice(a, b + 1)); } catch (e) { throw new Error('Le contenu n’est pas un fichier d’appréciations valide (JSON illisible).'); }
+  if (!data || data.format !== 'carnet-appreciations-v1' || !Array.isArray(data.appreciations)) throw new Error('Ce n’est pas un fichier d’appréciations du Carnet (format carnet-appreciations-v1 attendu).');
+  const mapping = data.export_id ? mappingOf(data.export_id) : null;
+  if (!mapping) throw new Error('Export inconnu sur cet appareil : relisez le fichier depuis l’appareil qui a fait l’export, ou attendez la synchronisation.');
+  const items = [], unknown = [], seen = new Set();
+  for (const x of data.appreciations) {
+    const code = String(x && x.code || '').trim(), texte = String(x && x.texte || '').replace(/\s+/g, ' ').trim();
+    if (!code || !texte || seen.has(code)) continue;
+    seen.add(code);
+    const studentId = mapping.codes[code];
+    if (!studentId) { unknown.push(code); continue; }
+    items.push({ code, studentId, texte, tooLong: texte.length > MAX_CHARS });
+  }
+  const missing = Object.keys(mapping.codes).filter(c => !seen.has(c));
+  return { exportId: data.export_id, mapping, items, unknown, missing };
+}
+export const mappingOf = id => db.getMeta('bulletinsExport:' + id, null);
+// Enregistre les appréciations relues dans les fiches du trimestre de l'export. Une appréciation remplacée n'est plus « saisie ».
+export function importAppreciations(parsed) {
+  const { mapping, items } = parsed;
+  return db.commit(w => {
+    for (const it of items) {
+      const s = db.get('students', it.studentId);
+      if (!s) continue;
+      const cur = recordOf(s, mapping.trimester, mapping.year);
+      if (cur.appreciation === it.texte) continue;
+      w.put('bulletins', { ...cur, appreciation: it.texte, pronote: false });
+    }
+  });
+}
+export const DISPENSE_TEXT = 'Dispensé(e).';
+export const setAppreciation = (student, t, text) => save(student, t, cur => ({ appreciation: String(text || '').slice(0, 2000), pronote: cur.appreciation === text ? cur.pronote : false }));
+export const setPronote = (student, t, done, text) => save(student, t, cur => ({ pronote: !!done, ...(text != null && !cur.appreciation ? { appreciation: text } : {}) }));

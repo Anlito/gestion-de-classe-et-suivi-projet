@@ -11,6 +11,10 @@ import { giveFile, givenMessage } from '../backup.js';
 const trimOf = {};            // trimestre affiché, par classe (par défaut : le trimestre en cours)
 let openSid = null;           // élève dont la fiche est ouverte
 let exp = null;               // fenêtre d'export ouverte : { scope:'prets'|'tous'|'g:<groupId>', discipline, ton, formulation }
+let mode = (() => { try { return localStorage.getItem('carnet-bulletins-vue') || 'constats'; } catch (e) { return 'constats'; } })(); // 'constats' (grille) ou 'appreciations' (relecture et copie dans Pronote)
+let imp = null;               // fenêtre d'import ouverte : { text, parsed, error }
+let onlyNotDone = false;
+let scrollToSid = null;       // ligne à amener à l'écran après « Copier »
 let onlyTodo = false;
 let sortMode = (() => { try { return localStorage.getItem('carnet-bulletins-tri') || 'group'; } catch (e) { return 'group'; } })();
 const pending = new Map();
@@ -144,7 +148,69 @@ function exportDialog(c, t, plan) {
     </div>`;
 }
 
+// ---------- Retour des appréciations (1.28.0) ----------
+const appText = rec => rec.appreciation || (rec.presence === 'dispense' ? B.DISPENSE_TEXT : '');
+function appreciationsView(students, t) {
+  const rows = students.map(s => ({ s, rec: B.recordOf(s, t) })).filter(x => !onlyNotDone || !x.rec.pronote);
+  return html`<div class="bul-apps">${rows.map(({ s, rec }) => {
+    const text = appText(rec), note = rec.presence === 'dispense' ? null : B.noteOf(s, rec, t).n, n = text.length;
+    return html`<div class="bul-app${rec.pronote ? ' done' : ''}" data-row="${s.id}">
+      <div class="bul-app-who"><strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span>
+        <span class="muted small">${rec.presence === 'dispense' ? 'Dispensé' : 'Note ' + f1(note)}${rec.presence === 'partielle' ? ' · présence partielle' : ''}</span></div>
+      <div class="bul-app-text"><textarea class="input" rows="3" data-input="app" data-sid="${s.id}"
+          placeholder="Pas encore d’appréciation : exportez pour Claude puis importez le retour, ou écrivez-la ici.">${text}</textarea>
+        <span class="bul-count${n > B.MAX_CHARS ? ' over' : ''}">${n} / ${B.MAX_CHARS} caractères${n > B.MAX_CHARS ? ' · trop long pour Pronote' : ''}</span></div>
+      <div class="bul-app-act">
+        <button type="button" class="btn ${rec.pronote ? 'soft' : 'accent'}" data-click="copy" data-sid="${s.id}" ${text ? '' : 'disabled'}>${rec.pronote ? 'Copier à nouveau' : 'Copier'}</button>
+        <label class="bul-check small"><input type="checkbox" data-change="done" data-sid="${s.id}" ${rec.pronote ? 'checked' : ''}> Saisie dans Pronote</label>
+      </div></div>`;
+  })}${!rows.length ? html`<p class="bul-empty">Toutes les appréciations sont saisies dans Pronote.</p>` : ''}</div>`;
+}
+function importDialog(classId) {
+  const p = imp.parsed, other = p && p.mapping.classId !== classId ? db.get('classes', p.mapping.classId) : null;
+  const long = p ? p.items.filter(i => i.tooLong).length : 0;
+  return html`<div class="scrim dim" data-click="closeImport"></div>
+    <div class="bul-export bul-import" role="dialog" aria-modal="true" aria-label="Importer les appréciations">
+      <div class="drawer-head"><div class="grow"><div class="drawer-title">Importer les appréciations</div>
+        <div class="muted small">Le fichier renvoyé par Claude, ou son contenu collé depuis la conversation.</div></div></div>
+      <div class="bul-import-body">
+        <label class="btn soft bul-file">${icon.download}Choisir le fichier<input type="file" accept=".json,application/json,text/plain" data-change="impFile" hidden></label>
+        <label class="bul-block"><span class="caps">Ou collez le contenu</span>
+          <textarea class="input bul-paste" rows="6" data-input="impText" placeholder='{ "format": "carnet-appreciations-v1", … }'>${imp.text}</textarea></label>
+        ${imp.error ? html`<div class="bul-hint"><strong>Lecture impossible</strong><span>${imp.error}</span></div>` : ''}
+        ${p ? html`<div class="bul-safe"><strong>${p.items.length} appréciation${p.items.length > 1 ? 's' : ''} pour ${other ? other.name : db.get('classes', classId).name} · trimestre ${p.mapping.trimester}</strong>
+          <span class="small">${[long ? long + ' dépasse' + (long > 1 ? 'nt' : '') + ' ' + B.MAX_CHARS + ' caractères (à raccourcir avant Pronote)' : '',
+            p.missing.length ? p.missing.length + ' élève' + (p.missing.length > 1 ? 's' : '') + ' de l’export sans appréciation' : '',
+            p.unknown.length ? 'codes inconnus ignorés : ' + p.unknown.join(', ') : '',
+            other ? 'Ce fichier concerne la classe ' + other.name + ' : elle s’ouvrira après l’import.' : ''].filter(Boolean).join(' · ') || 'Tout correspond à l’export.'}</span></div>` : ''}
+      </div>
+      <div class="drawer-foot"><span class="grow"></span>
+        <button type="button" class="btn" data-click="closeImport">Annuler</button>
+        ${p ? html`<button type="button" class="btn accent" data-click="doImport" ${p.items.length ? '' : 'disabled'}>Importer ${p.items.length} appréciation${p.items.length > 1 ? 's' : ''}</button>`
+          : html`<button type="button" class="btn accent" data-click="readImport" ${imp.text.trim() ? '' : 'disabled'}>Lire</button>`}</div>
+    </div>`;
+}
+function readImport(text) {
+  imp = { text, parsed: null, error: '' };
+  try { imp.parsed = B.parseReturn(text, B.mappingOf); } catch (e) { imp.error = e.message; }
+  refresh();
+}
+async function copyText(text, el) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+    const ta = el && el.closest('.bul-app') && el.closest('.bul-app').querySelector('textarea');
+    if (!ta) return false;
+    ta.focus(); ta.select();
+    try { return document.execCommand('copy'); } catch (e2) { return false; }
+  }
+}
+
 export default {
+  mount(root) {
+    if (!scrollToSid) return;
+    const r = root.querySelector(`[data-row="${scrollToSid}"]`);
+    scrollToSid = null;
+    if (r) { r.scrollIntoView({ block: 'center' }); r.classList.add('next'); }
+  },
   render({ classId }) {
     const c = db.get('classes', classId);
     if (!c) { go('#/', { replace: true }); return null; }
@@ -167,9 +233,27 @@ export default {
         ${backLink('#/', 'Accueil')}
         <div class="heading"><span class="title">${c.name}</span><span class="sub">Bulletins · Trimestre ${t}</span></div>
         <div class="spacer"></div>
+        <div class="segmented head-seg" role="group" aria-label="Affichage">
+          <button type="button" class="seg${mode === 'constats' ? ' on' : ''}" data-click="mode" data-v="constats">Constats</button>
+          <button type="button" class="seg${mode === 'appreciations' ? ' on' : ''}" data-click="mode" data-v="appreciations">Appréciations</button></div>
         <div class="segmented head-seg" role="group" aria-label="Trimestre">${[1, 2, 3].map(n => html`<button type="button" class="seg${n === t ? ' on' : ''}" data-click="trim" data-t="${n}">T${n}</button>`)}</div>
-        <button type="button" class="btn accent" data-click="openExport" ${students.length ? '' : 'disabled'}>${icon.download}<span class="hide-phone">Exporter pour Claude</span></button>
+        ${mode === 'constats'
+          ? html`<button type="button" class="btn accent" data-click="openExport" ${students.length ? '' : 'disabled'}>${icon.download}<span class="hide-phone">Exporter pour Claude</span></button>`
+          : html`<button type="button" class="btn accent" data-click="openImport">${icon.plusBig}<span class="hide-phone">Importer les appréciations</span></button>`}
       </header>
+      ${mode === 'appreciations' ? (() => {
+        const rs = students.map(s => B.recordOf(s, t)), done = rs.filter(r => r.pronote).length, have = rs.filter(r => appText(r)).length;
+        return html`<div class="bul-bar">
+          <span class="muted small">Ordre de Pronote (nom de famille). « Copier » copie le texte, le marque saisi et passe à l’élève suivant.</span>
+          <label class="bul-check"><input type="checkbox" data-change="notDone" ${onlyNotDone ? 'checked' : ''}> Non saisies seulement</label>
+          <span class="spacer"></span>
+          <span class="bul-prog"><span>${have} appréciation${have > 1 ? 's' : ''} · ${done} / ${students.length} saisie${done > 1 ? 's' : ''} dans Pronote</span>
+            <span class="bul-track"><i style="width:${students.length ? Math.round(done / students.length * 100) : 0}%"></i></span></span>
+        </div>
+        <main class="content bul-content" data-scroll="bul-apps">${appreciationsView(students, t)}</main>
+        ${tabBar(classId, 'bulletins')}
+        ${imp ? importDialog(classId) : ''}`;
+      })() : html`
       <div class="bul-bar">
         <div class="segmented" role="group" aria-label="Ordre des élèves">
           <button type="button" class="seg${sortMode === 'group' ? ' on' : ''}" data-click="sort" data-v="group">Par groupe</button>
@@ -196,11 +280,51 @@ export default {
       </main>
       ${tabBar(classId, 'bulletins')}
       ${open ? drawer(classId, open, t, mates) : ''}
-      ${exp && !open ? exportDialog(c, t, exportPlan(c, t, students, a)) : ''}
+      ${exp && !open ? exportDialog(c, t, exportPlan(c, t, students, a)) : ''}`}
     </div>`;
   },
-  leave() { flush(); openSid = null; exp = null; },
+  leave() { flush(); openSid = null; exp = null; imp = null; },
   actions: {
+    mode(el) { flush(); openSid = null; exp = null; mode = el.dataset.v; try { localStorage.setItem('carnet-bulletins-vue', mode); } catch (e) { /* stockage indisponible */ } refresh(); },
+    notDone(el) { onlyNotDone = el.checked; refresh(); },
+    openImport() { imp = { text: '', parsed: null, error: '' }; refresh(); },
+    closeImport() { imp = null; refresh(); },
+    impText(el) {
+      const had = !!imp.text.trim();
+      imp = { text: el.value, parsed: null, error: '' };
+      if (had !== !!el.value.trim()) { refresh(); const ta = document.querySelector('.bul-paste'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }
+    },
+    readImport() { readImport(imp.text); },
+    async impFile(el) { const f = el.files && el.files[0]; if (f) readImport(await f.text()); },
+    doImport(el, e, { classId }) {
+      const p = imp.parsed;
+      const undo = B.importAppreciations(p);
+      imp = null; mode = 'appreciations'; onlyNotDone = false;
+      trimOf[p.mapping.classId] = p.mapping.trimester;
+      const n = p.items.length;
+      toast({ text: n + ' appréciation' + (n > 1 ? 's' : '') + ' importée' + (n > 1 ? 's' : ''), undo: async () => { await undo(); refresh(); } });
+      if (p.mapping.classId !== classId) go('#/classe/' + p.mapping.classId + '/bulletins'); else refresh();
+    },
+    app(el, e, { classId }) {
+      const s = db.get('students', el.dataset.sid), t = trimester(classId), v = el.value;
+      const cnt = el.parentNode.querySelector('.bul-count');
+      if (cnt) { cnt.textContent = v.length + ' / ' + B.MAX_CHARS + ' caractères' + (v.length > B.MAX_CHARS ? ' · trop long pour Pronote' : ''); cnt.classList.toggle('over', v.length > B.MAX_CHARS); }
+      later('a' + s.id + t, () => B.setAppreciation(s, t, v));
+    },
+    async copy(el, e, { classId }) {
+      flush();
+      const t = trimester(classId), s = db.get('students', el.dataset.sid), text = appText(B.recordOf(s, t));
+      if (!text) return;
+      const ok = await copyText(text, el);
+      if (!ok) { toast({ text: 'Copie refusée par le navigateur : sélectionnez le texte et copiez-le à la main.' }); return; }
+      B.setPronote(s, t, true, text);
+      const list = model.studentsOf(classId), i = list.findIndex(x => x.id === s.id);
+      const next = list.slice(i + 1).find(x => !B.recordOf(x, t).pronote && appText(B.recordOf(x, t)));
+      scrollToSid = next ? next.id : null;
+      toast({ text: 'Copié : collez dans Pronote', who: s.prenom });
+      refresh();
+    },
+    done(el, e, { classId }) { flush(); B.setPronote(db.get('students', el.dataset.sid), trimester(classId), el.checked); refresh(); },
     openExport(el, e, { classId }) {
       flush(); openSid = null;
       const ready = model.studentsOf(classId).some(s => B.stateOf(B.recordOf(s, trimester(classId))) === 'ok');
