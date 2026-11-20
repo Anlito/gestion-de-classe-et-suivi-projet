@@ -10,6 +10,7 @@ import eleve from './screens/eleve.js';
 import projet from './screens/projet.js';
 import groupes from './screens/groupes.js';
 import notes from './screens/notes.js';
+import bulletins from './screens/bulletins.js';
 import admin from './screens/admin.js';
 import reglages from './screens/reglages.js';
 import editClasse from './screens/edit-classe.js';
@@ -85,6 +86,7 @@ const ROUTES = [
   [/^#\/classe\/([^/]+)\/projet$/, projet, ['classId']],
   [/^#\/classe\/([^/]+)\/groupes$/, groupes, ['classId']],
   [/^#\/classe\/([^/]+)\/notes$/, notes, ['classId']],
+  [/^#\/classe\/([^/]+)\/bulletins$/, bulletins, ['classId']],
   [/^#\/admin$/, admin, []],
   [/^#\/admin\/reglages$/, reglages, []],
   [/^#\/admin\/sauvegarde$/, sauvegarde, []],

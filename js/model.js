@@ -393,7 +393,7 @@ export function deleteStudentIn(w, sid) {
     w.del('ppRecords', r.id);
   }
   for (const ev of db.where('evenements', x => x.studentId === sid)) w.update('evenements', ev.id, { studentId: undefined });
-  for (const st of ['observations', 'notes', 'evals', 'groupChanges', 'absences', 'retards']) for (const r of db.where(st, x => x.studentId === sid)) w.del(st, r.id);
+  for (const st of ['observations', 'notes', 'evals', 'groupChanges', 'absences', 'retards', 'bulletins']) for (const r of db.where(st, x => x.studentId === sid)) w.del(st, r.id);
   for (const g of db.where('groups', x => x.members.includes(sid))) w.update('groups', g.id, { members: g.members.filter(m => m !== sid) });
   if (s.photoId) w.del('photos', s.photoId);
   w.del('students', sid);

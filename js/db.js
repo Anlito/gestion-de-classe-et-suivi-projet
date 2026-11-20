@@ -12,7 +12,7 @@
 //   chiffré déposé sur Google Drive.
 
 const DB_NAME = 'carnet-de-classe';
-const DB_VERSION = 10; // 10 : suivi PP ; binaires partagés avec photos, identifiants pp-file-…
+const DB_VERSION = 11; // 10 : suivi PP ; binaires partagés avec photos, identifiants pp-file-… · 11 : bulletins
 export const SNAPSHOT_FORMAT = 2;
 // Réglages propres à cet appareil, jamais synchronisés (voir sync.js).
 export const LOCAL_META = new Set(['lastBackupAt', 'lastModified', 'sync']);
@@ -41,6 +41,7 @@ export const STORES = [
   'effacements',   // { id: 'store:recId', store, recId, at } — trace de chaque suppression, pour la synchronisation
   'evenements',    // { date, debut, fin, type, titre, lieu, classId, note, serieId } — hors Pronote (réunions…), voir planning.js
   'salles',        // { name, type: 'ilots'|'rangees', tables, rangs, colonnes, parTable } — plans de salle, voir salles.js
+  'bulletins',     // { studentId, classId, year, trimester, presence, levels, details, tendance, info, note } — voir bulletins.js
 ];
 
 let idb = null;

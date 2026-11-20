@@ -36,6 +36,7 @@ export const icon = {
   tabProjet: raw('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h16M6 16V9M12 16V5M18 16v-4"/></svg>'),
   tabGroupes: raw('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9.5" r="2.5"/><path d="M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5M15.5 14.2c2.6-.3 4.8 1.2 5.5 4.3"/></svg>'),
   tabNotes: raw('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></svg>'),
+  tabBulletins: raw('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 10l1.5 1.5L13 9M9 16h6"/></svg>'),
 };
 
 export function backLink(href, label) {
@@ -57,10 +58,11 @@ const TABS = [
   ['projet', 'Projet', icon.tabProjet],
   ['groupes', 'Groupes', icon.tabGroupes],
   ['notes', 'Notes', icon.tabNotes],
+  ['bulletins', 'Bulletins', icon.tabBulletins],
 ];
 export function tabBar(classId, active) {
   const has = ppActive(classId);
-  return html`<nav class="tabbar" style="grid-template-columns:repeat(${has ? 5 : 4},1fr)">${TABS.map(([k, label, ic]) =>
+  return html`<nav class="tabbar" style="grid-template-columns:repeat(${TABS.length + (has ? 1 : 0)},1fr)">${TABS.map(([k, label, ic]) =>
     html`<a class="tab" href="#/classe/${classId}/${k}" ${k === active ? raw('aria-current="page"') : ''}>${ic}${label}</a>`)}
     ${has ? html`<a class="tab" href="#/pp/classe/${classId}">${icon.book}Suivi PP</a>` : ''}</nav>`;
 }
