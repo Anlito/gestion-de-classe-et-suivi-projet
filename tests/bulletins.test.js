@@ -39,3 +39,25 @@ test('Bulletins : note saisie entre 0 et 20, virgule acceptée', () => {
 test('Bulletins : même fiche d’un appareil à l’autre (identifiant fixe)', () => {
   eq(recordId('e1', '2026-2027', 2), 'bul:e1:2026-2027:2');
 });
+
+import { buildExport, exportFileName } from '../js/bulletins.js';
+const entry = (id, prenom, nom, rec = {}, note = 12) => ({ student: { id, prenom, nom, photoId: 'p' + id, besoins: ['PAP'] }, rec: { presence: 'normale', levels: {}, details: {}, tendance: '', info: '', ...rec }, note });
+const opts = { discipline: 'Technologie', ton: 'encourageant', formulation: '3e personne' };
+test('Export : aucun nom de famille, photo ni dispositif dans le fichier', () => {
+  const { data } = buildExport({ niveau: '4e', trimester: 1, year: '2026-2027', options: opts, exportId: 'x', entries: [entry('a', 'Léa', 'DUPONTEL', { levels: { travail: 'pos' }, info: 'Oral réussi' })] });
+  const txt = JSON.stringify(data);
+  eq(txt.includes('DUPONTEL'), false); eq(txt.includes('PAP'), false); eq(txt.includes('"pa"'), false);
+  eq(data.eleves[0].criteres.Travail.niveau, 'Point fort'); eq(data.eleves[0].remarque, 'Oral réussi');
+  eq(data.consignes.longueur_max, 300);
+});
+test('Export : prénoms en double numérotés, codes rattachés aux élèves', () => {
+  const { data, codes } = buildExport({ niveau: '4e', trimester: 1, year: 'y', options: opts, exportId: 'x', entries: [entry('a', 'Léa', 'A'), entry('b', 'Tom', 'B'), entry('c', 'Léa', 'C')] });
+  eq(data.eleves.map(e => e.prenom).join(','), 'Léa,Tom,Léa (2)'); eq(codes.E03, 'c'); eq(codes.E02, 'b');
+});
+test('Export : dispensés non envoyés, présence partielle signalée sans motif', () => {
+  const { data, codes } = buildExport({ niveau: '4e', trimester: 2, year: 'y', options: opts, exportId: 'x', entries: [entry('a', 'Hugo', 'H', { presence: 'dispense' }), entry('b', 'Lucas', 'L', { presence: 'partielle', info: '' }, null)] });
+  eq(data.eleves.length, 1); eq(data.eleves[0].presence, 'partielle'); eq(data.eleves[0].note, null); eq(codes.E01, 'b'); eq(Object.keys(codes).length, 1);
+});
+test('Export : nom de fichier sans accent ni espace', () => {
+  eq(exportFileName({ level: '4e', segpa: true }, 1), 'bulletins-4e-segpa-t1.json');
+});

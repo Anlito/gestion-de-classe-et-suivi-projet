@@ -1,5 +1,13 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.27.0 · Onglet Bulletins, étape 2 : export pour Claude · 20 novembre 2026
+
+Bouton **Exporter pour Claude** dans l’en-tête de l’onglet Bulletins. La fenêtre montre le **contenu exact du fichier** avant de l’enregistrer. Choix : élèves prêts seulement, toute la classe ou un groupe du projet choisi ; discipline (Technologie par défaut) ; ton (bienveillant et précis, encourageant, neutre et factuel) ; formulation (3e personne, tutoiement, vouvoiement) ; longueur fixée à 300 caractères. Les trois réglages sont mémorisés (`meta.bulletinsExport`). Un encadré signale les élèves pas encore prêts, envoyés avec les critères déjà renseignés.
+
+Fichier `bulletins-<niveau>-t<trimestre>.json` (format `carnet-bulletins-v1`), par la fenêtre « Enregistrer sous » quand le navigateur la propose, sinon dans les Téléchargements. **Liste blanche** (`buildExport` dans bulletins.js) : identifiant d’export, discipline, niveau (ex. « 4e », « 4e SEGPA »), trimestre, année, titres des projets du trimestre, consignes de rédaction et de retour ; par élève, code (E01…), prénom, présence « partielle » le cas échéant (sans motif), note, critères (niveau et formulations), tendance, remarque. Jamais : nom de famille, photo, nom de la classe, dispositifs, absences, remarques du Carnet ; les élèves dispensés ne sont pas envoyés. Prénoms en double : « Léa », « Léa (2) ». La correspondance code → élève reste dans le Carnet (`meta.bulletinsExport:<identifiant>`, synchronisée), pour relire le fichier retour à l’étape 3.
+
+Fichiers : bulletins.js, screens/bulletins.js, app.css, tests/bulletins.test.js, nav.js et sw.js. Vérifications : 244 tests réussis (dont absence de nom de famille, de photo et de dispositif, prénoms en double, dispensés exclus) ; parcours navigateur sur la démonstration (4e B, 1280 × 800) : aperçu des élèves prêts puis de toute la classe (29 élèves, 1 dispensé exclu), aucun nom de famille dans l’aperçu, fichier enregistré, correspondance des 29 codes conservée.
+
 ## Version 1.26.0 · Onglet Bulletins, étape 1 : la grille des constats · 20 novembre 2026
 
 Demande du professeur : préparer les appréciations de bulletin de sa discipline depuis la classe, en cochant des constats par élève, puis envoyer un fichier anonymisé (prénoms seulement) à Claude, qui rédige une appréciation par élève. Cahier des charges et maquette validés le 20 novembre 2026 : cases à 3 niveaux, appréciations de 300 caractères maximum, note issue de l’onglet Notes, prise en compte des élèves dispensés ou peu présents. Étapes suivantes : export pour Claude (2), import des appréciations et copie dans Pronote (3), critères modifiables dans les Réglages (4).

@@ -140,3 +140,53 @@ export function setLevelForAll(students, t, k, v) {
     }
   });
 }
+
+// ---------- Export pour Claude (1.27.0) ----------
+// Liste blanche : seuls les champs écrits ici sortent du Carnet. Jamais le nom de famille, la photo, le nom de la classe,
+// les dispositifs, les absences ni les remarques du Carnet. Les élèves dispensés ne sont pas envoyés.
+export const TONES = ['bienveillant et précis', 'encourageant', 'neutre et factuel'];
+export const PERSONS = ['3e personne', 'tutoiement', 'vouvoiement'];
+export const exportDefaults = () => ({ discipline: 'Technologie', ton: TONES[0], formulation: PERSONS[0], ...db.getMeta('bulletinsExport', {}) });
+export const saveExportDefaults = o => db.commit(w => w.meta('bulletinsExport', { discipline: o.discipline, ton: o.ton, formulation: o.formulation }));
+export const levelLabel = c => (c.level || '') + (c.segpa ? ' SEGPA' : '');
+export const exportFileName = (c, t) => ('bulletins-' + levelLabel(c) + '-T' + t).toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]/g, '') + '.json';
+
+// entries : [{ student:{ id, prenom }, rec, note }] dans l'ordre de la classe. Renvoie { data, codes:{ E01: studentId } }.
+export function buildExport({ niveau, trimester, year, projects = [], options, entries, exportId }) {
+  const kept = entries.filter(e => e.rec.presence !== 'dispense');
+  const seen = new Map(), total = new Map();
+  for (const e of kept) { const p = (e.student.prenom || '').trim() || 'Élève'; total.set(p, (total.get(p) || 0) + 1); }
+  const codes = {};
+  const eleves = kept.map((e, i) => {
+    const code = 'E' + String(i + 1).padStart(2, '0');
+    codes[code] = e.student.id;
+    const p = (e.student.prenom || '').trim() || 'Élève';
+    seen.set(p, (seen.get(p) || 0) + 1);
+    const o = { code, prenom: total.get(p) > 1 && seen.get(p) > 1 ? p + ' (' + seen.get(p) + ')' : p };
+    if (e.rec.presence === 'partielle') o.presence = 'partielle';
+    o.note = typeof e.note === 'number' ? e.note : null;
+    const criteres = {};
+    for (const f of FAMILIES) {
+      const v = e.rec.levels && e.rec.levels[f.k], d = (e.rec.details && e.rec.details[f.k] || []).filter(Boolean);
+      if (v || d.length) criteres[f.label] = { ...(v ? { niveau: LEVEL_LABEL[v] } : {}), ...(d.length ? { formulations: d } : {}) };
+    }
+    o.criteres = criteres;
+    if (e.rec.tendance) o.tendance = e.rec.tendance;
+    if (e.rec.info && e.rec.info.trim()) o.remarque = e.rec.info.trim();
+    return o;
+  });
+  const data = {
+    format: 'carnet-bulletins-v1', export_id: exportId, discipline: String(options.discipline || '').trim(), niveau, trimestre: trimester, annee: year,
+    ...(projects.length ? { projets_du_trimestre: projects } : {}),
+    consignes: {
+      longueur_max: MAX_CHARS, ton: options.ton, formulation: options.formulation,
+      redaction: 'Une appréciation de bulletin par élève, ' + MAX_CHARS + ' caractères maximum espaces compris, fondée uniquement sur les critères, la note, la tendance et la remarque fournis. Présence partielle : parler de ce qui a pu être observé, sans en donner la raison.',
+      retour: 'Renvoyer un fichier JSON { "format": "carnet-appreciations-v1", "export_id": (le même), "appreciations": [ { "code": "E01", "texte": "…" } ] }',
+    },
+    eleves,
+  };
+  return { data, codes };
+}
+// Correspondance code → élève, gardée dans le Carnet (synchronisée, jamais exportée) pour relire le fichier retour.
+export const saveExportMapping = (classId, t, exportId, file, codes) =>
+  db.commit(w => w.meta('bulletinsExport:' + exportId, { classId, year: model.schoolYear(), trimester: t, file, codes, at: new Date().toISOString() }));

@@ -4,11 +4,13 @@ import * as db from '../db.js';
 import * as model from '../model.js';
 import * as B from '../bulletins.js';
 import { html, toast, openMenu } from '../ui.js';
-import { backLink, tabBar, projectSwitch, saveStatus } from '../components.js';
+import { backLink, tabBar, projectSwitch, icon } from '../components.js';
 import { go, refresh } from '../nav.js';
+import { giveFile, givenMessage } from '../backup.js';
 
 const trimOf = {};            // trimestre affiché, par classe (par défaut : le trimestre en cours)
 let openSid = null;           // élève dont la fiche est ouverte
+let exp = null;               // fenêtre d'export ouverte : { scope:'prets'|'tous'|'g:<groupId>', discipline, ton, formulation }
 let onlyTodo = false;
 let sortMode = (() => { try { return localStorage.getItem('carnet-bulletins-tri') || 'group'; } catch (e) { return 'group'; } })();
 const pending = new Map();
@@ -97,6 +99,51 @@ function drawer(classId, s, t, mates) {
     </aside>`;
 }
 
+// Élèves retenus pour l'export, dans l'ordre de la classe, et fichier correspondant.
+function exportPlan(c, t, students, a) {
+  const all = students.map(s => ({ student: s, rec: B.recordOf(s, t) }));
+  const g = exp.scope.startsWith('g:') ? db.get('groups', exp.scope.slice(2)) : null;
+  const inScope = all.filter(e => exp.scope === 'tous' || (g ? g.members.includes(e.student.id) : B.stateOf(e.rec) === 'ok'));
+  const entries = inScope.map(e => ({ ...e, note: B.noteOf(e.student, e.rec, t).n }));
+  const projects = B.assignmentsOfTrimester(c.id, t).map(x => db.get('projects', x.projectId).title);
+  const built = B.buildExport({ niveau: B.levelLabel(c), trimester: t, year: model.schoolYear(), projects, options: exp, entries, exportId: exp.id });
+  const disp = inScope.filter(e => e.rec.presence === 'dispense').length;
+  const notReady = inScope.filter(e => !['ok', 'disp'].includes(B.stateOf(e.rec))).length;
+  return { ...built, disp, notReady, file: B.exportFileName(c, t), groups: a ? model.groupsOf(a.id) : [] };
+}
+function exportDialog(c, t, plan) {
+  const n = plan.data.eleves.length;
+  return html`<div class="scrim dim" data-click="closeExport"></div>
+    <div class="bul-export" role="dialog" aria-modal="true" aria-label="Exporter pour Claude">
+      <div class="drawer-head"><div class="grow"><div class="drawer-title">Exporter pour Claude</div>
+        <div class="muted small">${plan.file} · ${n} élève${n > 1 ? 's' : ''} · trimestre ${t}</div></div></div>
+      <div class="bul-export-body">
+        <div class="bul-export-opts">
+          <label class="bul-block"><span class="caps">Élèves</span>
+            <select class="input" data-change="expOpt" data-key="scope">
+              <option value="prets" ${exp.scope === 'prets' ? 'selected' : ''}>Seulement les élèves prêts</option>
+              <option value="tous" ${exp.scope === 'tous' ? 'selected' : ''}>Toute la classe</option>
+              ${plan.groups.map(g => html`<option value="g:${g.id}" ${exp.scope === 'g:' + g.id ? 'selected' : ''}>Groupe ${g.code}</option>`)}
+            </select></label>
+          <label class="bul-block"><span class="caps">Discipline</span>
+            <input class="input" data-change="expOpt" data-key="discipline" value="${exp.discipline}" maxlength="60"></label>
+          <label class="bul-block"><span class="caps">Ton</span>
+            <select class="input" data-change="expOpt" data-key="ton">${B.TONES.map(v => html`<option ${exp.ton === v ? 'selected' : ''}>${v}</option>`)}</select></label>
+          <label class="bul-block"><span class="caps">Formulation</span>
+            <select class="input" data-change="expOpt" data-key="formulation">${B.PERSONS.map(v => html`<option ${exp.formulation === v ? 'selected' : ''}>${v}</option>`)}</select></label>
+          <div class="bul-block"><span class="caps">Longueur</span><strong>${B.MAX_CHARS} caractères maximum</strong></div>
+          ${plan.notReady ? html`<div class="bul-hint"><strong>${plan.notReady} élève${plan.notReady > 1 ? 's' : ''} pas encore prêt${plan.notReady > 1 ? 's' : ''}</strong><span class="small">Envoyé${plan.notReady > 1 ? 's' : ''} avec les critères déjà renseignés.</span></div>` : ''}
+          <div class="bul-safe"><strong>Ne sortent pas du Carnet</strong><span class="small">Noms de famille, photos, nom de la classe, dispositifs (PAP…), absences, remarques du Carnet${plan.disp ? ', ' + plan.disp + ' élève' + (plan.disp > 1 ? 's' : '') + ' dispensé' + (plan.disp > 1 ? 's' : '') : ', élèves dispensés'}.</span></div>
+        </div>
+        <div class="bul-block bul-preview"><span class="caps">Contenu exact du fichier</span>
+          <pre class="bul-json" data-scroll="bul-json">${JSON.stringify(plan.data, null, 2)}</pre></div>
+      </div>
+      <div class="drawer-foot"><span class="muted small grow">Envoyez ce fichier à Claude : il vous renverra une appréciation par élève.</span>
+        <button type="button" class="btn" data-click="closeExport">Annuler</button>
+        <button type="button" class="btn accent" data-click="saveExport" ${n ? '' : 'disabled'}>${icon.download}Enregistrer le fichier</button></div>
+    </div>`;
+}
+
 export default {
   render({ classId }) {
     const c = db.get('classes', classId);
@@ -121,6 +168,7 @@ export default {
         <div class="heading"><span class="title">${c.name}</span><span class="sub">Bulletins · Trimestre ${t}</span></div>
         <div class="spacer"></div>
         <div class="segmented head-seg" role="group" aria-label="Trimestre">${[1, 2, 3].map(n => html`<button type="button" class="seg${n === t ? ' on' : ''}" data-click="trim" data-t="${n}">T${n}</button>`)}</div>
+        <button type="button" class="btn accent" data-click="openExport" ${students.length ? '' : 'disabled'}>${icon.download}<span class="hide-phone">Exporter pour Claude</span></button>
       </header>
       <div class="bul-bar">
         <div class="segmented" role="group" aria-label="Ordre des élèves">
@@ -148,10 +196,34 @@ export default {
       </main>
       ${tabBar(classId, 'bulletins')}
       ${open ? drawer(classId, open, t, mates) : ''}
+      ${exp && !open ? exportDialog(c, t, exportPlan(c, t, students, a)) : ''}
     </div>`;
   },
-  leave() { flush(); openSid = null; },
+  leave() { flush(); openSid = null; exp = null; },
   actions: {
+    openExport(el, e, { classId }) {
+      flush(); openSid = null;
+      const ready = model.studentsOf(classId).some(s => B.stateOf(B.recordOf(s, trimester(classId))) === 'ok');
+      exp = { ...B.exportDefaults(), scope: ready ? 'prets' : 'tous', id: db.uid() };
+      refresh();
+    },
+    closeExport() { exp = null; refresh(); },
+    expOpt(el) { exp = { ...exp, [el.dataset.key]: el.value }; refresh(); },
+    async saveExport(el, e, { classId }) {
+      const c = db.get('classes', classId), t = trimester(classId);
+      const plan = exportPlan(c, t, model.studentsOf(classId), model.chosenAssignment(classId));
+      if (!plan.data.eleves.length) return;
+      if (!plan.data.discipline) { toast({ text: 'Indiquez la discipline.' }); return; }
+      const json = JSON.stringify(plan.data, null, 2);
+      try {
+        const r = await giveFile(new Blob([json], { type: 'application/json' }), plan.file);
+        if (r.how === 'cancelled') return;
+        B.saveExportDefaults(exp);
+        B.saveExportMapping(classId, t, exp.id, plan.file, plan.codes);
+        exp = null; refresh();
+        toast({ text: givenMessage(r, 'Fichier') + ' · à envoyer à Claude', ms: 5000 });
+      } catch (err) { toast({ text: 'Fichier non enregistré : ' + (err && err.message || err) }); }
+    },
     trim(el, e, { classId }) { flush(); trimOf[classId] = Number(el.dataset.t); refresh(); },
     sort(el) { sortMode = el.dataset.v; try { localStorage.setItem('carnet-bulletins-tri', sortMode); } catch (e) { /* stockage indisponible */ } refresh(); },
     todo(el) { onlyTodo = el.checked; refresh(); },

@@ -1144,3 +1144,16 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .bul-notein { width: 96px; flex: none; font-size: 18px; font-weight: 800; text-align: center; }
 .linkbtn { text-decoration: underline; color: var(--ink); font-size: inherit; }
 @media (max-width: 700px) { .bul-legend { display: none; } .bul-grid .bul-name { min-width: 150px; } }
+/* Export pour Claude (1.27.0) */
+.bul-export { position: fixed; inset: 0; margin: auto; width: min(980px, calc(100vw - 32px)); height: min(720px, calc(100dvh - 32px)); z-index: 16;
+  background: var(--surface); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; }
+.bul-export .drawer-head { height: auto; min-height: 64px; padding: 10px 16px 10px 24px; }
+.bul-export-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 18px 24px; overflow: auto; }
+.bul-export-body > * { min-width: 0; }
+.bul-export-opts { display: flex; flex-direction: column; gap: 14px; }
+.bul-export-opts .input { width: 100%; height: 46px; }
+.bul-safe { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: 12px; background: var(--posTint); }
+.bul-preview { min-height: 0; }
+.bul-json { margin: 0; flex: 1; min-height: 240px; max-height: 100%; overflow: auto; padding: 12px 14px; border-radius: 12px; background: var(--bg);
+  font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
+@media (max-width: 760px) { .bul-export-body { grid-template-columns: 1fr; } }
