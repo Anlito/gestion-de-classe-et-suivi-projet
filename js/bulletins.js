@@ -57,10 +57,18 @@ export const MAX_CHARS = 300;
 export const STATE_LABEL = { ok: 'Prêt', part: 'En cours', todo: 'À faire', disp: 'Dispensé' };
 
 // ---------- Règles pures (testées) ----------
-// Une case touchée passe à l'état suivant : vide → Point fort → Correct → À améliorer → vide.
+// Chaque critère part de « Correct » (neutre, 1.30.0). Une case touchée passe à l'état suivant :
+// Correct → Point fort → À améliorer → Correct.
+export const DEFAULT_LEVEL = 'mid';
 export function nextLevel(v) {
-  const cycle = [null, ...LEVELS];
-  return cycle[(cycle.indexOf(v ?? null) + 1) % cycle.length];
+  const cycle = ['mid', 'pos', 'neg'];
+  return cycle[(cycle.indexOf(v || DEFAULT_LEVEL) + 1) % cycle.length];
+}
+// Niveaux d'une fiche : un critère non touché vaut Correct.
+export function withDefaults(levels, fams = families()) {
+  const out = { ...(levels || {}) };
+  for (const f of fams) if (!out[f.k]) out[f.k] = DEFAULT_LEVEL;
+  return out;
 }
 // État d'une fiche. Présence partielle : critères facultatifs, prête dès qu'un constat est posé.
 export function stateOf(rec, fams = families()) {
@@ -99,7 +107,8 @@ export function emptyRecord(student, t, year = model.schoolYear()) {
 }
 export function recordOf(student, t, year = model.schoolYear()) {
   const r = db.get('bulletins', recordId(student.id, year, t));
-  return r ? { ...emptyRecord(student, t, year), ...r } : emptyRecord(student, t, year);
+  const rec = r ? { ...emptyRecord(student, t, year), ...r } : emptyRecord(student, t, year);
+  return { ...rec, levels: withDefaults(rec.levels) };
 }
 
 // Projets de la classe ayant au moins une séance pendant le trimestre.
@@ -270,7 +279,7 @@ export const setPronote = (student, t, done, text) => save(student, t, cur => ({
 export function previousOf(student, t) {
   if (t <= 1) return null;
   const r = db.get('bulletins', recordId(student.id, model.schoolYear(), t - 1));
-  return r ? { ...emptyRecord(student, t - 1), ...r } : null;
+  return r ? { ...emptyRecord(student, t - 1), ...r, levels: withDefaults(r.levels) } : null;
 }
 // Évolution d'un critère d'un trimestre à l'autre : 'up', 'down', 'same' ou null.
 export function evolution(prev, cur) {

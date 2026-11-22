@@ -379,7 +379,7 @@ export default {
     presence(el, e, { classId }) { B.setPresence(db.get('students', openSid), trimester(classId), el.dataset.v); refresh(); },
     level(el, e, { classId }) {
       const s = db.get('students', openSid), t = trimester(classId), v = el.dataset.v;
-      B.setLevel(s, t, el.dataset.k, B.recordOf(s, t).levels[el.dataset.k] === v ? null : v); refresh();
+      B.setLevel(s, t, el.dataset.k, B.recordOf(s, t).levels[el.dataset.k] === v ? B.DEFAULT_LEVEL : v); refresh();
     },
     detail(el, e, { classId }) { B.toggleDetail(db.get('students', openSid), trimester(classId), el.dataset.k, el.dataset.d); refresh(); },
     tendance(el, e, { classId }) { B.setTendance(db.get('students', openSid), trimester(classId), el.dataset.v); refresh(); },

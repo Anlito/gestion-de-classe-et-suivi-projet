@@ -1,5 +1,9 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.30.0 · Bulletins : critères neutres par défaut · 22 novembre 2026
+
+Demande du professeur : tous les critères partent de « Correct » (● neutre) pour tous les élèves ; on laisse, ou on met la flèche verte (▲ Point fort) ou rouge (▼ À améliorer). Dans la grille, une case fait défiler Correct → Point fort → À améliorer → Correct ; dans la fiche, retoucher le bouton actif revient à Correct. Un critère non touché compte comme « Correct » dans l’export pour Claude et pour le rappel du trimestre précédent. Conséquence choisie : chaque élève est « prêt » dès le départ. Fichiers : bulletins.js, screens/bulletins.js, tests/bulletins.test.js, nav.js et sw.js. Vérifications : 252 tests réussis ; parcours navigateur sur la démonstration (cases neutres, cycle ▲ → ▼ → ●).
+
 ## Version 1.29.1 · Photo de l’élève dans les Bulletins · 20 novembre 2026
 
 Demande du professeur : voir la photo de l’élève au survol ou au toucher du prénom. Sur ordinateur, passer la souris sur un prénom (grille Constats et liste Appréciations) affiche sa photo à côté, sans rien ouvrir ; rien ne s’affiche pour un élève sans photo. Toucher ou cliquer le prénom ouvre la fiche, qui commence maintenant par la photo, le nom complet, la note et la présence. Fichiers : screens/bulletins.js, app.css, nav.js et sw.js. Vérifications : parcours navigateur sur la démonstration à 1280 × 800 (survol puis ouverture de la fiche).

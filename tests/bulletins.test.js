@@ -1,11 +1,16 @@
-import { nextLevel, stateOf, trimesterRange, inRange, average, validNote, recordId, FAMILIES } from '../js/bulletins.js';
+import { nextLevel, withDefaults, stateOf, trimesterRange, inRange, average, validNote, recordId, FAMILIES } from '../js/bulletins.js';
 export const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 const eq = (a, b) => { if (a !== b) throw Error(`${a} ≠ ${b}`); };
 const all = v => Object.fromEntries(FAMILIES.map(f => [f.k, v]));
 
-test('Bulletins : une case fait défiler Point fort, Correct, À améliorer puis vide', () => {
-  eq(nextLevel(undefined), 'pos'); eq(nextLevel('pos'), 'mid'); eq(nextLevel('mid'), 'neg'); eq(nextLevel('neg'), null);
+test('Bulletins : une case part de Correct puis fait défiler Point fort, À améliorer, Correct', () => {
+  eq(nextLevel(undefined), 'pos'); eq(nextLevel('mid'), 'pos'); eq(nextLevel('pos'), 'neg'); eq(nextLevel('neg'), 'mid');
+});
+test('Bulletins : un critère non touché vaut Correct', () => {
+  const l = withDefaults({ travail: 'pos' }, FAMILIES);
+  eq(l.travail, 'pos'); eq(l.effort, 'mid'); eq(Object.keys(l).length, FAMILIES.length);
+  eq(stateOf({ presence: 'normale', levels: withDefaults({}, FAMILIES) }), 'ok');
 });
 test('Bulletins : élève prêt quand les sept critères sont renseignés', () => {
   eq(stateOf(null), 'todo');
