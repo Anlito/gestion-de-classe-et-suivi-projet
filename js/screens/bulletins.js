@@ -67,9 +67,11 @@ function row(s, t, aid) {
     return html`<tr class="bul-disp">${name}<td colspan="${B.families().length + 3}" class="muted small bul-disp-txt">Dispensé ce trimestre · non évalué</td>
       <td><span class="bul-badge b-disp">${B.STATE_LABEL.disp}</span></td></tr>`;
   }
-  const note = B.noteOf(s, rec, t);
+  // Avec un projet choisi : sa note seule (vide tant qu'il n'est pas noté) ; sinon la note du trimestre.
+  const pn = aid ? B.projectNote(s, aid) : null, note = aid ? null : B.noteOf(s, rec, t);
   return html`<tr>${name}${B.families().map(f => cell(s, rec, f, t, prev))}
-    <td class="bul-note"><strong>${f1(note.n)}</strong><span class="bul-auto">${note.n == null ? '' : note.manual ? 'corrigée' : 'auto'}</span></td>
+    ${aid ? html`<td class="bul-note"><strong>${pn == null ? '—' : f1(pn)}</strong><span class="bul-auto">${pn == null ? 'non noté' : ''}</span></td>`
+      : html`<td class="bul-note"><strong>${f1(note.n)}</strong><span class="bul-auto">${note.n == null ? '' : note.manual ? 'corrigée' : 'auto'}</span></td>`}
     <td class="small">${rec.tendance || '—'}</td>
     <td>${rec.info && rec.info.trim() ? html`<span class="bul-info" title="${rec.info}">✎</span>` : html`<span class="muted">—</span>`}</td>
     <td><span class="bul-badge b-${st}">${B.STATE_LABEL[st]}</span></td></tr>`;
@@ -77,7 +79,7 @@ function row(s, t, aid) {
 
 function drawer(classId, s, t, mates, aid) {
   const rec = B.recordOf(s, t, undefined, aid), projs = aid ? B.exportProjects(classId, t).map(x => x.id) : [],
-    others = projs.filter(id => id !== aid).map(id => ({ title: B.projectTitle(id), rec: B.recordOf(s, t, undefined, id), before: projs.indexOf(id) < projs.indexOf(aid) || !projs.includes(aid) })), note = B.noteOf(s, rec, t), auto = B.autoNote(s, t), h = B.hintsOf(s, t);
+    others = projs.filter(id => id !== aid).map(id => ({ title: B.projectTitle(id), rec: B.recordOf(s, t, undefined, id), before: projs.indexOf(id) < projs.indexOf(aid) || !projs.includes(aid) })), note = B.noteOf(s, rec, t), auto = B.autoNote(s, t), h = B.hintsOf(s, t), pn = aid ? B.projectNote(s, aid) : null;
   const facts = [
     h.neg ? h.neg + ' remarque' + (h.neg > 1 ? 's' : '') + ' Comportement' + (h.negMotifs.length ? ' (' + h.negMotifs.join(', ') + ')' : '') : '',
     h.pos ? h.pos + ' remarque' + (h.pos > 1 ? 's' : '') + ' Aide' + (h.posMotifs.length ? ' (' + h.posMotifs.join(', ') + ')' : '') : '',
@@ -91,7 +93,7 @@ function drawer(classId, s, t, mates, aid) {
         <button type="button" class="btn accent" data-click="close">Terminé</button></div>
       <div class="drawer-body" data-scroll="bul-drawer">
         <div class="bul-who">${photo(s, { cls: 'big' })}<div class="bul-who-txt"><strong>${model.fullName(s)}</strong>
-          <span class="muted small">${[moveText(s, t), note.n == null ? '' : 'Note ' + f1(note.n), rec.presence === 'partielle' ? 'Présence partielle' : rec.presence === 'dispense' ? 'Dispensé' : ''].filter(Boolean).join(' · ')}</span></div></div>
+          <span class="muted small">${[moveText(s, t), aid ? B.projectTitle(aid) + ' : ' + (pn == null ? 'pas encore noté' : f1(pn)) : note.n == null ? '' : 'Note ' + f1(note.n), rec.presence === 'partielle' ? 'Présence partielle' : rec.presence === 'dispense' ? 'Dispensé' : ''].filter(Boolean).join(' · ')}</span></div></div>
         <div class="chips-row bul-mates">${mates.map(m => html`<button type="button" class="pill${m.id === s.id ? ' on' : ''}" data-click="open" data-sid="${m.id}">${m.prenom}</button>`)}</div>
         <div class="bul-block"><span class="caps">Accord des appréciations</span>
           <div class="segmented">${Object.entries(B.GENRES).map(([k, label]) => html`<button type="button" class="seg${s.genre === k ? ' on' : ''}" data-click="genre" data-v="${k}">${label}</button>`)}</div>
@@ -105,7 +107,7 @@ function drawer(classId, s, t, mates, aid) {
         ${disp ? '' : html`
         <div class="bul-hint"><strong>Ce que le Carnet a noté ce trimestre</strong><span>${facts.join(' · ')}</span>
           <span class="muted small">Pour vous aider : rien n’est coché à votre place.</span></div>
-        ${aid ? html`<div class="bul-block bul-proj"><span class="caps">Critères du projet</span><strong>${B.projectTitle(aid)}</strong>
+        ${aid ? html`<div class="bul-block bul-proj"><span class="caps">Critères du projet</span><strong>${B.projectTitle(aid)} · ${pn == null ? 'pas encore noté' : 'note ' + f1(pn) + ' /20'}</strong>
           <span class="muted small">Chaque projet a ses propres critères : changez de projet en haut de la grille.${others.length ? ' Les autres projets sont rappelés sous chaque critère.' : ''}</span></div>` : ''}
         ${B.families().map(f => html`<div class="bul-fam">
           <div class="bul-fam-head"><strong class="grow">${f.label}</strong>
@@ -113,7 +115,7 @@ function drawer(classId, s, t, mates, aid) {
           ${others.length ? html`<div class="bul-other small">${others.map(o => { const v = o.rec.levels[f.k], ev = o.before ? B.evolution(v, rec.levels[f.k]) : B.evolution(rec.levels[f.k], v); return html`<span class="${ev && ev !== 'same' ? 'ev-' + ev : ''}">${o.title} : ${B.LEVEL_SYMBOL[v]} ${B.LEVEL_LABEL[v]}</span>`; })}</div>` : ''}
           <div class="bul-desc">${[...f.pos, ...f.neg].map(d => html`<button type="button" class="${(rec.details[f.k] || []).includes(d) ? 'on' : ''}" data-click="detail" data-k="${f.k}" data-d="${d}">${d}</button>`)}</div>
         </div>`)}
-        <div class="bul-block"><span class="caps">Note du trimestre /20</span>
+        <div class="bul-block"><span class="caps">Note du bulletin /20 (tous les projets notés du trimestre)</span>
           <div class="bul-noterow"><input class="input bul-notein" inputmode="decimal" data-change="note" value="${note.n == null ? '' : f1(note.n)}" aria-label="Note du trimestre sur 20" placeholder="—">
             <span class="muted small grow">${note.manual ? html`Corrigée à la main. <button type="button" class="linkbtn" data-click="resetNote">Revenir à ${auto.n == null ? 'la note calculée' : f1(auto.n)}</button>`
               : auto.projects.length ? 'Moyenne de l’onglet Notes : ' + auto.projects.map(p => p.title + ' ' + f1(p.n)).join(' · ')
@@ -302,7 +304,7 @@ export default {
       </div>
       <main class="content bul-content" data-scroll="bulletins">
         ${students.length ? html`<table class="bul-grid">
-          <thead><tr><th class="bul-name">Élève</th>${B.families().map(f => html`<th>${f.label}</th>`)}<th>Note /20</th><th>Tendance</th><th>Remarque</th><th>État</th></tr></thead>
+          <thead><tr><th class="bul-name">Élève</th>${B.families().map(f => html`<th>${f.label}</th>`)}<th>${aid ? 'Note du projet' : 'Note /20'}</th><th>Tendance</th><th>Remarque</th><th>État</th></tr></thead>
           <tbody>${secs.map(sec => {
             const rows = sec.students.filter(shown);
             if (!rows.length) return '';

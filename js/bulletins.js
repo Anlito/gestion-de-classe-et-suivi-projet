@@ -166,6 +166,11 @@ export function autoNote(student, t, aids = null) {
   }
   return { n: average(list.map(x => x.n)), projects: list };
 }
+// Note /20 de l'élève dans un seul projet (onglet Notes), null tant que le projet n'est pas noté (1.34.1).
+export function projectNote(student, aid) {
+  const a = aid && db.get('assignments', aid), p = a && db.get('projects', a.projectId);
+  return p ? model.computeNote(model.studentLevels(a.id, student.id), p.criteria || []).n : null;
+}
 export function noteOf(student, rec, t, aids = null) {
   if (rec.note != null) return { n: rec.note, manual: true };
   return { n: autoNote(student, t, aids).n, manual: false };
