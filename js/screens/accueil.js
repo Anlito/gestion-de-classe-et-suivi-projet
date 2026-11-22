@@ -8,7 +8,7 @@ import { refresh } from '../nav.js';
 import { loadDemo } from '../demo.js';
 
 function tile(c) {
-  const eff = model.studentsOf(c.id).length;
+  const eff = model.studentsNow(c.id).length;
   const a = model.activeAssignments(c.id)[0];
   const p = a && db.get('projects', a.projectId);
   const pr = a ? model.progress(a) : null;

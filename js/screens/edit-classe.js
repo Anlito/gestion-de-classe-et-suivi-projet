@@ -1,7 +1,7 @@
 // Créer / Modifier une classe : nom, niveau, SEGPA, projets associés, élèves (photos, import du trombinoscope PDF).
 import * as db from '../db.js';
 import * as model from '../model.js';
-import { html, toast, openMenu, confirmDialog, fmtDate } from '../ui.js';
+import { html, toast, openMenu, confirmDialog, fmtDate, todayISO } from '../ui.js';
 import { icon, backLink, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
 import { askPhoto, pickPdf } from '../photos.js';
@@ -20,7 +20,8 @@ function load(id) {
     assigned: model.assignmentsOf(c.id)
       .sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status) || (b.endedAt || '').localeCompare(a.endedAt || ''))
       .map(a => ({ id: a.id, projectId: a.projectId, status: a.status, endedAt: a.endedAt, isNew: false })),
-    students: model.studentsOf(c.id).map(s => ({ id: s.id, nom: s.nom, prenom: s.prenom, photoId: s.photoId, photoBlob: null, isNew: false })),
+    // depart : date de départ (élève gardé avec son historique, 1.33.0) ; null = dans la classe.
+    students: model.allStudentsOf(c.id).map(s => ({ id: s.id, nom: s.nom, prenom: s.prenom, photoId: s.photoId, photoBlob: null, isNew: false, depart: s.departDate || null })),
   };
 }
 const stu = id => draft.students.find(s => s.id === id);
@@ -47,7 +48,7 @@ function reviewView() {
   const nNew = kept.filter(s => !s.matchId).length;
   const nMissing = kept.filter(s => !s.photoBlob && !(s.matchId && urlOf(stu(s.matchId)))).length;
   const inPdf = new Set(r.students.map(s => s.matchId).filter(Boolean));
-  const absent = draft.students.filter(s => !inPdf.has(s.id) && !s.isNew);
+  const absent = draft.students.filter(s => !inPdf.has(s.id) && !s.isNew && !s.depart);
   return html`<div class="screen">
     <header class="topbar">
       <button type="button" class="back" data-click="cancelReview">${icon.back}<span class="back-label">Retour</span></button>
@@ -72,7 +73,8 @@ function reviewView() {
           ${draft.id ? html`<div>Les élèves <strong>déjà dans la classe</strong> gardent tout leur historique ; seuls les nouveaux sont ajoutés.</div>` : ''}
         </div>
         ${absent.length ? html`<div class="dashed-note left"><strong>Dans la classe mais pas dans le PDF (${absent.length})</strong><br>
-          ${absent.map(model.fullName).join(', ')}<br><span class="muted small">Ils sont conservés. Retirez-les à la main si besoin.</span></div>` : ''}
+          ${absent.map(model.fullName).join(', ')}<br><span class="muted small">Ils sont conservés. S’ils ont quitté la classe, signalez leur départ : leur historique est gardé.</span>
+          <div><button type="button" class="btn soft small" data-click="revDepart">Signaler leur départ (aujourd’hui)</button></div></div>` : ''}
       </section>
       <section class="panel">
         <div class="panel-head row"><span class="panel-title grow">Élèves lus dans le PDF <span class="muted normal">${r.students.length}</span></span></div>
@@ -109,8 +111,9 @@ export default {
     }
     if (draft.review) return reviewView();
     const isNew = !draft.id;
-    const missing = draft.students.filter(s => !urlOf(s)).length;
-    const nS = draft.students.length;
+    const present = draft.students.filter(s => !s.depart), gone = draft.students.filter(s => s.depart);
+    const missing = present.filter(s => !urlOf(s)).length;
+    const nS = present.length;
     const CHIP = { cours: 'accent', avenir: 'warn', fini: 'pos' };
     return html`<div class="screen">
       <header class="topbar">
@@ -158,13 +161,22 @@ export default {
             <button type="button" class="btn soft" data-click="addStudent">${icon.plus}Ajouter un élève</button>
           </div>
           ${nS ? html`<div class="panel-scroll students-grid" data-scroll="students">
-              ${draft.students.map(s => html`<div class="stu-row">
+              ${present.map(s => html`<div class="stu-row">
                 ${photo(s, { cls: 'tiny', label: false, url: urlOf(s) })}
                 <input class="input stu-nom" value="${s.nom}" data-input="nom" data-id="${s.id}" placeholder="NOM" aria-label="Nom">
                 <input class="input stu-prenom" value="${s.prenom}" data-input="prenom" data-id="${s.id}" placeholder="Prénom" aria-label="Prénom">
                 <button type="button" class="icon-btn${urlOf(s) ? '' : ' cam-missing'}" data-click="photo" data-id="${s.id}" aria-label="Photo">${icon.camera}</button>
-                <button type="button" class="icon-btn" data-click="delStudent" data-id="${s.id}" aria-label="Retirer l'élève">${icon.trash}</button>
+                <button type="button" class="icon-btn" data-click="delStudent" data-id="${s.id}" aria-label="Départ ou suppression de l'élève">${icon.trash}</button>
               </div>`)}
+              ${gone.length ? html`<div class="stu-gone"><div class="section-title">Élèves partis <span class="muted normal">${gone.length}</span></div>
+                <div class="muted small">Gardés avec tout leur historique. Ils restent dans les Bulletins et les Notes jusqu’à la fin du trimestre de leur départ, puis n’apparaissent plus qu’en consultant ce trimestre-là.</div>
+                ${gone.map(s => html`<div class="stu-row gone">
+                  ${photo(s, { cls: 'tiny', label: false, url: urlOf(s) })}
+                  <span class="grow ellipsis"><strong>${s.prenom}</strong> <span class="upper">${s.nom}</span></span>
+                  <label class="stu-depart small">Parti·e le <input type="date" class="input" value="${s.depart}" max="${todayISO()}" data-change="departDate" data-id="${s.id}" aria-label="Date de départ"></label>
+                  <button type="button" class="btn soft small" data-click="comeBack" data-id="${s.id}">Revenu·e</button>
+                  <button type="button" class="icon-btn" data-click="eraseStudent" data-id="${s.id}" aria-label="Supprimer définitivement">${icon.trash}</button>
+                </div>`)}</div>` : ''}
             </div>`
           : html`<div class="drop-zone">
               <div class="empty-title">Importer le trombinoscope de la classe</div>
@@ -219,11 +231,30 @@ export default {
       const inputs = document.querySelectorAll('[data-input="nom"]');
       if (inputs.length) inputs[inputs.length - 1].focus();
     },
+    // Élève déjà enregistré : départ (gardé) ou suppression définitive (erreur de saisie). Pas encore enregistré : retiré.
     delStudent(el) {
-      const idx = draft.students.findIndex(s => s.id === el.dataset.id);
-      const removed = draft.students.splice(idx, 1)[0];
+      const s = stu(el.dataset.id), erase = () => removeStudent(el.dataset.id);
+      if (s.isNew) { erase(); return; }
+      openMenu({
+        anchor: el, width: 360, title: model.fullName(s) || 'Élève',
+        items: [
+          { label: 'L’élève quitte la classe', sub: 'Gardé avec son historique, jusqu’à la fin du trimestre dans les bulletins', onPick: () => {
+            s.depart = todayISO(); refresh();
+            toast({ text: (s.prenom || 'Élève') + ' : départ noté (à enregistrer)', undo: () => { s.depart = null; refresh(); } });
+          } },
+          { label: 'Supprimer définitivement', sub: 'Erreur de saisie : tout son historique sera effacé', onPick: erase },
+        ],
+      });
+    },
+    eraseStudent(el) { removeStudent(el.dataset.id); },
+    departDate(el) { if (el.value) { stu(el.dataset.id).depart = el.value > todayISO() ? todayISO() : el.value; refresh(); } },
+    comeBack(el) { const s = stu(el.dataset.id); s.depart = null; refresh(); toast({ text: (s.prenom || 'Élève') + ' de retour dans la classe (à enregistrer)', undo: () => { s.depart = todayISO(); refresh(); } }); },
+    revDepart() {
+      const inPdf = new Set(draft.review.students.map(s => s.matchId).filter(Boolean));
+      const list = draft.students.filter(s => !inPdf.has(s.id) && !s.isNew && !s.depart);
+      for (const s of list) s.depart = todayISO();
       refresh();
-      toast({ text: (removed.prenom || 'Élève') + ' retiré de la classe', undo: () => { draft.students.splice(idx, 0, removed); refresh(); } });
+      toast({ text: list.length + ' départ' + (list.length > 1 ? 's' : '') + ' noté' + (list.length > 1 ? 's' : '') + ' (à valider puis enregistrer)' });
     },
     async photo(el) {
       const d = draft, s = stu(el.dataset.id);
@@ -279,6 +310,7 @@ export default {
         if (s.matchId) {
           const cur = stu(s.matchId);
           if (cur && s.photoBlob && !urlOf(cur)) { cur.photoBlob = s.photoBlob; photos++; }
+          if (cur && cur.depart) cur.depart = null; // élève parti de nouveau dans le PDF : de retour
           continue;
         }
         if (!s.nom.trim() && !s.prenom.trim()) continue;
@@ -299,7 +331,7 @@ export default {
     },
 
     async deleteClass() {
-      const nS = model.studentsOf(draft.id).length;
+      const nS = model.allStudentsOf(draft.id).length;
       const nA = model.assignmentsOf(draft.id).length;
       if (!(await confirmDialog({
         title: `Supprimer la classe ${draft.name} ?`,
@@ -320,13 +352,13 @@ export default {
       if (clash) { toast({ text: `Une classe « ${clash.name} » existe déjà` }); return; }
       const keep = draft.students.filter(s => s.nom.trim() || s.prenom.trim());
       const isNew = !draft.id;
-      const removedStudents = isNew ? [] : model.studentsOf(draft.id).filter(s => !keep.some(k => k.id === s.id));
+      const removedStudents = isNew ? [] : model.allStudentsOf(draft.id).filter(s => !keep.some(k => k.id === s.id));
       const removedAssign = isNew ? [] : model.assignmentsOf(draft.id).filter(a => !draft.assigned.some(d => d.id === a.id));
       const withHistory = removedStudents.filter(s => db.all('observations').some(o => o.studentId === s.id) || db.all('notes').some(n => n.studentId === s.id));
       if (withHistory.length && !(await confirmDialog({
-        title: `Retirer ${withHistory.length} élève${withHistory.length > 1 ? 's' : ''} avec un historique ?`,
-        text: withHistory.map(model.fullName).join(', ') + ' : leurs observations et notes seront supprimées avec eux.',
-        ok: 'Retirer et enregistrer', danger: true,
+        title: `Supprimer définitivement ${withHistory.length} élève${withHistory.length > 1 ? 's' : ''} avec un historique ?`,
+        text: withHistory.map(model.fullName).join(', ') + ' : leurs observations, notes et bulletins seront supprimés avec eux. Pour un élève qui quitte la classe, choisissez plutôt « L’élève quitte la classe » : il est gardé.',
+        ok: 'Supprimer et enregistrer', danger: true,
       }))) return;
       const d = draft;
       const undo = db.commit(w => {
@@ -340,7 +372,11 @@ export default {
             photoId = w.put('photos', { blob: s.photoBlob }).id;
           }
           const rec = { ...(cur || {}), id: s.id, classId, nom: s.nom.trim().toUpperCase(), prenom: s.prenom.trim(), photoId };
-          if (!cur || cur.nom !== rec.nom || cur.prenom !== rec.prenom || cur.photoId !== rec.photoId) w.put('students', rec);
+          // Départ (1.33.0) : date et trimestre du départ ; retour : effacés. Élève ajouté à une classe existante : arrivée notée.
+          if (s.depart) Object.assign(rec, s.depart === (cur && cur.departDate) ? { departDate: cur.departDate, departTrimester: cur.departTrimester } : model.departInfo(s.depart));
+          else { delete rec.departDate; delete rec.departTrimester; }
+          if (!cur && !isNew) Object.assign(rec, model.arriveInfo());
+          if (!cur || cur.nom !== rec.nom || cur.prenom !== rec.prenom || cur.photoId !== rec.photoId || cur.departDate !== rec.departDate || cur.departTrimester !== rec.departTrimester) w.put('students', rec);
         }
         for (const s of removedStudents) model.deleteStudentIn(w, s.id);
         for (const a of d.assigned) if (a.isNew) w.put('assignments', { id: a.id, classId, projectId: a.projectId, status: 'avenir', endedAt: null });
@@ -352,6 +388,13 @@ export default {
     },
   },
 };
+
+function removeStudent(id) {
+  const idx = draft.students.findIndex(s => s.id === id);
+  const removed = draft.students.splice(idx, 1)[0];
+  refresh();
+  toast({ text: (removed.prenom || 'Élève') + ' retiré de la classe', undo: () => { draft.students.splice(idx, 0, removed); refresh(); } });
+}
 
 function upper(el) {
   const v = el.value.toUpperCase();

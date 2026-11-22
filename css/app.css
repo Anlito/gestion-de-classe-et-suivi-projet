@@ -322,6 +322,12 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .stu-nom { flex: 1.1; font-weight: 700; text-transform: uppercase; }
 .stu-prenom { flex: 1; }
 .stu-row .icon-btn { width: 44px; }
+/* Élèves partis (1.33.0) : gardés, en bas de la liste de la fiche de la classe. */
+.stu-gone { grid-column: 1 / -1; display: grid; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.stu-row.gone { opacity: .85; flex-wrap: wrap; }
+.stu-row.gone .grow { min-width: 120px; }
+.stu-depart { display: flex; align-items: center; gap: 6px; color: var(--ink2); }
+.stu-row .stu-depart .input { height: 40px; width: auto; }
 .cam-missing { color: var(--neg); }
 .photo.tiny { width: 36px; height: 54px; border-radius: 8px; }
 .photo.tiny .photo-missing svg { width: 16px; height: 16px; }

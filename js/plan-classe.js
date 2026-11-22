@@ -28,12 +28,12 @@ export function placement(classId, salle) {
   if (!c || !salle) return {};
   const raw = (c.plans || {})[salle.id] || {};
   const seats = new Set(S.places(salle).map(p => p.id));
-  const eleves = new Set(model.studentsOf(classId).map(s => s.id));
+  const eleves = new Set(model.studentsNow(classId).map(s => s.id));
   const out = {};
   for (const [seat, sid] of Object.entries(raw)) if (seats.has(seat) && eleves.has(sid)) out[seat] = sid;
   return out;
 }
-export const nonPlaces = (classId, salle) => { const pris = new Set(Object.values(placement(classId, salle))); return model.studentsOf(classId).filter(s => !pris.has(s.id)); };
+export const nonPlaces = (classId, salle) => { const pris = new Set(Object.values(placement(classId, salle))); return model.studentsNow(classId).filter(s => !pris.has(s.id)); };
 
 function enregistrer(classId, salle, map) {
   const c = db.get('classes', classId);
@@ -57,7 +57,7 @@ export function placer(classId, salle, seatId, sid) {
 export function remplir(classId, salle, { hasard = false, tout = false } = {}) {
   const map = tout ? {} : { ...placement(classId, salle) };
   const pris = new Set(Object.values(map));
-  let eleves = model.studentsOf(classId).filter(s => !pris.has(s.id));
+  let eleves = model.studentsNow(classId).filter(s => !pris.has(s.id));
   if (hasard) eleves = eleves.map(s => [Math.random(), s]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
   for (const p of S.places(salle)) { if (!eleves.length) break; if (!map[p.id]) map[p.id] = eleves.shift().id; }
   return { undo: enregistrer(classId, salle, map), reste: eleves.length };

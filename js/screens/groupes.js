@@ -41,7 +41,7 @@ export default {
         ${tabBar(classId, 'groupes')}</div>`;
     }
 
-    const students = model.studentsOf(classId);
+    const students = model.studentsNow(classId);
     const groups = model.groupsOf(a.id);
     const inGroup = new Set(groups.flatMap(g => g.members));
     const unassigned = students.filter(s => !inGroup.has(s.id));

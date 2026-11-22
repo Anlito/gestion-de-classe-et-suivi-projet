@@ -27,6 +27,13 @@ const trimester = classId => trimOf[classId] || model.trimester();
 const f1 = model.f1;
 
 // Photo affichée au survol du prénom (ordinateur) ; rien si l'élève n'a pas de photo.
+// Départ ou arrivée pendant le trimestre affiché (1.33.0).
+const moveText = (s, t) => (s.departTrimester === t ? model.departLabel(s) : s.arriveTrimester === t && t > 1 ? model.arriveLabel(s) : '');
+const ddmm = d => (d || '').slice(8, 10) + '/' + (d || '').slice(5, 7);
+const moveChip = (s, t) => {
+  const m = moveText(s, t);
+  return m ? html`<span class="chip" title="${m} · présence partielle proposée">${s.departTrimester === t ? 'Parti·e ' + ddmm(s.departDate) : 'Arrivé·e ' + ddmm(s.arriveDate)}</span>` : '';
+};
 const hoverPhoto = s => (s.photoId && db.photoURL(s.photoId) ? photo(s, { cls: 'big bul-pop', label: false }) : '');
 
 // Lignes du tableau : par groupe (projet choisi), élèves sans groupe à la fin ; ou par ordre alphabétique.
@@ -53,7 +60,7 @@ function row(s, t) {
   const name = html`<td class="bul-name"><button type="button" class="bul-namebtn" data-click="open" data-sid="${s.id}">
     <span class="grow ellipsis"><strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span></span>${hoverPhoto(s)}
     ${c.pos || c.neg ? html`<span class="bul-obs" title="Carnet, trimestre ${t} : ${c.pos} +, ${c.neg} −">${c.pos ? html`<span class="pos">+${c.pos}</span>` : ''}${c.neg ? html`<span class="neg">−${c.neg}</span>` : ''}</span>` : ''}
-    ${rec.presence === 'partielle' ? html`<span class="chip warn">Présence partielle</span>` : ''}</button></td>`;
+    ${moveText(s, t) ? moveChip(s, t) : rec.presence === 'partielle' ? html`<span class="chip warn">Présence partielle</span>` : ''}</button></td>`;
   if (rec.presence === 'dispense') {
     return html`<tr class="bul-disp">${name}<td colspan="${B.families().length + 3}" class="muted small bul-disp-txt">Dispensé ce trimestre · non évalué</td>
       <td><span class="bul-badge b-disp">${B.STATE_LABEL.disp}</span></td></tr>`;
@@ -81,7 +88,7 @@ function drawer(classId, s, t, mates) {
         <button type="button" class="btn accent" data-click="close">Terminé</button></div>
       <div class="drawer-body" data-scroll="bul-drawer">
         <div class="bul-who">${photo(s, { cls: 'big' })}<div class="bul-who-txt"><strong>${model.fullName(s)}</strong>
-          <span class="muted small">${[note.n == null ? '' : 'Note ' + f1(note.n), rec.presence === 'partielle' ? 'Présence partielle' : rec.presence === 'dispense' ? 'Dispensé' : ''].filter(Boolean).join(' · ')}</span></div></div>
+          <span class="muted small">${[moveText(s, t), note.n == null ? '' : 'Note ' + f1(note.n), rec.presence === 'partielle' ? 'Présence partielle' : rec.presence === 'dispense' ? 'Dispensé' : ''].filter(Boolean).join(' · ')}</span></div></div>
         <div class="chips-row bul-mates">${mates.map(m => html`<button type="button" class="pill${m.id === s.id ? ' on' : ''}" data-click="open" data-sid="${m.id}">${m.prenom}</button>`)}</div>
         <div class="bul-block"><span class="caps">Accord des appréciations</span>
           <div class="segmented">${Object.entries(B.GENRES).map(([k, label]) => html`<button type="button" class="seg${s.genre === k ? ' on' : ''}" data-click="genre" data-v="${k}">${label}</button>`)}</div>
@@ -90,6 +97,7 @@ function drawer(classId, s, t, mates) {
           <div class="segmented">${Object.entries(B.PRESENCE).map(([k, label]) => html`<button type="button" class="seg${rec.presence === k ? ' on' : ''}" data-click="presence" data-v="${k}">${label}</button>`)}</div>
           <span class="muted small">${rec.presence === 'partielle' ? 'Emploi du temps aménagé, absent certains cours… Remplissez seulement les critères que vous avez pu observer.'
             : disp ? 'Non évalué ce trimestre : aucune case à remplir.' : 'Suit le cours normalement.'}</span>
+          ${moveText(s, t) ? html`<span class="muted small">${moveText(s, t)} : présence partielle proposée ; l’appréciation reste à faire pour ce trimestre.${s.departTrimester === t ? ' L’élève n’apparaîtra plus au trimestre suivant.' : ''}</span>` : ''}
           ${carry ? html`<button type="button" class="btn soft small bul-carry" data-click="presence" data-v="${carry}">Reprendre « ${B.PRESENCE[carry]} » comme au trimestre ${t - 1}</button>` : ''}</div>
         ${disp ? '' : html`
         <div class="bul-hint"><strong>Ce que le Carnet a noté ce trimestre</strong><span>${facts.join(' · ')}</span>
@@ -167,7 +175,7 @@ function appreciationsView(students, t) {
     const text = appText(rec), note = rec.presence === 'dispense' ? null : B.noteOf(s, rec, t).n, n = text.length;
     return html`<div class="bul-app${rec.pronote ? ' done' : ''}" data-row="${s.id}">
       <div class="bul-app-who">${hoverPhoto(s)}<strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span>
-        <span class="muted small">${rec.presence === 'dispense' ? 'Dispensé' : 'Note ' + f1(note)}${rec.presence === 'partielle' ? ' · présence partielle' : ''}</span></div>
+        <span class="muted small">${rec.presence === 'dispense' ? 'Dispensé' : 'Note ' + f1(note)}${rec.presence === 'partielle' ? ' · présence partielle' : ''}${moveText(s, t) ? ' · ' + moveText(s, t) : ''}</span></div>
       <div class="bul-app-text"><textarea class="input" rows="3" data-input="app" data-sid="${s.id}"
           placeholder="Pas encore d’appréciation : exportez pour Claude puis importez le retour, ou écrivez-la ici.">${text}</textarea>
         <span class="bul-count${n > B.MAX_CHARS ? ' over' : ''}">${n} / ${B.MAX_CHARS} caractères${n > B.MAX_CHARS ? ' · trop long pour Pronote' : ''}</span></div>
@@ -227,7 +235,7 @@ export default {
     const c = db.get('classes', classId);
     if (!c) { go('#/', { replace: true }); return null; }
     const t = trimester(classId);
-    const students = model.studentsOf(classId);
+    const students = model.studentsOf(classId, t);
     const list = model.selectableAssignments(classId, ['cours', 'avenir', 'fini']);
     const a = model.chosenAssignment(classId);
     const p = a && db.get('projects', a.projectId);
@@ -331,7 +339,7 @@ export default {
       const ok = await copyText(text, el);
       if (!ok) { toast({ text: 'Copie refusée par le navigateur : sélectionnez le texte et copiez-le à la main.' }); return; }
       B.setPronote(s, t, true, text);
-      const list = model.studentsOf(classId), i = list.findIndex(x => x.id === s.id);
+      const list = model.studentsOf(classId, trimester(classId)), i = list.findIndex(x => x.id === s.id);
       const next = list.slice(i + 1).find(x => !B.recordOf(x, t).pronote && appText(B.recordOf(x, t)));
       scrollToSid = next ? next.id : null;
       toast({ text: 'Copié : collez dans Pronote', who: s.prenom });
@@ -340,7 +348,7 @@ export default {
     done(el, e, { classId }) { flush(); B.setPronote(db.get('students', el.dataset.sid), trimester(classId), el.checked); refresh(); },
     openExport(el, e, { classId }) {
       flush(); openSid = null;
-      const ready = model.studentsOf(classId).some(s => B.stateOf(B.recordOf(s, trimester(classId))) === 'ok');
+      const ready = model.studentsOf(classId, trimester(classId)).some(s => B.stateOf(B.recordOf(s, trimester(classId))) === 'ok');
       exp = { ...B.exportDefaults(), scope: ready ? 'prets' : 'tous', id: db.uid() };
       refresh();
     },
@@ -348,7 +356,7 @@ export default {
     expOpt(el) { exp = { ...exp, [el.dataset.key]: el.value }; refresh(); },
     async saveExport(el, e, { classId }) {
       const c = db.get('classes', classId), t = trimester(classId);
-      const plan = exportPlan(c, t, model.studentsOf(classId), model.chosenAssignment(classId));
+      const plan = exportPlan(c, t, model.studentsOf(classId, t), model.chosenAssignment(classId));
       if (!plan.data.eleves.length) return;
       if (!plan.data.discipline) { toast({ text: 'Indiquez la discipline.' }); return; }
       const json = JSON.stringify(plan.data, null, 2);

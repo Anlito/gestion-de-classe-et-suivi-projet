@@ -40,7 +40,7 @@ export default {
                   const p = a && db.get('projects', a.projectId);
                   const done = model.assignmentsOf(c.id).filter(x => x.status === 'fini').length;
                   return html`<a class="class-card" href="#/admin/classe/${c.id}">
-                    <span class="class-card-top"><span class="class-card-name">${c.name}</span><span class="class-card-eff">${model.studentsOf(c.id).length} élèves</span></span>
+                    <span class="class-card-top"><span class="class-card-name">${c.name}</span><span class="class-card-eff">${model.studentsNow(c.id).length} élèves</span></span>
                     <span class="class-card-proj"><strong>${p ? p.title : 'Aucun projet en cours'}</strong>
                       <span class="muted">${done ? ' · ' + done + (done > 1 ? ' terminés' : ' terminé') : ''}</span></span>
                   </a>`;

@@ -1,4 +1,5 @@
 import { nextLevel, withDefaults, stateOf, trimesterRange, inRange, average, validNote, recordId, FAMILIES } from '../js/bulletins.js';
+import { inTrimester, movedDuring, trimesterOfDate } from '../js/model.js';
 export const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 const eq = (a, b) => { if (a !== b) throw Error(`${a} ≠ ${b}`); };
@@ -123,4 +124,23 @@ test('Export : niveau du trimestre précédent indiqué', () => {
   const { data } = buildExport({ niveau: '4e', trimester: 2, year: 'y', options: opts, exportId: 'x', fams: [{ k: 'travail', label: 'Travail' }],
     entries: [{ student: { id: 'a', prenom: 'Léa' }, rec: { presence: 'normale', levels: { travail: 'pos' }, details: {} }, prev: { travail: 'neg' }, note: 14 }] });
   eq(data.eleves[0].criteres.Travail.trimestre_precedent, 'À améliorer');
+});
+
+// ---------- Départs et arrivées en cours d'année (1.33.0) ----------
+test('Départ : l’élève reste jusqu’à la fin du trimestre de son départ, plus après', () => {
+  const s = { departDate: '2026-11-10', departTrimester: 1 };
+  eq(inTrimester(s, 1), true); eq(inTrimester(s, 2), false); eq(inTrimester(s, 3), false);
+  eq(movedDuring(s, 1), true); eq(movedDuring(s, 2), false);
+});
+test('Arrivée : l’élève n’apparaît pas avant le trimestre de son arrivée', () => {
+  const s = { arriveDate: '2027-01-12', arriveTrimester: 2 };
+  eq(inTrimester(s, 1), false); eq(inTrimester(s, 2), true); eq(inTrimester(s, 3), true);
+  eq(movedDuring(s, 2), true); eq(movedDuring({ arriveTrimester: 1 }, 1), false);
+  eq(inTrimester({}, 3), true);
+});
+test('Départ : trimestre d’une date d’après les débuts enregistrés', () => {
+  const st = { 1: '2026-09-01', 2: '2026-12-01', 3: '2027-03-08' };
+  eq(trimesterOfDate('2026-11-30', st), 1); eq(trimesterOfDate('2026-12-01', st), 2); eq(trimesterOfDate('2027-04-02', st), 3);
+  eq(trimesterOfDate('2027-04-02', { 1: '2026-09-01' }), 1);
+  eq(trimesterOfDate('2027-04-02', st, 2), 2);
 });

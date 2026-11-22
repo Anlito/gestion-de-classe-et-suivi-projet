@@ -108,7 +108,7 @@ export function validNote(v) {
 export const recordId = (studentId, year, t) => 'bul:' + studentId + ':' + year + ':' + t;
 export function emptyRecord(student, t, year = model.schoolYear()) {
   return { id: recordId(student.id, year, t), studentId: student.id, classId: student.classId, year, trimester: t,
-    presence: 'normale', levels: {}, details: {}, tendance: '', info: '', note: null, appreciation: '', pronote: false };
+    presence: model.movedDuring(student, t) ? 'partielle' : 'normale', levels: {}, details: {}, tendance: '', info: '', note: null, appreciation: '', pronote: false };
 }
 export function recordOf(student, t, year = model.schoolYear()) {
   const r = db.get('bulletins', recordId(student.id, year, t));

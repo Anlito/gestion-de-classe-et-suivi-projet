@@ -51,7 +51,7 @@ export default {
       <header class="topbar">
         ${backLink(`#/classe/${classId}/trombi`, c.name)}
         <div class="heading"><span class="title">${s.prenom} <span class="upper">${s.nom}</span></span>
-          <span class="sub">${c.name} · Trimestre ${t} en cours</span></div>
+          <span class="sub">${c.name} · Trimestre ${t} en cours${s.departDate ? ' · ' + model.departLabel(s) + ' (gardé·e dans les bulletins du trimestre ' + s.departTrimester + ')' : ''}</span></div>
         <div class="spacer"></div>
         ${ppActive(classId) ? html`<a class="btn accent" href="#/pp/eleve/${s.id}">${icon.book}Suivi PP</a>` : ''}
         <a class="btn soft" href="#/imprimer/eleve/${s.id}">${icon.download}<span class="hide-narrow">Fiche PDF</span></a>

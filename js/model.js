@@ -84,8 +84,34 @@ export function nextTrimester() {
 const sectionIndex = c => SECTIONS.findIndex(s => s.key === sectionOf(c));
 export const classes = () => db.all('classes')
   .sort((a, b) => (sectionIndex(a) - sectionIndex(b)) || (CLASS_LEVELS.indexOf(a.level) - CLASS_LEVELS.indexOf(b.level)) || cmp(a.name, b.name));
-export const studentsOf = classId =>
-  db.where('students', s => s.classId === classId).sort((a, b) => cmp(a.nom, b.nom) || cmp(a.prenom, b.prenom));
+// ---------- Départs et arrivées en cours d'année (1.33.0) ----------
+// Un élève qui quitte la classe n'est pas supprimé : students.departDate (AAAA-MM-JJ) et departTrimester.
+// Il disparaît tout de suite du trombinoscope, de l'appel, du plan de classe et des groupes (studentsNow), mais reste
+// dans les listes de SON dernier trimestre (Bulletins, Notes, Suivi PP, exports) jusqu'à la fin de celui-ci, puis
+// n'apparaît plus qu'en consultant ce trimestre-là. Un élève arrivé en cours d'année (arriveDate, arriveTrimester)
+// n'apparaît pas dans les trimestres précédant son arrivée.
+// Trimestre d'une date d'après les débuts enregistrés ({ 1:…, 2:…, 3:… }), sans dépasser le trimestre en cours.
+export function trimesterOfDate(date, starts = {}, current = 3) {
+  let t = 1;
+  for (const k of [2, 3]) if (starts[k] && date >= starts[k]) t = k;
+  return Math.max(1, Math.min(t, current));
+}
+export const inTrimester = (s, t) => !(s.departTrimester && s.departTrimester < t) && !(s.arriveTrimester && s.arriveTrimester > t);
+export const hasLeft = s => !!s.departTrimester;
+// Parti ou arrivé pendant le trimestre t (présence partielle proposée dans les Bulletins).
+export const movedDuring = (s, t) => s.departTrimester === t || (s.arriveTrimester === t && t > 1);
+const byName = (a, b) => cmp(a.nom, b.nom) || cmp(a.prenom, b.prenom);
+// Élèves concernés par le trimestre t (par défaut celui en cours), partis pendant ce trimestre compris.
+export const studentsOf = (classId, t = trimester()) =>
+  db.where('students', s => s.classId === classId && inTrimester(s, t)).sort(byName);
+// Élèves présents dans la classe aujourd'hui (sans les partis).
+export const studentsNow = classId => db.where('students', s => s.classId === classId && !hasLeft(s)).sort(byName);
+// Tous les élèves de la classe, partis compris (fiche de la classe).
+export const allStudentsOf = classId => db.where('students', s => s.classId === classId).sort(byName);
+export const departInfo = (date = todayISO()) => ({ departDate: date, departTrimester: trimesterOfDate(date, db.getMeta('trimesterStarts', {}) || {}, trimester()) });
+export const arriveInfo = (date = todayISO()) => ({ arriveDate: date, arriveTrimester: trimesterOfDate(date, db.getMeta('trimesterStarts', {}) || {}, trimester()) });
+export const departLabel = s => (s.departDate ? 'Parti·e le ' + fmtDay(s.departDate) : '');
+export const arriveLabel = s => (s.arriveDate ? 'Arrivé·e le ' + fmtDay(s.arriveDate) : '');
 export const shortName = s => (s.prenom || '?') + (s.nom ? ' ' + s.nom.charAt(0) + '.' : '');
 export const fullName = s => [s.prenom, s.nom].filter(Boolean).join(' ');
 

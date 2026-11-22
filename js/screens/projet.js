@@ -26,7 +26,7 @@ function header(c, a, p) {
   return html`<header class="topbar">
     ${backLink('#/', 'Accueil')}
     <div class="heading"><span class="title">${c.name}</span>
-      <span class="sub">${model.studentsOf(c.id).length} élèves · Trimestre ${model.trimester()}</span></div>
+      <span class="sub">${model.studentsNow(c.id).length} élèves · Trimestre ${model.trimester()}</span></div>
     <div class="spacer"></div>
     ${a ? html`<button type="button" class="picker" data-click="pickProject">
       <span class="muted">Projet :</span><strong>${p ? p.title : '?'}</strong>${icon.down}</button>` : saveStatus()}

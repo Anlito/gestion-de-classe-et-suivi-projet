@@ -328,7 +328,7 @@ function add(root, btn, motif = '') {
 // ---------- Tirage au sort ----------
 function drawPool(classId) {
   const absent = model.absentNow(classId);
-  const present = model.studentsOf(classId).filter(s => !absent.has(s.id));
+  const present = model.studentsNow(classId).filter(s => !absent.has(s.id));
   const done = new Set(drawnGet(classId));
   return { present, absent, done, pool: present.filter(s => !done.has(s.id)) };
 }
@@ -466,7 +466,7 @@ export default {
     if (draw && draw.classId !== classId) draw = null;
     if (presence && presence.classId !== classId) presence = null;
     const inAppel = appel === classId;
-    const students = model.studentsOf(classId);
+    const students = model.studentsNow(classId);
     const counts = model.countsByStudent(classId);
     const absent = model.absentNow(classId);
     const late = model.retardNow(classId);
