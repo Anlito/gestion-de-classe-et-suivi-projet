@@ -180,3 +180,12 @@ test('Export : deux projets, critères projet par projet et consigne sur l’év
   eq(ps[0].criteres.Comportement.trimestre_precedent, 'À améliorer'); eq('trimestre_precedent' in ps[1].criteres.Comportement, false);
   eq('criteres' in data.eleves[0], false); eq(/en cours/.test(data.consignes.projets), true);
 });
+
+// ---------- Cadre du cours (1.35.0) ----------
+test('Export : cadre du cours et consigne de ne pas parler d’oral sans critère', () => {
+  const { data } = buildExport({ niveau: '4e', trimester: 1, year: 'y', options: { ...opts, cadre: '  Travail en projet, en équipe.  ' }, exportId: 'x', entries: [] });
+  eq(data.consignes.cadre_du_cours, 'Travail en projet, en équipe.');
+  eq(data.consignes.pertinence.includes('oral'), true);
+  const sans = buildExport({ niveau: '4e', trimester: 1, year: 'y', options: { ...opts, cadre: ' ' }, exportId: 'x', entries: [] }).data;
+  eq('cadre_du_cours' in sans.consignes, false); eq(!!sans.consignes.pertinence, true);
+});

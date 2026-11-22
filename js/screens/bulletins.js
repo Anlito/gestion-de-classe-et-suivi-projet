@@ -124,7 +124,7 @@ function drawer(classId, s, t, mates, aid) {
           <div class="segmented">${B.TENDANCES.map(v => html`<button type="button" class="seg${rec.tendance === v ? ' on' : ''}" data-click="tendance" data-v="${v}">${v}</button>`)}</div></div>
         `}
         <label class="bul-block"><span class="caps">Remarque personnelle (facultatif)</span>
-          <textarea class="input" rows="3" maxlength="1000" data-input="info" placeholder="Ex. : a présenté le projet à l’oral, a beaucoup progressé en modélisation 3D…">${rec.info}</textarea>
+          <textarea class="input" rows="3" maxlength="1000" data-input="info" placeholder="Ex. : a pris en main la programmation du groupe, a beaucoup progressé en modélisation 3D…">${rec.info}</textarea>
           <span class="muted small">Elle servira à l’appréciation. N’y mettez ni nom, ni information médicale ou familiale.</span></label>
       </div>
     </aside>`;
@@ -169,6 +169,10 @@ function exportDialog(c, t, plan) {
             <select class="input" data-change="expOpt" data-key="ton">${B.TONES.map(v => html`<option ${exp.ton === v ? 'selected' : ''}>${v}</option>`)}</select></label>
           <label class="bul-block"><span class="caps">Formulation</span>
             <select class="input" data-change="expOpt" data-key="formulation">${B.PERSONS.map(v => html`<option ${exp.formulation === v ? 'selected' : ''}>${v}</option>`)}</select></label>
+          <label class="bul-block"><span class="caps">Cadre du cours</span>
+            <textarea class="input" rows="4" maxlength="400" data-change="expOpt" data-key="cadre">${exp.cadre}</textarea>
+            <span class="muted small">Comment se passent vos séances : Claude ne parlera pas de ce qui n’y a pas lieu (oral, interrogations…). Sans nom d’élève. Gardé pour les prochains exports.
+              ${exp.cadre !== B.CADRE_DEFAUT ? html`<button type="button" class="link-btn" data-click="cadreDefaut">Texte proposé</button>` : ''}</span></label>
           <div class="bul-block"><span class="caps">Longueur</span><strong>${B.MAX_CHARS} caractères maximum</strong></div>
           ${plan.notReady ? html`<div class="bul-hint"><strong>${plan.notReady} élève${plan.notReady > 1 ? 's' : ''} pas encore prêt${plan.notReady > 1 ? 's' : ''}</strong><span class="small">Envoyé${plan.notReady > 1 ? 's' : ''} avec les critères déjà renseignés.</span></div>` : ''}
           <div class="bul-safe"><strong>Ne sortent pas du Carnet</strong><span class="small">Noms de famille, photos, dispositifs (PAP…), absences, remarques du Carnet${plan.disp ? ', ' + plan.disp + ' élève' + (plan.disp > 1 ? 's' : '') + ' dispensé' + (plan.disp > 1 ? 's' : '') : ', élèves dispensés'}.</span></div>
@@ -370,6 +374,7 @@ export default {
     },
     closeExport() { exp = null; refresh(); },
     expOpt(el) { exp = { ...exp, [el.dataset.key]: el.value }; refresh(); },
+    cadreDefaut() { exp = { ...exp, cadre: B.CADRE_DEFAUT }; refresh(); },
     expProj(el) { const id = el.dataset.id; exp = { ...exp, aids: el.checked ? [...exp.aids.filter(x => x !== id), id] : exp.aids.filter(x => x !== id) }; refresh(); },
     async saveExport(el, e, { classId }) {
       const c = db.get('classes', classId), t = trimester(classId);
