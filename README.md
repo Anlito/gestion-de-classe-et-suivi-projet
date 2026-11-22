@@ -1,5 +1,9 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.30.1 · Bulletins : + et − du Carnet à côté du prénom · 22 novembre 2026
+
+Demande du professeur : voir dans la grille Constats les + et − posés depuis le trombinoscope. À droite du prénom, une pastille verte « +N » et une rouge « −N » (même style que le trombinoscope) comptent les observations du trimestre affiché ; rien pour un élève sans observation ; le détail s’affiche au survol. Fichiers : screens/bulletins.js, app.css, nav.js et sw.js. Vérifications : parcours navigateur sur la démonstration (6e SEGPA, T1).
+
 ## Version 1.30.0 · Bulletins : critères neutres par défaut · 22 novembre 2026
 
 Demande du professeur : tous les critères partent de « Correct » (● neutre) pour tous les élèves ; on laisse, ou on met la flèche verte (▲ Point fort) ou rouge (▼ À améliorer). Dans la grille, une case fait défiler Correct → Point fort → À améliorer → Correct ; dans la fiche, retoucher le bouton actif revient à Correct. Un critère non touché compte comme « Correct » dans l’export pour Claude et pour le rappel du trimestre précédent. Conséquence choisie : chaque élève est « prêt » dès le départ. Fichiers : bulletins.js, screens/bulletins.js, tests/bulletins.test.js, nav.js et sw.js. Vérifications : 252 tests réussis ; parcours navigateur sur la démonstration (cases neutres, cycle ▲ → ▼ → ●).
