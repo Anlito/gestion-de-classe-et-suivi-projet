@@ -3,7 +3,7 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import * as B from '../bulletins.js';
-import { html, toast, openMenu } from '../ui.js';
+import { html, toast, openMenu, fmtDay } from '../ui.js';
 import { backLink, tabBar, projectSwitch, icon, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
 import { giveFile, givenMessage } from '../backup.js';
@@ -69,9 +69,10 @@ function row(s, t, aid) {
       <td><span class="bul-badge b-disp">${B.STATE_LABEL.disp}</span></td></tr>`;
   }
   // Avec un projet choisi : sa note seule (vide tant qu'il n'est pas noté) ; sinon la note du trimestre.
-  const pn = aid ? B.projectNote(s, aid) : null, note = aid ? null : B.noteOf(s, rec, t);
+  // Bilan d'étape figé ce trimestre (1.40.0) : la note d'étape, marquée « étape ».
+  const pn = aid ? B.projectNote(s, aid, t) : null, note = aid ? null : B.noteOf(s, rec, t), etape = aid && B.bilanOfAid(aid, t);
   return html`<tr>${name}${B.families().map(f => cell(s, rec, f, t, prev))}
-    ${aid ? html`<td class="bul-note"><strong>${pn == null ? '—' : f1(pn)}</strong><span class="bul-auto">${pn == null ? 'non noté' : ''}</span></td>`
+    ${aid ? html`<td class="bul-note"><strong>${pn == null ? '—' : f1(pn)}</strong><span class="bul-auto">${pn == null ? 'non noté' : etape ? 'étape' : ''}</span></td>`
       : html`<td class="bul-note"><strong>${f1(note.n)}</strong><span class="bul-auto">${note.n == null ? '' : note.manual ? 'corrigée' : 'auto'}</span></td>`}
     <td class="small">${rec.tendance || '—'}</td>
     <td>${rec.info && rec.info.trim() ? html`<span class="bul-info" title="${rec.info}">✎</span>` : html`<span class="muted">—</span>`}</td>
@@ -80,7 +81,7 @@ function row(s, t, aid) {
 
 function drawer(classId, s, t, mates, aid) {
   const rec = B.recordOf(s, t, undefined, aid), projs = aid ? B.exportProjects(classId, t).map(x => x.id) : [],
-    others = projs.filter(id => id !== aid).map(id => ({ title: B.projectTitle(id), rec: B.recordOf(s, t, undefined, id), before: projs.indexOf(id) < projs.indexOf(aid) || !projs.includes(aid) })), note = B.noteOf(s, rec, t), auto = B.autoNote(s, t), h = B.hintsOf(s, t), pn = aid ? B.projectNote(s, aid) : null;
+    others = projs.filter(id => id !== aid).map(id => ({ title: B.projectTitle(id), rec: B.recordOf(s, t, undefined, id), before: projs.indexOf(id) < projs.indexOf(aid) || !projs.includes(aid) })), note = B.noteOf(s, rec, t), auto = B.autoNote(s, t), h = B.hintsOf(s, t), pn = aid ? B.projectNote(s, aid, t) : null, etape = aid && B.bilanOfAid(aid, t);
   const facts = [
     h.neg ? h.neg + ' remarque' + (h.neg > 1 ? 's' : '') + ' Comportement' + (h.negMotifs.length ? ' (' + h.negMotifs.join(', ') + ')' : '') : '',
     h.pos ? h.pos + ' remarque' + (h.pos > 1 ? 's' : '') + ' Aide' + (h.posMotifs.length ? ' (' + h.posMotifs.join(', ') + ')' : '') : '',
@@ -94,7 +95,7 @@ function drawer(classId, s, t, mates, aid) {
         <button type="button" class="btn accent" data-click="close">Terminé</button></div>
       <div class="drawer-body" data-scroll="bul-drawer">
         <div class="bul-who">${photo(s, { cls: 'big' })}<div class="bul-who-txt"><strong>${model.fullName(s)}</strong>
-          <span class="muted small">${[moveText(s, t), aid ? B.projectTitle(aid) + ' : ' + (pn == null ? 'pas encore noté' : f1(pn)) : note.n == null ? '' : 'Note ' + f1(note.n), rec.presence === 'partielle' ? 'Présence partielle' : rec.presence === 'dispense' ? 'Dispensé' : ''].filter(Boolean).join(' · ')}</span></div></div>
+          <span class="muted small">${[moveText(s, t), aid ? B.projectTitle(aid) + ' : ' + (pn == null ? 'pas encore noté' : f1(pn) + (etape ? ' (étape)' : '')) : note.n == null ? '' : 'Note ' + f1(note.n), rec.presence === 'partielle' ? 'Présence partielle' : rec.presence === 'dispense' ? 'Dispensé' : ''].filter(Boolean).join(' · ')}</span></div></div>
         <div class="chips-row bul-mates">${mates.map(m => html`<button type="button" class="pill${m.id === s.id ? ' on' : ''}" data-click="open" data-sid="${m.id}">${m.prenom}</button>`)}</div>
         <div class="bul-block"><span class="caps">Accord des appréciations</span>
           <div class="segmented">${Object.entries(B.GENRES).map(([k, label]) => html`<button type="button" class="seg${s.genre === k ? ' on' : ''}" data-click="genre" data-v="${k}">${label}</button>`)}</div>
@@ -108,7 +109,8 @@ function drawer(classId, s, t, mates, aid) {
         ${disp ? '' : html`
         <div class="bul-hint"><strong>Ce que le Carnet a noté ce trimestre</strong><span>${facts.join(' · ')}</span>
           <span class="muted small">Pour vous aider : rien n’est coché à votre place.</span></div>
-        ${aid ? html`<div class="bul-block bul-proj"><span class="caps">Critères du projet</span><strong>${B.projectTitle(aid)} · ${pn == null ? 'pas encore noté' : 'note ' + f1(pn) + ' /20'}</strong>
+        ${aid ? html`<div class="bul-block bul-proj"><span class="caps">Critères du projet</span><strong>${B.projectTitle(aid)} · ${pn == null ? 'pas encore noté' : (etape ? 'note d’étape ' : 'note ') + f1(pn) + ' /20'}</strong>
+          ${etape ? html`<span class="muted small">Projet en cours : bilan d’étape figé le ${fmtDay(etape.at)} sur ${etape.criteria.length} critère${etape.criteria.length > 1 ? 's' : ''}. La note finale viendra de l’onglet Notes quand le projet sera terminé.</span>` : ''}
           <span class="muted small">Chaque projet a ses propres critères : changez de projet en haut de la grille.${others.length ? ' Les autres projets sont rappelés sous chaque critère.' : ''}</span></div>` : ''}
         ${B.families().map(f => html`<div class="bul-fam">
           <div class="bul-fam-head"><strong class="grow">${f.label}</strong>
@@ -119,7 +121,7 @@ function drawer(classId, s, t, mates, aid) {
         <div class="bul-block"><span class="caps">Note du bulletin /20 (tous les projets notés du trimestre)</span>
           <div class="bul-noterow"><input class="input bul-notein" inputmode="decimal" data-change="note" value="${note.n == null ? '' : f1(note.n)}" aria-label="Note du trimestre sur 20" placeholder="—">
             <span class="muted small grow">${note.manual ? html`Corrigée à la main. <button type="button" class="linkbtn" data-click="resetNote">Revenir à ${auto.n == null ? 'la note calculée' : f1(auto.n)}</button>`
-              : auto.projects.length ? 'Moyenne de l’onglet Notes : ' + auto.projects.map(p => p.title + ' ' + f1(p.n)).join(' · ')
+              : auto.projects.length ? 'Moyenne de l’onglet Notes : ' + auto.projects.map(p => p.title + ' ' + f1(p.n) + (p.etape ? ' (étape)' : '')).join(' · ')
               : 'Aucun projet noté ce trimestre dans l’onglet Notes.'}</span></div></div>
         <div class="bul-block"><span class="caps">Tendance</span>
           <div class="segmented">${B.TENDANCES.map(v => html`<button type="button" class="seg${rec.tendance === v ? ' on' : ''}" data-click="tendance" data-v="${v}">${v}</button>`)}</div></div>
@@ -137,6 +139,15 @@ function absencesOf(s, t) {
   const p = presenceEleve(s, t, ap => (!s.departDate || ap.date <= s.departDate) && (!s.arriveDate || ap.date >= s.arriveDate));
   return { n: p.absences, sur: p.appels };
 }
+// Notes d'étape figées aux trimestres précédents pour les projets choisis (1.40.0), pour parler des progrès.
+function etapesOf(s, aids, t) {
+  const out = [];
+  for (const id of aids) for (const b of B.earlierBilans(id, t)) {
+    const n = model.bilanNote(b, s.id);
+    if (n != null) out.push({ projet: B.projectTitle(id), trimestre: b.trimester, note: n });
+  }
+  return out;
+}
 function exportPlan(c, t, students, a) {
   const options = B.exportProjects(c.id, t), aids = options.map(x => x.id).filter(id => exp.aids.includes(id));
   const multi = aids.length > 1;
@@ -144,9 +155,9 @@ function exportPlan(c, t, students, a) {
   const g = exp.scope.startsWith('g:') ? db.get('groups', exp.scope.slice(2)) : null;
   const inScope = all.filter(e => exp.scope === 'tous' || (g ? g.members.includes(e.student.id) : B.stateOf(e.rec) === 'ok'));
   const entries = inScope.map(e => { const p = B.previousOf(e.student, t);
-    return { ...e, absences: absencesOf(e.student, t), note: B.noteOf(e.student, e.rec, t, aids.length ? aids : null).n, prev: p ? p.levels : null,
+    return { ...e, absences: absencesOf(e.student, t), note: B.noteOf(e.student, e.rec, t, aids.length ? aids : null).n, prev: p ? p.levels : null, etapes: etapesOf(e.student, aids, t),
       ...(multi ? { parts: aids.map(id => B.recordOf(e.student, t, undefined, id)) } : {}) }; });
-  const projects = aids.map(id => ({ titre: B.projectTitle(id), etat: B.projectState(id) }));
+  const projects = aids.map(id => B.exportProject(id, t));
   const built = B.buildExport({ classe: c.name, niveau: B.levelLabel(c), trimester: t, year: model.schoolYear(), projects, options: exp, entries, exportId: exp.id });
   const disp = inScope.filter(e => e.rec.presence === 'dispense').length;
   const notReady = inScope.filter(e => !['ok', 'disp'].includes(B.stateOf(e.rec))).length;
@@ -167,7 +178,7 @@ function exportDialog(c, t, plan) {
               ${plan.groups.map(g => html`<option value="g:${g.id}" ${exp.scope === 'g:' + g.id ? 'selected' : ''}>Groupe ${g.code}</option>`)}
             </select></label>
           ${plan.options.length ? html`<div class="bul-block"><span class="caps">Projets pris en compte</span>
-            ${plan.options.map(x => html`<label class="bul-check"><input type="checkbox" data-change="expProj" data-id="${x.id}" ${plan.aids.includes(x.id) ? 'checked' : ''}> ${B.projectTitle(x.id)} <span class="muted small">${B.projectState(x.id)}</span></label>`)}
+            ${plan.options.map(x => html`<label class="bul-check"><input type="checkbox" data-change="expProj" data-id="${x.id}" ${plan.aids.includes(x.id) ? 'checked' : ''}> ${B.projectTitle(x.id)} <span class="muted small">${B.projectState(x.id)}${B.bilanOfAid(x.id, t) ? ' · bilan d’étape' : ''}</span></label>`)}
             <span class="muted small">${!plan.aids.length ? 'Cochez au moins un projet.' : plan.aids.length > 1 ? 'Critères envoyés projet par projet : l’IA signalera l’évolution de l’un à l’autre, même si le dernier n’est pas terminé. Note calculée sur ces projets.' : 'Critères et note de ce seul projet.'}</span></div>` : ''}
           <label class="bul-block"><span class="caps">Discipline</span>
             <input class="input" data-change="expOpt" data-key="discipline" value="${exp.discipline}" maxlength="60"></label>
@@ -309,6 +320,9 @@ export default {
           <button type="button" class="seg${sortMode === 'alpha' ? ' on' : ''}" data-click="sort" data-v="alpha">A → Z</button></div>
         ${list.length > 1 ? html`<span class="muted small">Critères du projet</span>${projectSwitch(list, a)}` : p ? html`<span class="muted small">Critères du projet <strong>${p.title}</strong></span>` : ''}
         <a class="btn soft small" href="#/admin/bulletins">Critères</a>
+        ${a && a.status === 'cours' ? (B.bilanOfAid(a.id, t)
+          ? html`<span class="chip pos bul-bilan-hint" title="Note d’étape figée le ${fmtDay(B.bilanOfAid(a.id, t).at)} dans l’onglet Notes">Bilan d’étape T${t}</span>`
+          : html`<a class="muted bul-bilan-hint" href="#/classe/${classId}/notes" title="Projet pas fini : la note suit l’onglet Notes et peut encore changer. Un bilan d’étape la fige pour ce trimestre.">Projet en cours : figer une note d’étape ?</a>`) : ''}
         <label class="bul-check"><input type="checkbox" data-change="todo" ${onlyTodo ? 'checked' : ''}> À compléter seulement</label>
         <span class="spacer"></span>
         <span class="bul-legend">${B.LEVELS.map(v => html`<span><i class="bul-sw bl-${v}"></i>${B.LEVEL_LABEL[v]}</span>`)}</span>

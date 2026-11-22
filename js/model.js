@@ -566,3 +566,44 @@ export function mention(n) {
   return n < 10 ? 'À approfondir' : n < 13 ? 'Satisfaisant' : n < 17 ? 'Bien' : 'Très bien';
 }
 export const f1 = n => (n == null ? '—' : (Math.round(n * 10) / 10).toString().replace('.', ','));
+
+// ---------- Bilans d'étape (1.40.0) ----------
+// Projet mené sur plusieurs trimestres : en fin de trimestre, on fige un bilan d'étape sur les critères déjà
+// observables (démarche, organisation, coopération, étapes réalisées). La note d'étape ne bouge plus ensuite, même si
+// l'onglet Notes change ; la note finale du projet reste celle de l'onglet Notes, au trimestre où il se termine.
+// Données : assignments.bilans = { 'année:t': { year, trimester, at, criteria:[critId],
+//   students:{ studentId: { levels:{ critId: 1..4 }, note } }, groups:{ groupId: { critId: 1..4 } } } }.
+export const bilanKey = (year, t) => year + ':' + t;
+export const bilanOf = (a, t, year = schoolYear()) => (a && a.bilans && a.bilans[bilanKey(year, t)]) || null;
+// Bilans de l'année, du premier trimestre au dernier.
+export const bilansOf = (a, year = schoolYear()) => Object.values((a && a.bilans) || {}).filter(b => b.year === year).sort((x, y) => x.trimester - y.trimester);
+// Critères proposés par défaut : ceux qui ont déjà au moins un niveau dans un groupe ou un ajustement.
+export function filledCriteria(criteria, levelsList) {
+  return criteria.filter(c => levelsList.some(l => l && l[c.id] != null)).map(c => c.id);
+}
+// Règle pure (testée) : bilan figé à partir des niveaux actuels. students / groups : [{ id, levels }].
+export function buildBilan({ year, trimester, criteria, chosen, students, groups = [], at = new Date().toISOString() }) {
+  const crit = criteria.filter(c => chosen.includes(c.id));
+  const pick = l => Object.fromEntries(crit.filter(c => l && l[c.id] != null).map(c => [c.id, l[c.id]]));
+  const out = { year, trimester, at, criteria: crit.map(c => c.id), students: {}, groups: {} };
+  for (const s of students) {
+    const levels = pick(s.levels);
+    if (Object.keys(levels).length) out.students[s.id] = { levels, note: computeNote(levels, crit).n };
+  }
+  for (const g of groups) { const levels = pick(g.levels); if (Object.keys(levels).length) out.groups[g.id] = levels; }
+  return out;
+}
+export function saveBilan(a, t, chosen) {
+  const p = db.get('projects', a.projectId), year = schoolYear();
+  const b = buildBilan({ year, trimester: t, criteria: p ? p.criteria : [], chosen,
+    students: studentsOf(a.classId, t).map(s => ({ id: s.id, levels: studentLevels(a.id, s.id) })),
+    groups: groupsOf(a.id).map(g => ({ id: g.id, levels: g.levels })) });
+  return db.commit(w => w.update('assignments', a.id, { bilans: { ...((db.get('assignments', a.id) || {}).bilans || {}), [bilanKey(year, t)]: b } }));
+}
+export function deleteBilan(a, t) {
+  const bilans = { ...((db.get('assignments', a.id) || {}).bilans || {}) };
+  delete bilans[bilanKey(schoolYear(), t)];
+  return db.commit(w => w.update('assignments', a.id, { bilans }));
+}
+// Note d'étape de l'élève (null s'il n'a aucun niveau sur les critères du bilan).
+export const bilanNote = (b, sid) => (b && b.students[sid] ? b.students[sid].note : null);

@@ -200,3 +200,38 @@ test('Export : nombre d’absences sur le nombre de cours, seulement s’il y en
   const off = buildExport({ niveau: '4e', trimester: 1, year: 'y', options: { ...opts, absences: false }, exportId: 'x', entries: es }).data;
   eq('absences' in off.eleves[0], false); eq('absences' in off.consignes, false);
 });
+
+// ---------- Bilan d'étape d'un projet sur deux trimestres (1.40.0) ----------
+import { buildBilan, filledCriteria, bilanNote, bilanKey } from '../js/model.js';
+const critB = [{ id: 'orga' }, { id: 'coop' }, { id: 'proto' }];
+test('Bilan d’étape : critères proposés = ceux qui ont déjà un niveau', () => {
+  eq(filledCriteria(critB, [{ orga: 3 }, { coop: 2 }, null]).join(), 'orga,coop');
+  eq(filledCriteria(critB, []).length, 0);
+});
+test('Bilan d’étape : note figée sur les seuls critères choisis', () => {
+  const b = buildBilan({ year: 'y', trimester: 1, criteria: critB, chosen: ['orga', 'coop'], at: 'a',
+    students: [{ id: 'lea', levels: { orga: 4, coop: 2, proto: 1 } }, { id: 'tom', levels: { proto: 3 } }],
+    groups: [{ id: 'g1', levels: { orga: 4, proto: 1 } }] });
+  eq(b.criteria.join(), 'orga,coop'); eq(bilanNote(b, 'lea'), 15);
+  eq('proto' in b.students.lea.levels, false); eq(bilanNote(b, 'tom'), null); eq('tom' in b.students, false);
+  eq(b.groups.g1.orga, 4); eq('proto' in b.groups.g1, false);
+});
+test('Bilan d’étape : la note figée ne suit plus les niveaux modifiés ensuite', () => {
+  const levels = { orga: 2 };
+  const b = buildBilan({ year: 'y', trimester: 1, criteria: critB, chosen: ['orga'], students: [{ id: 'lea', levels }] });
+  levels.orga = 4;
+  eq(bilanNote(b, 'lea'), 10); eq(bilanKey('2026–2027', 1), '2026–2027:1');
+});
+test('Export : projet en bilan d’étape signalé, consigne de ne pas juger le rendu', () => {
+  const { data } = buildExport({ niveau: '5e', trimester: 1, year: 'y', options: opts, exportId: 'x', fams: [{ k: 'travail', label: 'Travail' }],
+    projects: [{ titre: 'Robot', etat: 'en cours', evaluation: 'bilan d’étape', criteres_evalues: ['Organisation'] }], entries: [entry('a', 'Léa', 'L')] });
+  eq(data.projets[0].criteres_evalues[0], 'Organisation'); eq(/rendu/.test(data.consignes.bilan_etape), true);
+  eq('bilans_etape' in data.consignes, false);
+  const none = buildExport({ niveau: '5e', trimester: 1, year: 'y', options: opts, exportId: 'x', projects: [{ titre: 'Robot', etat: 'terminé' }], entries: [entry('a', 'Léa', 'L')] }).data;
+  eq('bilan_etape' in none.consignes, false);
+});
+test('Export : note d’étape du trimestre précédent rappelée pour parler des progrès', () => {
+  const e = { ...entry('a', 'Léa', 'L'), etapes: [{ projet: 'Robot', trimestre: 1, note: 11 }] };
+  const { data } = buildExport({ niveau: '5e', trimester: 2, year: 'y', options: opts, exportId: 'x', projects: [{ titre: 'Robot', etat: 'terminé' }], entries: [e, entry('b', 'Tom', 'T')] });
+  eq(data.eleves[0].bilans_etape[0].note, 11); eq('bilans_etape' in data.eleves[1], false); eq(/progrès/.test(data.consignes.bilans_etape), true);
+});

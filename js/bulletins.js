@@ -156,20 +156,34 @@ export function exportProjects(classId, t) {
 }
 // Note proposée : moyenne des notes /20 de l'élève dans les projets du trimestre (ajustements compris),
 // ou seulement dans les projets choisis pour l'export (aids).
+// Bilan d'étape figé pour ce trimestre (1.40.0) : sa note d'étape remplace la note de l'onglet Notes.
 export function autoNote(student, t, aids = null) {
   const list = [];
   const as = aids ? aids.map(id => db.get('assignments', id)).filter(a => a && db.get('projects', a.projectId)) : assignmentsOfTrimester(student.classId, t);
   for (const a of as) {
-    const p = db.get('projects', a.projectId);
-    const n = model.computeNote(model.studentLevels(a.id, student.id), p.criteria || []).n;
-    if (n != null) list.push({ title: p.title, n });
+    const p = db.get('projects', a.projectId), b = model.bilanOf(a, t);
+    const n = b ? model.bilanNote(b, student.id) : model.computeNote(model.studentLevels(a.id, student.id), p.criteria || []).n;
+    if (n != null) list.push({ title: p.title, n, etape: !!b });
   }
   return { n: average(list.map(x => x.n)), projects: list };
 }
 // Note /20 de l'élève dans un seul projet (onglet Notes), null tant que le projet n'est pas noté (1.34.1).
-export function projectNote(student, aid) {
+// Trimestre t avec un bilan d'étape figé : la note d'étape (1.40.0).
+export function projectNote(student, aid, t = null) {
   const a = aid && db.get('assignments', aid), p = a && db.get('projects', a.projectId);
-  return p ? model.computeNote(model.studentLevels(a.id, student.id), p.criteria || []).n : null;
+  if (!p) return null;
+  const b = t ? model.bilanOf(a, t) : null;
+  return b ? model.bilanNote(b, student.id) : model.computeNote(model.studentLevels(a.id, student.id), p.criteria || []).n;
+}
+// Bilan d'étape figé pour ce projet et ce trimestre, ou null.
+export const bilanOfAid = (aid, t) => model.bilanOf(db.get('assignments', aid), t);
+// Bilans d'étape des trimestres précédents (même année) d'un projet qui s'est poursuivi.
+export const earlierBilans = (aid, t) => model.bilansOf(db.get('assignments', aid)).filter(b => b.trimester < t);
+// Projet décrit dans l'export : titre, état et, s'il y a un bilan d'étape figé ce trimestre, les critères évalués.
+export function exportProject(aid, t) {
+  const b = bilanOfAid(aid, t), p = db.get('projects', (db.get('assignments', aid) || {}).projectId);
+  const labels = b && p ? p.criteria.filter(c => b.criteria.includes(c.id)).map(c => c.label) : [];
+  return { titre: projectTitle(aid), etat: projectState(aid), ...(b ? { evaluation: 'bilan d’étape', criteres_evalues: labels } : {}) };
 }
 export function noteOf(student, rec, t, aids = null) {
   if (rec.note != null) return { n: rec.note, manual: true };
@@ -258,6 +272,9 @@ export const exportDefaults = () => ({ discipline: 'Technologie', ton: TONES[0],
 export const saveExportDefaults = o => db.commit(w => w.meta('bulletinsExport', { discipline: o.discipline, ton: o.ton, formulation: o.formulation, cadre: String(o.cadre ?? CADRE_DEFAUT).trim(), absences: o.absences !== false }));
 export const CONSIGNE_ABSENCES = '« absences » : nombre d’absences de l’élève aux cours de la discipline ce trimestre, sur le nombre de cours (« sur »). N’en parler que si elles sont nombreuses (environ 15 % des cours ou plus) ou si elles expliquent des critères en baisse, un travail incomplet ou une note faible : formulation neutre et factuelle (ex. « des absences répétées ont freiné sa progression »), sans donner le nombre, sans en supposer ni en juger la cause. Peu d’absences : ne pas en parler.';
 export const PAS_INVENTER = 'Ne parler que de ce que montrent les critères, les formulations, la note, la tendance et la remarque, dans le cadre du cours décrit : ne pas évoquer l’oral, la prise de parole, la participation en classe, les interrogations, les leçons ni les devoirs si rien ne le mentionne. « Implication » et « participation » désignent l’investissement dans le projet et dans l’équipe.';
+// Bilan d'étape (1.40.0) : projet pas terminé, noté seulement sur la démarche et les étapes déjà réalisées.
+export const CONSIGNE_ETAPE = 'Un projet marqué « evaluation » : « bilan d’étape » n’est pas terminé : il se poursuit au trimestre suivant. La note porte seulement sur les critères évalués (« criteres_evalues » : démarche, organisation, travail en équipe, étapes déjà réalisées). Ne pas juger le résultat final ni parler d’un rendu : parler de l’avancement et de la façon de travailler, et l’on peut encourager pour la suite du projet.';
+export const CONSIGNE_ETAPES_PREC = '« bilans_etape » : note d’étape figée à un trimestre précédent pour un projet qui s’est poursuivi. La comparer à la note actuelle pour signaler un progrès ou un recul depuis cette étape, sans inventer la cause.';
 export const levelLabel = c => (c.level || '') + (c.segpa ? ' SEGPA' : '');
 export const exportFileName = (c, t) => ('bulletins-' + (c.name || levelLabel(c)) + '-T' + t).toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]/g, '') + '.json';
 
@@ -295,6 +312,7 @@ export function buildExport({ classe = '', niveau, trimester, year, projects = [
     if (multi && e.parts) o.criteres_par_projet = projets.map((pr, j) => ({ projet: pr.titre, ...(pr.etat ? { etat: pr.etat } : {}),
       criteres: critOf(fams, e.parts[j] && e.parts[j].levels, e.parts[j] && e.parts[j].details, j === 0 ? e.prev : null) }));
     else o.criteres = critOf(fams, e.rec.levels, e.rec.details, e.prev);
+    if (e.etapes && e.etapes.length) o.bilans_etape = e.etapes;
     if (e.rec.tendance) o.tendance = e.rec.tendance;
     if (e.rec.info && e.rec.info.trim()) o.remarque = e.rec.info.trim();
     return o;
@@ -308,6 +326,8 @@ export function buildExport({ classe = '', niveau, trimester, year, projects = [
       redaction: 'Une appréciation de bulletin par élève, ' + MAX_CHARS + ' caractères maximum espaces compris, fondée uniquement sur les critères, la note, la tendance et la remarque fournis. Présence partielle : parler de ce qui a pu être observé, sans en donner la raison.',
       pertinence: PAS_INVENTER,
       ...(options.absences !== false ? { absences: CONSIGNE_ABSENCES } : {}),
+      ...(projets.some(p => p.evaluation) ? { bilan_etape: CONSIGNE_ETAPE } : {}),
+      ...(kept.some(e => e.etapes && e.etapes.length) ? { bilans_etape: CONSIGNE_ETAPES_PREC } : {}),
       ...(multi ? { projets: 'Les critères sont donnés projet par projet (« criteres_par_projet »), du premier au dernier. Quand ils changent d’un projet à l’autre, le signaler : progrès, efforts, attitude qui s’améliore, ou au contraire point de vigilance, même si le dernier projet est encore en cours. Ne pas inventer la cause du changement.' } : {}),
       accords: 'Accorder selon le champ « accord » de l’élève (féminin ou masculin). « non genré » : choix de l’élève, n’employer aucun accord ni pronom genré (il, elle), seulement des tournures neutres et le prénom. Sans champ « accord », ne pas deviner le genre d’après le prénom : employer des tournures sans accord (ex. « fait preuve de sérieux » plutôt que « sérieux/sérieuse »), sans écriture inclusive.',
       retour: 'Renvoyer un fichier JSON { "format": "carnet-appreciations-v1", "export_id": (le même), "classe": (la même), "appreciations": [ { "code": "E01", "texte": "…" } ] }',

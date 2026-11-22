@@ -1214,3 +1214,15 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .bul-grid tr:hover .bul-name { z-index: 4; }
 .bul-who { display: flex; align-items: center; gap: 16px; }
 .bul-who-txt { display: flex; flex-direction: column; gap: 4px; font-size: 18px; min-width: 0; }
+/* Bilan d'étape (1.40.0, onglet Notes) */
+.bilan-panel { width: min(640px, 100vw); }
+.bilan-info { padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: 14px; }
+.bilan-crit { align-items: flex-start; }
+.bilan-crit input { margin-top: 2px; flex: none; }
+.bilan-notes { display: flex; flex-direction: column; }
+.bilan-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.bilan-chip { cursor: pointer; border: 0; font: inherit; }
+.gt-crit { position: relative; }
+.gt-prev { position: absolute; top: 1px; right: 2px; z-index: 1; padding: 1px 4px; border-radius: 6px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); font-size: 10px; font-weight: 800; line-height: 1.2; color: var(--ink2); pointer-events: none; }
+.gt-prev.up { color: var(--pos); } .gt-prev.down { color: var(--neg); }
+.bul-bilan-hint { font-size: 13px; }

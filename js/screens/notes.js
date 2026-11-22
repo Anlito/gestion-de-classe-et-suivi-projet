@@ -9,6 +9,7 @@ import * as labo from '../labo-blocs.js';
 const STATUSES = ['cours', 'avenir', 'fini'];
 let drawer = null; // { aid, gid, sid } : panneau « Ajustement individuel » ouvert
 let importLB = null; // { aid, resultats, prop, fichier } : panneau « Importer des résultats Labo Blocs » ouvert
+let bilanUI = null; // { aid, t, chosen:[critId] } : panneau « Bilan d'étape » ouvert (1.40.0)
 const pending = new Map(); // saisies de texte en attente d'enregistrement
 let timer = null;
 
@@ -55,6 +56,54 @@ function cell(v, gid, cid, readOnly) {
   const l = lvl(v);
   return html`<button type="button" class="lvl-cell" style="background:${l.bg};color:${l.fg}" data-click="cell" data-gid="${gid}" data-cid="${cid}" aria-label="${l.name}">${v}</button>`;
 }
+// Niveau du dernier bilan d'étape, rappelé sous la case quand il a changé depuis (vert : mieux, rouge : moins bien).
+function prevMark(b, v, p) {
+  if (!b || p == null || p === v) return '';
+  const ev = v == null ? '' : v > p ? ' up' : ' down';
+  return html`<span class="gt-prev${ev}" title="Bilan d’étape T${b.trimester} : ${lvl(p).name}">T${b.trimester} ${p}</span>`;
+}
+
+// ---------- Bilan d'étape (1.40.0) ----------
+// Projet sur deux trimestres : on fige une note d'étape sur les critères déjà observables ; les Bulletins la prennent
+// pour ce trimestre. L'onglet Notes continue ensuite normalement jusqu'à la note finale.
+function bilanView(a, p, c) {
+  const t = bilanUI.t, existing = model.bilanOf(a, t);
+  const crit = p.criteria.filter(cr => bilanUI.chosen.includes(cr.id));
+  const students = model.studentsOf(c.id, t).filter(s => model.groupOfStudent(a.id, s.id) || model.evalOf(a.id, s.id));
+  const rows = students.map(s => ({ s, n: crit.length ? model.computeNote(model.studentLevels(a.id, s.id), crit).n : null, old: existing ? model.bilanNote(existing, s.id) : null }));
+  const noted = rows.filter(r => r.n != null).length;
+  return html`<div class="scrim dim" data-click="bilanFermer"></div>
+    <aside class="drawer bilan-panel" aria-label="Bilan d’étape">
+      <div class="drawer-head"><span class="drawer-title grow">Bilan d’étape · ${p.title}</span>
+        <button type="button" class="btn" data-click="bilanFermer">Annuler</button></div>
+      <div class="drawer-body" data-scroll="bilan">
+        <div class="muted">Le projet n’est pas fini : figez une <strong>note d’étape</strong> sur ce qui peut déjà être évalué (organisation de l’équipe, coopération, investissement, étapes terminées).
+          Les Bulletins du trimestre la prennent à la place de la note de l’onglet Notes. Le projet continue ensuite normalement : la note finale viendra de l’onglet Notes, au trimestre où il se termine.</div>
+        <div class="stack"><div class="strong-15">Trimestre du bilan</div>
+          <div class="segmented">${[1, 2, 3].map(n => html`<button type="button" class="seg${n === t ? ' on' : ''}" data-click="bilanTrim" data-t="${n}">T${n}${model.bilanOf(a, n) ? ' ✓' : ''}</button>`)}</div>
+          ${existing ? html`<div class="bilan-info">Bilan du T${t} déjà figé le ${fmtDay(existing.at)}. « Mettre à jour » remplace les notes figées par celles d’aujourd’hui.</div>` : ''}</div>
+        <section class="stack"><div class="strong-15">Critères évalués à cette étape</div>
+          <div class="muted small">Cochés par défaut : ceux qui ont déjà un niveau. Décochez ce qui dépend du rendu final.</div>
+          ${p.criteria.map(cr => html`<label class="bul-check bilan-crit"><input type="checkbox" data-change="bilanCrit" data-cid="${cr.id}" ${bilanUI.chosen.includes(cr.id) ? 'checked' : ''}>
+            <span><strong>${cr.code}</strong> ${cr.label}${cr.pronote ? html` <span class="muted xsmall">${cr.pronote}</span>` : ''}</span></label>`)}
+        </section>
+        <section class="stack"><div class="strong-15">Notes d’étape</div>
+          ${rows.length ? html`<div class="bilan-notes">${rows.map(r => html`<div class="bilan-row"><span class="grow">${r.s.prenom} <span class="muted">${r.s.nom || ''}</span></span>
+            ${existing ? html`<span class="muted xsmall">figée : ${model.f1(r.old)}</span>` : ''}<strong>${model.f1(r.n)}</strong></div>`)}</div>`
+            : html`<div class="muted small">Aucun élève dans les groupes de ce projet.</div>`}
+        </section>
+      </div>
+      <div class="drawer-foot">
+        ${existing ? html`<button type="button" class="btn" data-click="bilanSupprimer">Supprimer ce bilan</button>` : ''}
+        <span class="grow muted small">${crit.length} critère${crit.length > 1 ? 's' : ''} · ${noted} élève${noted > 1 ? 's' : ''} noté${noted > 1 ? 's' : ''}</span>
+        <button type="button" class="btn accent" data-click="bilanFiger" ${crit.length && noted ? '' : 'disabled'}>${existing ? 'Mettre à jour le bilan' : 'Figer le bilan du T' + t}</button></div>
+    </aside>`;
+}
+function openBilanUI(a, p, t) {
+  const b = model.bilanOf(a, t);
+  const levels = [...model.groupsOf(a.id).map(g => g.levels), ...model.studentsOf(a.classId, t).map(s => model.studentLevels(a.id, s.id))];
+  bilanUI = { aid: a.id, t, chosen: b ? [...b.criteria] : model.filledCriteria(p.criteria, levels) };
+}
 
 function drawerView(a, p) {
   const g = db.get('groups', drawer.gid);
@@ -88,7 +137,10 @@ function drawerView(a, p) {
           const eff = own != null ? own : base.v;
           return html`<div class="adj-row">
             <div class="grow"><div class="strong-15">${c.code} · ${c.label}</div>
-              <div class="muted xsmall">${base.carried ? 'Acquis dans son ancien groupe' : 'Groupe'} : ${base.v == null ? 'non évalué' : lvl(base.v).name}</div></div>
+              <div class="muted xsmall">${base.carried ? 'Acquis dans son ancien groupe' : 'Groupe'} : ${base.v == null ? 'non évalué' : lvl(base.v).name}${(() => {
+                const bs = model.bilansOf(a), b = bs[bs.length - 1], pv = b && b.students[s.id] && b.students[s.id].levels[c.id];
+                return pv ? ' · bilan d’étape T' + b.trimester + ' : ' + lvl(pv).name : '';
+              })()}</div></div>
             <div class="adj-btns">${model.LEVELS.map(l => html`<button type="button" class="adj-btn${eff === l.v ? ' on' : ''}${eff != null && eff !== l.v ? ' dim' : ''}"
               style="background:${l.bg};color:${l.fg}" data-click="adjLevel" data-cid="${c.id}" data-v="${l.v}" aria-label="${l.name}">${eff === l.v ? '✓' : ''}${l.v}</button>`)}</div>
             <div class="adj-reset">${own != null ? html`<button type="button" class="link-btn" data-click="adjReset" data-cid="${c.id}">= groupe</button>` : ''}</div>
@@ -173,6 +225,7 @@ export default {
     const p = a && db.get('projects', a.projectId);
     if (drawer && (!a || drawer.aid !== a.id)) drawer = null;
     if (importLB && (!a || importLB.aid !== a.id)) importLB = null;
+    if (bilanUI && (!a || bilanUI.aid !== a.id)) bilanUI = null;
     const crit = p ? p.criteria : [];
 
     const head = html`<header class="topbar">
@@ -196,6 +249,7 @@ export default {
     const evaluated = model.studentsOf(classId).filter(s => model.groupOfStudent(a.id, s.id) || model.evalOf(a.id, s.id));
     const levelsBy = evaluated.map(s => model.studentLevels(a.id, s.id));
     const critAvg = crit.map(cr => { const vs = levelsBy.map(l => l[cr.id]).filter(v => v != null); return vs.length ? vs.reduce((x, y) => x + y, 0) / vs.length : null; });
+    const bilans = model.bilansOf(a), lastB = bilans[bilans.length - 1] || null;
 
     return html`<div class="screen">
       ${head}
@@ -203,6 +257,8 @@ export default {
         <div class="notes-bar">
           <span class="notes-title">Évaluation des groupes</span>
           ${a.status === 'fini' ? html`<span class="chip pos">Projet terminé</span>` : ''}
+          ${bilans.map(b => html`<button type="button" class="chip bilan-chip" data-click="openBilan" data-t="${b.trimester}" title="Note d’étape figée le ${fmtDay(b.at)} sur ${b.criteria.length} critère${b.criteria.length > 1 ? 's' : ''}">Bilan d’étape T${b.trimester} ✓</button>`)}
+          ${groups.length && (a.status !== 'fini' || bilans.length) ? html`<button type="button" class="btn soft small" data-click="openBilan" data-t="${model.trimester()}">Bilan d’étape</button>` : ''}
           <span class="spacer"></span>
           ${boutonImport()}
           <div class="legend-lvls">${model.LEVELS.map(l => html`<span class="legend-lvl"><span class="lvl-dot" style="background:${l.bg};color:${l.fg}">${l.v}</span>${l.pronote}</span>`)}</div>
@@ -228,7 +284,7 @@ export default {
                     ${absN.length ? html`<span class="gt-abs">Absences : ${absN.join(', ')}</span>` : ''}</span>
                   ${icon.chevron}
                 </button>
-                ${crit.map(cr => html`<div class="gt-crit">${cell(g.levels[cr.id], g.id, cr.id)}</div>`)}
+                ${crit.map(cr => html`<div class="gt-crit">${cell(g.levels[cr.id], g.id, cr.id)}${prevMark(lastB, g.levels[cr.id], lastB && lastB.groups[g.id] && lastB.groups[g.id][cr.id])}</div>`)}
                 <div class="gt-note"><span class="note-val${r.complete ? '' : ' muted'}">${model.f1(r.n)}</span>
                   ${r.n != null && !r.complete ? html`<span class="muted xsmall">provisoire ${r.filled}/${r.total}</span>` : ''}</div>
                 <div class="gt-mention">${r.complete ? model.mention(r.n) : '—'}</div>
@@ -252,13 +308,47 @@ export default {
       </main>
       ${drawer ? drawerView(a, p) : ''}
       ${importLB ? importView(a, p, c) : ''}
+      ${bilanUI ? bilanView(a, p, c) : ''}
       ${tabBar(classId, 'notes')}
     </div>`;
   },
 
-  leave() { flush(); hidePeek(); drawer = null; importLB = null; },
+  leave() { flush(); hidePeek(); drawer = null; importLB = null; bilanUI = null; },
 
   actions: {
+    openBilan(el, e, { classId }) {
+      flush();
+      const a = model.chosenAssignment(classId, STATUSES);
+      openBilanUI(a, db.get('projects', a.projectId), +el.dataset.t);
+      refresh();
+    },
+    bilanFermer() { bilanUI = null; refresh(); },
+    bilanTrim(el) {
+      const a = db.get('assignments', bilanUI.aid);
+      openBilanUI(a, db.get('projects', a.projectId), +el.dataset.t);
+      refresh();
+    },
+    bilanCrit(el) {
+      const id = el.dataset.cid, set = new Set(bilanUI.chosen);
+      if (el.checked) set.add(id); else set.delete(id);
+      const p = db.get('projects', db.get('assignments', bilanUI.aid).projectId);
+      bilanUI.chosen = p.criteria.map(c => c.id).filter(x => set.has(x));
+      refresh();
+    },
+    bilanFiger() {
+      const a = db.get('assignments', bilanUI.aid), t = bilanUI.t, again = !!model.bilanOf(a, t);
+      const undo = model.saveBilan(a, t, bilanUI.chosen);
+      bilanUI = null;
+      refresh();
+      toast({ text: `Bilan d’étape du T${t} ${again ? 'mis à jour' : 'figé'} : les Bulletins prennent cette note d’étape`, undo: async () => { await undo(); refresh(); }, ms: 8000 });
+    },
+    bilanSupprimer() {
+      const a = db.get('assignments', bilanUI.aid), t = bilanUI.t;
+      const undo = model.deleteBilan(a, t);
+      bilanUI = null;
+      refresh();
+      toast({ text: `Bilan d’étape du T${t} supprimé`, undo: async () => { await undo(); refresh(); }, ms: 8000 });
+    },
     async importLB(el, e, { classId }) {
       flush();
       const f = el.files && el.files[0];
