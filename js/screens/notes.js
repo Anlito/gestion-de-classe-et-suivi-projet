@@ -2,7 +2,7 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import { html, toast, openMenu, fmtDay } from '../ui.js';
-import { icon, backLink, tabBar, projectSwitch } from '../components.js';
+import { icon, backLink, tabBar, projectSwitch, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
 import * as labo from '../labo-blocs.js';
 
@@ -19,6 +19,35 @@ function flush() {
 }
 function later(key, fn) { pending.set(key, fn); clearTimeout(timer); timer = setTimeout(flush, 600); }
 addEventListener('pagehide', flush);
+
+// Survol d'un groupe à la souris : aperçu des photos de ses élèves (fenêtre flottante, hors du tableau qui défile).
+let peek = null;
+function hidePeek() { if (peek) { peek.remove(); peek = null; } }
+function showPeek(btn) {
+  hidePeek();
+  const g = db.get('groups', btn.dataset.gid);
+  const members = g ? g.members.map(id => db.get('students', id)).filter(Boolean) : [];
+  if (!members.length) return;
+  peek = document.createElement('div');
+  peek.className = 'group-peek';
+  peek.dataset.gid = g.id;
+  peek.setAttribute('aria-hidden', 'true');
+  peek.innerHTML = String(html`<div class="group-peek-title">${g.code}</div>
+    <div class="group-peek-list">${members.map(s => html`<div class="group-peek-item">${photo(s, { label: false })}<span>${s.prenom}</span></div>`)}</div>`);
+  document.body.appendChild(peek);
+  const r = btn.getBoundingClientRect(), w = peek.offsetWidth, h = peek.offsetHeight;
+  peek.style.left = Math.max(8, Math.min(r.right + 8, innerWidth - w - 8)) + 'px';
+  peek.style.top = Math.max(8, Math.min(r.top + r.height / 2 - h / 2, innerHeight - h - 8)) + 'px';
+}
+document.addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse') return;
+  const btn = e.target.closest && e.target.closest('.gt-gbtn');
+  if (!btn) { hidePeek(); return; }
+  if (!peek || peek.dataset.gid !== btn.dataset.gid) showPeek(btn);
+});
+document.addEventListener('pointerdown', hidePeek, true);
+addEventListener('scroll', hidePeek, true);
+addEventListener('hashchange', hidePeek);
 
 const lvl = v => model.LEVELS[v - 1];
 function cell(v, gid, cid, readOnly) {
@@ -227,7 +256,7 @@ export default {
     </div>`;
   },
 
-  leave() { flush(); drawer = null; importLB = null; },
+  leave() { flush(); hidePeek(); drawer = null; importLB = null; },
 
   actions: {
     async importLB(el, e, { classId }) {

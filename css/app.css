@@ -396,6 +396,12 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .gt-gbtn:active { background: var(--bg); }
 .gt-gbtn > svg { color: var(--ink2); flex: none; }
 .gt-gtext { display: flex; flex-direction: column; gap: 2px; }
+.group-peek { position: fixed; z-index: 30; pointer-events: none; background: var(--surface); color: var(--ink); border-radius: 16px; padding: 12px 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--line); max-width: min(560px, calc(100vw - 16px)); }
+.group-peek-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.group-peek-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.group-peek-item { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 72px; font-size: 13px; font-weight: 600; text-align: center; }
+.group-peek-item > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gt-gcode { font-size: 17px; font-weight: 700; }
 .gt-adj { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
 .gt-adj svg { width: 13px; height: 13px; flex: none; }
