@@ -144,3 +144,39 @@ test('Départ : trimestre d’une date d’après les débuts enregistrés', () 
   eq(trimesterOfDate('2027-04-02', { 1: '2026-09-01' }), 1);
   eq(trimesterOfDate('2027-04-02', st, 2), 2);
 });
+
+// ---------- Critères par projet (1.34.0) ----------
+import { criteriaOf, withCriteria } from '../js/bulletins.js';
+test('Critères par projet : chaque projet a les siens, les anciens vont au premier projet', () => {
+  const rec = { levels: { comportement: 'neg' }, details: {}, projets: { cs: { levels: { comportement: 'pos' }, details: {} } } };
+  eq(criteriaOf(rec, 'cs', 'th').levels.comportement, 'pos');
+  eq(criteriaOf(rec, 'th', 'th').levels.comportement, 'neg');
+  eq(Object.keys(criteriaOf(rec, 'autre', 'th').levels).length, 0);
+  eq(criteriaOf(rec, null, 'th').levels.comportement, 'neg');
+});
+test('Critères par projet : remplir un projet ne change pas l’autre', () => {
+  const rec = { levels: { travail: 'pos' }, details: {}, projets: {} };
+  const r = withCriteria(rec, 'cs', 'th', c => ({ levels: { ...c.levels, travail: 'neg' } }));
+  eq(r.projets.cs.levels.travail, 'neg'); eq(r.projets.th.levels.travail, 'pos');
+  eq(Object.keys(r.levels).length, 0);
+  eq(criteriaOf(r, 'th', 'th').levels.travail, 'pos');
+  const r2 = withCriteria(r, 'th', 'th', c => ({ levels: { ...c.levels, effort: 'pos' } }));
+  eq(r2.projets.th.levels.travail, 'pos'); eq(r2.projets.th.levels.effort, 'pos'); eq(r2.projets.cs.levels.travail, 'neg');
+});
+test('Export : un seul projet choisi, critères comme avant et projet indiqué', () => {
+  const { data } = buildExport({ niveau: '3e', trimester: 1, year: 'y', options: opts, exportId: 'x', fams: [{ k: 'travail', label: 'Travail' }],
+    projects: [{ titre: 'Théâtre d’ombre', etat: 'terminé' }], entries: [entry('a', 'Léa', 'L', { levels: { travail: 'pos' } })] });
+  eq(data.projets[0].titre, 'Théâtre d’ombre'); eq(data.eleves[0].criteres.Travail.niveau, 'Point fort');
+  eq('criteres_par_projet' in data.eleves[0], false); eq('projets' in data.consignes, false);
+});
+test('Export : deux projets, critères projet par projet et consigne sur l’évolution', () => {
+  const e = { ...entry('a', 'Léa', 'L'), prev: { comportement: 'neg' },
+    parts: [{ levels: { comportement: 'mid' }, details: {} }, { levels: { comportement: 'pos' }, details: {} }] };
+  const { data } = buildExport({ niveau: '3e', trimester: 2, year: 'y', options: opts, exportId: 'x', fams: [{ k: 'comportement', label: 'Comportement' }],
+    projects: [{ titre: 'Théâtre', etat: 'terminé' }, { titre: 'Concept store', etat: 'en cours' }], entries: [e] });
+  const ps = data.eleves[0].criteres_par_projet;
+  eq(ps.length, 2); eq(ps[0].projet, 'Théâtre'); eq(ps[1].etat, 'en cours');
+  eq(ps[0].criteres.Comportement.niveau, 'Correct'); eq(ps[1].criteres.Comportement.niveau, 'Point fort');
+  eq(ps[0].criteres.Comportement.trimestre_precedent, 'À améliorer'); eq('trimestre_precedent' in ps[1].criteres.Comportement, false);
+  eq('criteres' in data.eleves[0], false); eq(/en cours/.test(data.consignes.projets), true);
+});

@@ -1142,6 +1142,8 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .bul-hint { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: 12px; background: var(--warnTint); font-size: 15px; }
 .bul-fam { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .bul-fam-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bul-other { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; color: var(--ink2); }
+.bul-other .ev-up { color: var(--pos); } .bul-other .ev-down { color: var(--neg); }
 .bul-lv { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 .bul-lv button { height: 36px; padding: 0 10px; border-radius: 9px; font-size: 13px; font-weight: 700; border: 1.5px solid var(--line); }
 .bul-lv button:not(.on) { background: transparent; color: var(--ink2); }

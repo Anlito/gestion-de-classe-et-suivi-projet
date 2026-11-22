@@ -3,7 +3,8 @@
 // Une fiche par élève, année et trimestre dans la table « bulletins », d'identifiant fixe (bul:élève:année:trimestre) :
 // deux appareils qui remplissent la même fiche la fusionnent par la synchronisation habituelle (la plus récente gagne).
 //   { studentId, classId, year, trimester, presence:'normale'|'partielle'|'dispense',
-//     levels:{ famille:'pos'|'mid'|'neg' }, details:{ famille:[formulation] }, tendance:'', info:'', note:null|nombre }
+//     projets:{ assignmentId:{ levels:{ famille:'pos'|'mid'|'neg' }, details:{ famille:[formulation] } } } (1.34.0),
+//     levels, details (critères d'avant 1.34.0, ceux du premier projet du trimestre), tendance:'', info:'', note:null|nombre }
 // note = correction à la main ; null = note calculée depuis l'onglet Notes (projets du trimestre).
 import * as db from './db.js';
 import * as model from './model.js';
@@ -104,36 +105,70 @@ export function validNote(v) {
   return Math.round(n * 10) / 10;
 }
 
+// ---------- Critères par projet (1.34.0) ----------
+// Les critères (levels, details) sont saisis projet par projet : rec.projets = { assignmentId: { levels, details } }.
+// Un élève peut changer d'attitude ou de groupe d'un projet à l'autre. Présence, note, tendance et remarque restent
+// communes au trimestre. Critères saisis avant 1.34.0 (rec.levels / rec.details) : ceux du premier projet du trimestre.
+const hasCrit = c => !!c && (Object.keys(c.levels || {}).length > 0 || Object.values(c.details || {}).some(l => l && l.length));
+// Règle pure (testée) : critères d'une fiche pour un projet. owner = projet auquel reviennent les critères d'avant 1.34.0.
+export function criteriaOf(rec, aid, owner) {
+  const own = aid && rec.projets && rec.projets[aid];
+  if (own) return { levels: own.levels || {}, details: own.details || {} };
+  if (!aid || aid === owner) return { levels: rec.levels || {}, details: rec.details || {} };
+  return { levels: {}, details: {} };
+}
+
 // ---------- Lecture ----------
 export const recordId = (studentId, year, t) => 'bul:' + studentId + ':' + year + ':' + t;
 export function emptyRecord(student, t, year = model.schoolYear()) {
   return { id: recordId(student.id, year, t), studentId: student.id, classId: student.classId, year, trimester: t,
-    presence: model.movedDuring(student, t) ? 'partielle' : 'normale', levels: {}, details: {}, tendance: '', info: '', note: null, appreciation: '', pronote: false };
+    presence: model.movedDuring(student, t) ? 'partielle' : 'normale', levels: {}, details: {}, projets: {}, tendance: '', info: '', note: null, appreciation: '', pronote: false };
 }
-export function recordOf(student, t, year = model.schoolYear()) {
+function rawRecord(student, t, year = model.schoolYear()) {
   const r = db.get('bulletins', recordId(student.id, year, t));
-  const rec = r ? { ...emptyRecord(student, t, year), ...r } : emptyRecord(student, t, year);
-  return { ...rec, levels: withDefaults(rec.levels) };
+  return r ? { ...emptyRecord(student, t, year), ...r } : emptyRecord(student, t, year);
+}
+// Fiche du trimestre, critères du projet aid (assignation de la classe) ; sans aid : critères d'avant 1.34.0.
+export function recordOf(student, t, year = model.schoolYear(), aid = null) {
+  const rec = rawRecord(student, t, year);
+  const crit = criteriaOf(rec, aid, aid && !(rec.projets || {})[aid] && hasCrit(rec) ? legacyOwner(student.classId, t) : null);
+  return { ...rec, aid, levels: withDefaults(crit.levels), details: crit.details };
 }
 
-// Projets de la classe ayant au moins une séance pendant le trimestre.
+// Projets de la classe ayant au moins une séance pendant le trimestre, du premier commencé au dernier.
 export function assignmentsOfTrimester(classId, t) {
   const r = trimesterRange(db.getMeta('trimesterStarts', {}), t);
-  return model.assignmentsOf(classId).filter(a => db.get('projects', a.projectId) && model.seancesOf(a.id).some(s => inRange(s.date, r)));
+  const first = a => (model.seancesOf(a.id).map(s => s.date).filter(d => inRange(d, r)).sort()[0]) || '';
+  return model.assignmentsOf(classId).filter(a => db.get('projects', a.projectId) && first(a))
+    .map(a => ({ a, d: first(a) })).sort((x, y) => x.d.localeCompare(y.d)).map(x => x.a);
 }
-// Note proposée : moyenne des notes /20 de l'élève dans les projets du trimestre (ajustements compris).
-export function autoNote(student, t) {
+// Projet qui reçoit les critères saisis avant 1.34.0 : le premier du trimestre, sinon celui choisi dans l'en-tête.
+export function legacyOwner(classId, t) {
+  const a = assignmentsOfTrimester(classId, t)[0] || model.chosenAssignment(classId);
+  return a ? a.id : null;
+}
+export const projectTitle = aid => { const a = db.get('assignments', aid), p = a && db.get('projects', a.projectId); return p ? p.title : '?'; };
+export const projectState = aid => ((db.get('assignments', aid) || {}).status === 'fini' ? 'terminé' : 'en cours');
+// Projets proposés à l'export : ceux du trimestre, plus le projet choisi dans l'en-tête s'il n'y est pas encore.
+export function exportProjects(classId, t) {
+  const list = assignmentsOfTrimester(classId, t), cur = model.chosenAssignment(classId);
+  return cur && !list.some(a => a.id === cur.id) && cur.status !== 'fini' ? [...list, cur] : list;
+}
+// Note proposée : moyenne des notes /20 de l'élève dans les projets du trimestre (ajustements compris),
+// ou seulement dans les projets choisis pour l'export (aids).
+export function autoNote(student, t, aids = null) {
   const list = [];
-  for (const a of assignmentsOfTrimester(student.classId, t)) {
+  const as = aids ? aids.map(id => db.get('assignments', id)).filter(a => a && db.get('projects', a.projectId)) : assignmentsOfTrimester(student.classId, t);
+  for (const a of as) {
     const p = db.get('projects', a.projectId);
     const n = model.computeNote(model.studentLevels(a.id, student.id), p.criteria || []).n;
     if (n != null) list.push({ title: p.title, n });
   }
   return { n: average(list.map(x => x.n)), projects: list };
 }
-export function noteOf(student, rec, t) {
+export function noteOf(student, rec, t, aids = null) {
   if (rec.note != null) return { n: rec.note, manual: true };
-  return { n: autoNote(student, t).n, manual: false };
+  return { n: autoNote(student, t, aids).n, manual: false };
 }
 // Ce que le Carnet a déjà relevé pendant le trimestre (aide affichée dans la fiche, jamais exportée).
 export function hintsOf(student, t) {
@@ -149,39 +184,57 @@ export function hintsOf(student, t) {
 }
 
 // ---------- Écriture ----------
+// Champs communs au trimestre (présence, note, remarque…).
 function save(student, t, patch) {
   return db.commit(w => {
-    const cur = recordOf(student, t);
+    const cur = rawRecord(student, t);
     w.put('bulletins', { ...cur, ...(typeof patch === 'function' ? patch(cur) : patch) });
   });
 }
-export function setLevel(student, t, k, v) {
-  return save(student, t, cur => {
+// Fiche modifiée pour les critères du projet aid (fn reçoit { levels, details } et renvoie les champs changés).
+// Première écriture par projet : les critères d'avant 1.34.0 sont rangés dans leur projet (premier du trimestre).
+export function withCriteria(rec, aid, owner, fn) {
+  if (!aid) return { ...rec, ...fn({ levels: { ...rec.levels }, details: { ...rec.details } }) };
+  const projets = { ...(rec.projets || {}) };
+  let { levels, details } = rec;
+  if (hasCrit(rec) && owner) {
+    if (!projets[owner]) projets[owner] = { levels: { ...levels }, details: { ...details } };
+    levels = {}; details = {};
+  }
+  const cur = projets[aid] || { levels: {}, details: {} };
+  projets[aid] = { levels: { ...cur.levels }, details: { ...cur.details }, ...fn({ levels: { ...cur.levels }, details: { ...cur.details } }) };
+  return { ...rec, levels, details, projets };
+}
+function saveCrit(w, student, t, aid, fn) {
+  const rec = rawRecord(student, t);
+  w.put('bulletins', withCriteria(rec, aid, aid && hasCrit(rec) ? legacyOwner(student.classId, t) : null, fn));
+}
+export function setLevel(student, t, k, v, aid = null) {
+  return db.commit(w => saveCrit(w, student, t, aid, cur => {
     const levels = { ...cur.levels };
     if (v == null) delete levels[k]; else levels[k] = v;
     return { levels };
-  });
+  }));
 }
-export const cycleLevel = (student, t, k) => setLevel(student, t, k, nextLevel(recordOf(student, t).levels[k]));
-export function toggleDetail(student, t, k, text) {
-  return save(student, t, cur => {
+export const cycleLevel = (student, t, k, aid = null) => setLevel(student, t, k, nextLevel(recordOf(student, t, undefined, aid).levels[k]), aid);
+export function toggleDetail(student, t, k, text, aid = null) {
+  return db.commit(w => saveCrit(w, student, t, aid, cur => {
     const list = [...(cur.details[k] || [])];
     const i = list.indexOf(text);
     if (i >= 0) list.splice(i, 1); else list.push(text);
     return { details: { ...cur.details, [k]: list } };
-  });
+  }));
 }
 export const setPresence = (student, t, presence) => save(student, t, { presence: PRESENCE[presence] ? presence : 'normale' });
 export const setTendance = (student, t, tendance) => save(student, t, cur => ({ tendance: cur.tendance === tendance ? '' : tendance }));
 export const setInfo = (student, t, info) => save(student, t, { info: String(info || '').slice(0, 1000) });
 export const setNote = (student, t, v) => save(student, t, { note: validNote(v) });
 // Même niveau pour plusieurs élèves (en-tête de groupe) ; les élèves dispensés ne sont pas touchés.
-export function setLevelForAll(students, t, k, v) {
+export function setLevelForAll(students, t, k, v, aid = null) {
   return db.commit(w => {
     for (const s of students) {
-      const cur = recordOf(s, t);
-      if (cur.presence === 'dispense') continue;
-      w.put('bulletins', { ...cur, levels: { ...cur.levels, [k]: v } });
+      if (rawRecord(s, t).presence === 'dispense') continue;
+      saveCrit(w, s, t, aid, cur => ({ levels: { ...cur.levels, [k]: v } }));
     }
   });
 }
@@ -198,7 +251,20 @@ export const exportFileName = (c, t) => ('bulletins-' + (c.name || levelLabel(c)
 
 // entries : [{ student:{ id, prenom }, rec, note }] dans l'ordre de la classe. Renvoie { data, codes:{ E01: studentId } }.
 // e.prev (facultatif) : niveaux du trimestre précédent, exportés comme « trimestre_precedent » pour parler des progrès.
+// projects : projets choisis, [{ titre, etat:'terminé'|'en cours' }] du premier au dernier (1.34.0).
+// e.parts (deux projets ou plus) : [{ levels, details }] dans le même ordre, exportés dans « criteres_par_projet ».
+function critOf(fams, levels, details, prev) {
+  const criteres = {};
+  for (const f of fams) {
+    const v = levels && levels[f.k], d = (details && details[f.k] || []).filter(Boolean);
+    const p = v && prev && prev[f.k];
+    if (v || d.length) criteres[f.label] = { ...(v ? { niveau: LEVEL_LABEL[v] } : {}), ...(p ? { trimestre_precedent: LEVEL_LABEL[p] } : {}), ...(d.length ? { formulations: d } : {}) };
+  }
+  return criteres;
+}
 export function buildExport({ classe = '', niveau, trimester, year, projects = [], options, entries, exportId, fams = families() }) {
+  const projets = projects.map(p => (typeof p === 'string' ? { titre: p } : p));
+  const multi = projets.length > 1;
   const kept = entries.filter(e => e.rec.presence !== 'dispense');
   const seen = new Map(), total = new Map();
   for (const e of kept) { const p = (e.student.prenom || '').trim() || 'Élève'; total.set(p, (total.get(p) || 0) + 1); }
@@ -212,23 +278,21 @@ export function buildExport({ classe = '', niveau, trimester, year, projects = [
     if (ACCORD[e.student.genre]) o.accord = ACCORD[e.student.genre];
     if (e.rec.presence === 'partielle') o.presence = 'partielle';
     o.note = typeof e.note === 'number' ? e.note : null;
-    const criteres = {};
-    for (const f of fams) {
-      const v = e.rec.levels && e.rec.levels[f.k], d = (e.rec.details && e.rec.details[f.k] || []).filter(Boolean);
-      const p = v && e.prev && e.prev[f.k];
-      if (v || d.length) criteres[f.label] = { ...(v ? { niveau: LEVEL_LABEL[v] } : {}), ...(p ? { trimestre_precedent: LEVEL_LABEL[p] } : {}), ...(d.length ? { formulations: d } : {}) };
-    }
-    o.criteres = criteres;
+    // Le trimestre précédent n'est rappelé qu'au premier projet : la suite se lit d'un projet à l'autre.
+    if (multi && e.parts) o.criteres_par_projet = projets.map((pr, j) => ({ projet: pr.titre, ...(pr.etat ? { etat: pr.etat } : {}),
+      criteres: critOf(fams, e.parts[j] && e.parts[j].levels, e.parts[j] && e.parts[j].details, j === 0 ? e.prev : null) }));
+    else o.criteres = critOf(fams, e.rec.levels, e.rec.details, e.prev);
     if (e.rec.tendance) o.tendance = e.rec.tendance;
     if (e.rec.info && e.rec.info.trim()) o.remarque = e.rec.info.trim();
     return o;
   });
   const data = {
     format: 'carnet-bulletins-v1', export_id: exportId, classe: String(classe || '').trim(), discipline: String(options.discipline || '').trim(), niveau, trimestre: trimester, annee: year,
-    ...(projects.length ? { projets_du_trimestre: projects } : {}),
+    ...(projets.length ? { projets } : {}),
     consignes: {
       longueur_max: MAX_CHARS, ton: options.ton, formulation: options.formulation,
       redaction: 'Une appréciation de bulletin par élève, ' + MAX_CHARS + ' caractères maximum espaces compris, fondée uniquement sur les critères, la note, la tendance et la remarque fournis. Présence partielle : parler de ce qui a pu être observé, sans en donner la raison.',
+      ...(multi ? { projets: 'Les critères sont donnés projet par projet (« criteres_par_projet »), du premier au dernier. Quand ils changent d’un projet à l’autre, le signaler : progrès, efforts, attitude qui s’améliore, ou au contraire point de vigilance, même si le dernier projet est encore en cours. Ne pas inventer la cause du changement.' } : {}),
       accords: 'Accorder selon le champ « accord » de l’élève (féminin ou masculin). « non genré » : choix de l’élève, n’employer aucun accord ni pronom genré (il, elle), seulement des tournures neutres et le prénom. Sans champ « accord », ne pas deviner le genre d’après le prénom : employer des tournures sans accord (ex. « fait preuve de sérieux » plutôt que « sérieux/sérieuse »), sans écriture inclusive.',
       retour: 'Renvoyer un fichier JSON { "format": "carnet-appreciations-v1", "export_id": (le même), "classe": (la même), "appreciations": [ { "code": "E01", "texte": "…" } ] }',
     },
@@ -283,7 +347,7 @@ export function importAppreciations(parsed) {
     for (const it of items) {
       const s = db.get('students', it.studentId);
       if (!s) continue;
-      const cur = recordOf(s, mapping.trimester, mapping.year);
+      const cur = rawRecord(s, mapping.trimester, mapping.year);
       if (cur.appreciation === it.texte) continue;
       w.put('bulletins', { ...cur, appreciation: it.texte, pronote: false });
     }
@@ -295,10 +359,14 @@ export const setPronote = (student, t, done, text) => save(student, t, cur => ({
 
 // ---------- Trimestre précédent (1.29.0) ----------
 // Fiche du trimestre précédent (même année), ou null au premier trimestre / sans fiche.
+// Critères comparés : ceux du dernier projet du trimestre précédent qui a des critères (1.34.0).
 export function previousOf(student, t) {
   if (t <= 1) return null;
   const r = db.get('bulletins', recordId(student.id, model.schoolYear(), t - 1));
-  return r ? { ...emptyRecord(student, t - 1), ...r, levels: withDefaults(r.levels) } : null;
+  if (!r) return null;
+  const ids = assignmentsOfTrimester(student.classId, t - 1).map(a => a.id);
+  const aid = [...ids].reverse().find(id => r.projets && r.projets[id]) || ids[0] || null;
+  return recordOf(student, t - 1, undefined, aid);
 }
 // Évolution d'un critère d'un trimestre à l'autre : 'up', 'down', 'same' ou null.
 export function evolution(prev, cur) {

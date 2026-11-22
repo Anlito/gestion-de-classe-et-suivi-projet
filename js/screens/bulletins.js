@@ -24,6 +24,8 @@ function later(key, fn) { pending.set(key, fn); clearTimeout(timer); timer = set
 addEventListener('pagehide', flush);
 
 const trimester = classId => trimOf[classId] || model.trimester();
+// Projet dont on remplit les critères (1.34.0) : celui choisi dans l'en-tête ; aucun projet → critères du trimestre.
+const critAid = classId => { const a = model.chosenAssignment(classId); return a ? a.id : null; };
 const f1 = model.f1;
 
 // Photo affichée au survol du prénom (ordinateur) ; rien si l'élève n'a pas de photo.
@@ -55,8 +57,8 @@ function cell(s, rec, f, t, prev) {
   return html`<td><button type="button" class="bul-cell${v ? ' bl-' + v : ''}" data-click="cycle" data-sid="${s.id}" data-k="${f.k}"
     aria-label="${s.prenom}, ${f.label} : ${v ? B.LEVEL_LABEL[v] : 'non renseigné'}">${v ? B.LEVEL_SYMBOL[v] : '+'}${n ? html`<span class="bul-dot" aria-hidden="true"></span>` : ''}${p ? html`<span class="bul-prev${ev ? ' ev-' + ev : ''}" title="Trimestre ${t - 1} : ${B.LEVEL_LABEL[p]}">T${t - 1} ${B.LEVEL_SYMBOL[p]}</span>` : ''}</button></td>`;
 }
-function row(s, t) {
-  const rec = B.recordOf(s, t), st = B.stateOf(rec), prev = B.previousOf(s, t), c = model.countsOf(s.id, t);
+function row(s, t, aid) {
+  const rec = B.recordOf(s, t, undefined, aid), st = B.stateOf(rec), prev = B.previousOf(s, t), c = model.countsOf(s.id, t);
   const name = html`<td class="bul-name"><button type="button" class="bul-namebtn" data-click="open" data-sid="${s.id}">
     <span class="grow ellipsis"><strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span></span>${hoverPhoto(s)}
     ${c.pos || c.neg ? html`<span class="bul-obs" title="Carnet, trimestre ${t} : ${c.pos} +, ${c.neg} −">${c.pos ? html`<span class="pos">+${c.pos}</span>` : ''}${c.neg ? html`<span class="neg">−${c.neg}</span>` : ''}</span>` : ''}
@@ -73,8 +75,9 @@ function row(s, t) {
     <td><span class="bul-badge b-${st}">${B.STATE_LABEL[st]}</span></td></tr>`;
 }
 
-function drawer(classId, s, t, mates) {
-  const rec = B.recordOf(s, t), note = B.noteOf(s, rec, t), auto = B.autoNote(s, t), h = B.hintsOf(s, t);
+function drawer(classId, s, t, mates, aid) {
+  const rec = B.recordOf(s, t, undefined, aid), projs = aid ? B.exportProjects(classId, t).map(x => x.id) : [],
+    others = projs.filter(id => id !== aid).map(id => ({ title: B.projectTitle(id), rec: B.recordOf(s, t, undefined, id), before: projs.indexOf(id) < projs.indexOf(aid) || !projs.includes(aid) })), note = B.noteOf(s, rec, t), auto = B.autoNote(s, t), h = B.hintsOf(s, t);
   const facts = [
     h.neg ? h.neg + ' remarque' + (h.neg > 1 ? 's' : '') + ' Comportement' + (h.negMotifs.length ? ' (' + h.negMotifs.join(', ') + ')' : '') : '',
     h.pos ? h.pos + ' remarque' + (h.pos > 1 ? 's' : '') + ' Aide' + (h.posMotifs.length ? ' (' + h.posMotifs.join(', ') + ')' : '') : '',
@@ -102,9 +105,12 @@ function drawer(classId, s, t, mates) {
         ${disp ? '' : html`
         <div class="bul-hint"><strong>Ce que le Carnet a noté ce trimestre</strong><span>${facts.join(' · ')}</span>
           <span class="muted small">Pour vous aider : rien n’est coché à votre place.</span></div>
+        ${aid ? html`<div class="bul-block bul-proj"><span class="caps">Critères du projet</span><strong>${B.projectTitle(aid)}</strong>
+          <span class="muted small">Chaque projet a ses propres critères : changez de projet en haut de la grille.${others.length ? ' Les autres projets sont rappelés sous chaque critère.' : ''}</span></div>` : ''}
         ${B.families().map(f => html`<div class="bul-fam">
           <div class="bul-fam-head"><strong class="grow">${f.label}</strong>
             <div class="bul-lv">${B.LEVELS.map(v => html`<button type="button" class="bl-${v}${rec.levels[f.k] === v ? ' on' : ''}" data-click="level" data-k="${f.k}" data-v="${v}">${B.LEVEL_SYMBOL[v]} ${B.LEVEL_LABEL[v]}</button>`)}</div></div>
+          ${others.length ? html`<div class="bul-other small">${others.map(o => { const v = o.rec.levels[f.k], ev = o.before ? B.evolution(v, rec.levels[f.k]) : B.evolution(rec.levels[f.k], v); return html`<span class="${ev && ev !== 'same' ? 'ev-' + ev : ''}">${o.title} : ${B.LEVEL_SYMBOL[v]} ${B.LEVEL_LABEL[v]}</span>`; })}</div>` : ''}
           <div class="bul-desc">${[...f.pos, ...f.neg].map(d => html`<button type="button" class="${(rec.details[f.k] || []).includes(d) ? 'on' : ''}" data-click="detail" data-k="${f.k}" data-d="${d}">${d}</button>`)}</div>
         </div>`)}
         <div class="bul-block"><span class="caps">Note du trimestre /20</span>
@@ -124,15 +130,19 @@ function drawer(classId, s, t, mates) {
 
 // Élèves retenus pour l'export, dans l'ordre de la classe, et fichier correspondant.
 function exportPlan(c, t, students, a) {
-  const all = students.map(s => ({ student: s, rec: B.recordOf(s, t) }));
+  const options = B.exportProjects(c.id, t), aids = options.map(x => x.id).filter(id => exp.aids.includes(id));
+  const multi = aids.length > 1;
+  const all = students.map(s => ({ student: s, rec: B.recordOf(s, t, undefined, aids[0] || null) }));
   const g = exp.scope.startsWith('g:') ? db.get('groups', exp.scope.slice(2)) : null;
   const inScope = all.filter(e => exp.scope === 'tous' || (g ? g.members.includes(e.student.id) : B.stateOf(e.rec) === 'ok'));
-  const entries = inScope.map(e => { const p = B.previousOf(e.student, t); return { ...e, note: B.noteOf(e.student, e.rec, t).n, prev: p ? p.levels : null }; });
-  const projects = B.assignmentsOfTrimester(c.id, t).map(x => db.get('projects', x.projectId).title);
+  const entries = inScope.map(e => { const p = B.previousOf(e.student, t);
+    return { ...e, note: B.noteOf(e.student, e.rec, t, aids.length ? aids : null).n, prev: p ? p.levels : null,
+      ...(multi ? { parts: aids.map(id => B.recordOf(e.student, t, undefined, id)) } : {}) }; });
+  const projects = aids.map(id => ({ titre: B.projectTitle(id), etat: B.projectState(id) }));
   const built = B.buildExport({ classe: c.name, niveau: B.levelLabel(c), trimester: t, year: model.schoolYear(), projects, options: exp, entries, exportId: exp.id });
   const disp = inScope.filter(e => e.rec.presence === 'dispense').length;
   const notReady = inScope.filter(e => !['ok', 'disp'].includes(B.stateOf(e.rec))).length;
-  return { ...built, disp, notReady, file: B.exportFileName(c, t), groups: a ? model.groupsOf(a.id) : [] };
+  return { ...built, disp, notReady, file: B.exportFileName(c, t), groups: a ? model.groupsOf(a.id) : [], options, aids };
 }
 function exportDialog(c, t, plan) {
   const n = plan.data.eleves.length;
@@ -148,6 +158,9 @@ function exportDialog(c, t, plan) {
               <option value="tous" ${exp.scope === 'tous' ? 'selected' : ''}>Toute la classe</option>
               ${plan.groups.map(g => html`<option value="g:${g.id}" ${exp.scope === 'g:' + g.id ? 'selected' : ''}>Groupe ${g.code}</option>`)}
             </select></label>
+          ${plan.options.length ? html`<div class="bul-block"><span class="caps">Projets pris en compte</span>
+            ${plan.options.map(x => html`<label class="bul-check"><input type="checkbox" data-change="expProj" data-id="${x.id}" ${plan.aids.includes(x.id) ? 'checked' : ''}> ${B.projectTitle(x.id)} <span class="muted small">${B.projectState(x.id)}</span></label>`)}
+            <span class="muted small">${!plan.aids.length ? 'Cochez au moins un projet.' : plan.aids.length > 1 ? 'Critères envoyés projet par projet : Claude signalera l’évolution de l’un à l’autre, même si le dernier n’est pas terminé. Note calculée sur ces projets.' : 'Critères et note de ce seul projet.'}</span></div>` : ''}
           <label class="bul-block"><span class="caps">Discipline</span>
             <input class="input" data-change="expOpt" data-key="discipline" value="${exp.discipline}" maxlength="60"></label>
           <label class="bul-block"><span class="caps">Ton</span>
@@ -163,7 +176,7 @@ function exportDialog(c, t, plan) {
       </div>
       <div class="drawer-foot"><span class="muted small grow">Envoyez ce fichier à Claude : il vous renverra une appréciation par élève.</span>
         <button type="button" class="btn" data-click="closeExport">Annuler</button>
-        <button type="button" class="btn accent" data-click="saveExport" ${n ? '' : 'disabled'}>${icon.download}Enregistrer le fichier</button></div>
+        <button type="button" class="btn accent" data-click="saveExport" ${n && (plan.aids.length || !plan.options.length) ? '' : 'disabled'}>${icon.download}Enregistrer le fichier</button></div>
     </div>`;
 }
 
@@ -240,9 +253,10 @@ export default {
     const a = model.chosenAssignment(classId);
     const p = a && db.get('projects', a.projectId);
     const secs = sections(classId, students, a);
-    const recs = students.map(s => B.recordOf(s, t));
+    const aid = a ? a.id : null;
+    const recs = students.map(s => B.recordOf(s, t, undefined, aid));
     const disp = recs.filter(r => r.presence === 'dispense').length, ready = recs.filter(r => B.stateOf(r) === 'ok').length, total = students.length - disp;
-    const shown = s => !onlyTodo || !['ok', 'disp'].includes(B.stateOf(B.recordOf(s, t)));
+    const shown = s => !onlyTodo || !['ok', 'disp'].includes(B.stateOf(B.recordOf(s, t, undefined, aid)));
     const cols = B.families().length + 5;
     const open = openSid && students.find(s => s.id === openSid);
     if (openSid && !open) openSid = null;
@@ -278,7 +292,7 @@ export default {
         <div class="segmented" role="group" aria-label="Ordre des élèves">
           <button type="button" class="seg${sortMode === 'group' ? ' on' : ''}" data-click="sort" data-v="group">Par groupe</button>
           <button type="button" class="seg${sortMode === 'alpha' ? ' on' : ''}" data-click="sort" data-v="alpha">A → Z</button></div>
-        ${sortMode === 'group' && list.length > 1 ? projectSwitch(list, a) : sortMode === 'group' && p ? html`<span class="muted small">${p.title}</span>` : ''}
+        ${list.length > 1 ? html`<span class="muted small">Critères du projet</span>${projectSwitch(list, a)}` : p ? html`<span class="muted small">Critères du projet <strong>${p.title}</strong></span>` : ''}
         <a class="btn soft small" href="#/admin/bulletins">Critères</a>
         <label class="bul-check"><input type="checkbox" data-change="todo" ${onlyTodo ? 'checked' : ''}> À compléter seulement</label>
         <span class="spacer"></span>
@@ -295,12 +309,12 @@ export default {
             return html`${sec.title ? html`<tr class="bul-grp"><td colspan="${cols}"><div class="bul-grp-in">
                 <strong>${sec.title}</strong><span class="muted small">${sec.students.map(s => s.prenom).join(', ')}</span>
                 <span class="bul-mini">Travail en équipe pour tout le groupe :${B.LEVELS.map(v => html`<button type="button" class="bl-${v}" data-click="groupLevel" data-ids="${sec.students.map(s => s.id).join(',')}" data-v="${v}" aria-label="${B.LEVEL_LABEL[v]} pour tout le ${sec.title}">${B.LEVEL_SYMBOL[v]}</button>`)}</span>
-              </div></td></tr>` : ''}${rows.map(s => row(s, t))}`;
+              </div></td></tr>` : ''}${rows.map(s => row(s, t, aid))}`;
           })}${onlyTodo && !students.some(shown) ? html`<tr><td colspan="${cols}" class="bul-empty">Tous les élèves sont prêts pour ce trimestre.</td></tr>` : ''}</tbody>
         </table>` : html`<div class="center-msg"><div class="soon"><div class="soon-title">Aucun élève</div><p>Ajoutez les élèves depuis la fiche de la classe.</p></div></div>`}
       </main>
       ${tabBar(classId, 'bulletins')}
-      ${open ? drawer(classId, open, t, mates) : ''}
+      ${open ? drawer(classId, open, t, mates, aid) : ''}
       ${exp && !open ? exportDialog(c, t, exportPlan(c, t, students, a)) : ''}`}
     </div>`;
   },
@@ -349,15 +363,16 @@ export default {
     openExport(el, e, { classId }) {
       flush(); openSid = null;
       const ready = model.studentsOf(classId, trimester(classId)).some(s => B.stateOf(B.recordOf(s, trimester(classId))) === 'ok');
-      exp = { ...B.exportDefaults(), scope: ready ? 'prets' : 'tous', id: db.uid() };
+      exp = { ...B.exportDefaults(), scope: ready ? 'prets' : 'tous', id: db.uid(), aids: B.exportProjects(classId, trimester(classId)).map(x => x.id) };
       refresh();
     },
     closeExport() { exp = null; refresh(); },
     expOpt(el) { exp = { ...exp, [el.dataset.key]: el.value }; refresh(); },
+    expProj(el) { const id = el.dataset.id; exp = { ...exp, aids: el.checked ? [...exp.aids.filter(x => x !== id), id] : exp.aids.filter(x => x !== id) }; refresh(); },
     async saveExport(el, e, { classId }) {
       const c = db.get('classes', classId), t = trimester(classId);
       const plan = exportPlan(c, t, model.studentsOf(classId, t), model.chosenAssignment(classId));
-      if (!plan.data.eleves.length) return;
+      if (!plan.data.eleves.length || (plan.options.length && !plan.aids.length)) return;
       if (!plan.data.discipline) { toast({ text: 'Indiquez la discipline.' }); return; }
       const json = JSON.stringify(plan.data, null, 2);
       try {
@@ -380,10 +395,10 @@ export default {
           label: db.get('projects', a.projectId).title, sub: model.STATUS[a.status], selected: cur && a.id === cur.id,
           onPick: () => { model.chooseAssignment(classId, a.id); refresh(); } })) });
     },
-    cycle(el, e, { classId }) { B.cycleLevel(db.get('students', el.dataset.sid), trimester(classId), el.dataset.k); refresh(); },
+    cycle(el, e, { classId }) { B.cycleLevel(db.get('students', el.dataset.sid), trimester(classId), el.dataset.k, critAid(classId)); refresh(); },
     groupLevel(el, e, { classId }) {
       const ss = el.dataset.ids.split(',').map(id => db.get('students', id)).filter(Boolean);
-      const undo = B.setLevelForAll(ss, trimester(classId), 'equipe', el.dataset.v);
+      const undo = B.setLevelForAll(ss, trimester(classId), 'equipe', el.dataset.v, critAid(classId));
       refresh();
       toast({ text: 'Travail en équipe : ' + B.LEVEL_LABEL[el.dataset.v] + ' pour ' + ss.length + ' élève' + (ss.length > 1 ? 's' : ''), undo: async () => { await undo(); refresh(); } });
     },
@@ -392,10 +407,10 @@ export default {
     genre(el) { const s = db.get('students', openSid); B.setGenre(s.id, s.genre === el.dataset.v ? '' : el.dataset.v); refresh(); },
     presence(el, e, { classId }) { B.setPresence(db.get('students', openSid), trimester(classId), el.dataset.v); refresh(); },
     level(el, e, { classId }) {
-      const s = db.get('students', openSid), t = trimester(classId), v = el.dataset.v;
-      B.setLevel(s, t, el.dataset.k, B.recordOf(s, t).levels[el.dataset.k] === v ? B.DEFAULT_LEVEL : v); refresh();
+      const s = db.get('students', openSid), t = trimester(classId), v = el.dataset.v, aid = critAid(classId);
+      B.setLevel(s, t, el.dataset.k, B.recordOf(s, t, undefined, aid).levels[el.dataset.k] === v ? B.DEFAULT_LEVEL : v, aid); refresh();
     },
-    detail(el, e, { classId }) { B.toggleDetail(db.get('students', openSid), trimester(classId), el.dataset.k, el.dataset.d); refresh(); },
+    detail(el, e, { classId }) { B.toggleDetail(db.get('students', openSid), trimester(classId), el.dataset.k, el.dataset.d, critAid(classId)); refresh(); },
     tendance(el, e, { classId }) { B.setTendance(db.get('students', openSid), trimester(classId), el.dataset.v); refresh(); },
     note(el, e, { classId }) {
       const s = db.get('students', openSid), t = trimester(classId);
