@@ -7,6 +7,7 @@ import { html, toast, openMenu } from '../ui.js';
 import { backLink, tabBar, projectSwitch, icon, photo } from '../components.js';
 import { go, refresh } from '../nav.js';
 import { giveFile, givenMessage } from '../backup.js';
+import { presenceEleve } from '../stats.js';
 
 const trimOf = {};            // trimestre affiché, par classe (par défaut : le trimestre en cours)
 let openSid = null;           // élève dont la fiche est ouverte
@@ -131,6 +132,11 @@ function drawer(classId, s, t, mates, aid) {
 }
 
 // Élèves retenus pour l'export, dans l'ordre de la classe, et fichier correspondant.
+// Absences du trimestre (1.37.0) : sur les appels de la classe pendant que l'élève y était (avant son départ, après son arrivée).
+function absencesOf(s, t) {
+  const p = presenceEleve(s, t, ap => (!s.departDate || ap.date <= s.departDate) && (!s.arriveDate || ap.date >= s.arriveDate));
+  return { n: p.absences, sur: p.appels };
+}
 function exportPlan(c, t, students, a) {
   const options = B.exportProjects(c.id, t), aids = options.map(x => x.id).filter(id => exp.aids.includes(id));
   const multi = aids.length > 1;
@@ -138,7 +144,7 @@ function exportPlan(c, t, students, a) {
   const g = exp.scope.startsWith('g:') ? db.get('groups', exp.scope.slice(2)) : null;
   const inScope = all.filter(e => exp.scope === 'tous' || (g ? g.members.includes(e.student.id) : B.stateOf(e.rec) === 'ok'));
   const entries = inScope.map(e => { const p = B.previousOf(e.student, t);
-    return { ...e, note: B.noteOf(e.student, e.rec, t, aids.length ? aids : null).n, prev: p ? p.levels : null,
+    return { ...e, absences: absencesOf(e.student, t), note: B.noteOf(e.student, e.rec, t, aids.length ? aids : null).n, prev: p ? p.levels : null,
       ...(multi ? { parts: aids.map(id => B.recordOf(e.student, t, undefined, id)) } : {}) }; });
   const projects = aids.map(id => ({ titre: B.projectTitle(id), etat: B.projectState(id) }));
   const built = B.buildExport({ classe: c.name, niveau: B.levelLabel(c), trimester: t, year: model.schoolYear(), projects, options: exp, entries, exportId: exp.id });
@@ -173,9 +179,12 @@ function exportDialog(c, t, plan) {
             <textarea class="input" rows="4" maxlength="400" data-change="expOpt" data-key="cadre">${exp.cadre}</textarea>
             <span class="muted small">Comment se passent vos séances : l’IA ne parlera pas de ce qui n’y a pas lieu (oral, interrogations…). Sans nom d’élève. Gardé pour les prochains exports.
               ${exp.cadre !== B.CADRE_DEFAUT ? html`<button type="button" class="link-btn" data-click="cadreDefaut">Texte proposé</button>` : ''}</span></label>
+          <div class="bul-block"><span class="caps">Absences</span>
+            <label class="bul-check"><input type="checkbox" data-change="expAbs" ${exp.absences !== false ? 'checked' : ''}> Tenir compte des absences</label>
+            <span class="muted small">Nombre d’absences et de cours du trimestre (appels du Carnet), jamais les dates ni les motifs. L’IA n’en parle que si elles sont nombreuses ou expliquent un travail en baisse, sans en supposer la cause.</span></div>
           <div class="bul-block"><span class="caps">Longueur</span><strong>${B.MAX_CHARS} caractères maximum</strong></div>
           ${plan.notReady ? html`<div class="bul-hint"><strong>${plan.notReady} élève${plan.notReady > 1 ? 's' : ''} pas encore prêt${plan.notReady > 1 ? 's' : ''}</strong><span class="small">Envoyé${plan.notReady > 1 ? 's' : ''} avec les critères déjà renseignés.</span></div>` : ''}
-          <div class="bul-safe"><strong>Ne sortent pas du Carnet</strong><span class="small">Noms de famille, photos, dispositifs (PAP…), absences, remarques du Carnet${plan.disp ? ', ' + plan.disp + ' élève' + (plan.disp > 1 ? 's' : '') + ' dispensé' + (plan.disp > 1 ? 's' : '') : ', élèves dispensés'}.</span></div>
+          <div class="bul-safe"><strong>Ne sortent pas du Carnet</strong><span class="small">Noms de famille, photos, dispositifs (PAP…), ${exp.absences !== false ? 'dates et motifs des absences' : 'absences'}, remarques du Carnet${plan.disp ? ', ' + plan.disp + ' élève' + (plan.disp > 1 ? 's' : '') + ' dispensé' + (plan.disp > 1 ? 's' : '') : ', élèves dispensés'}.</span></div>
         </div>
         <div class="bul-block bul-preview"><span class="caps">Contenu exact du fichier</span>
           <pre class="bul-json" data-scroll="bul-json">${JSON.stringify(plan.data, null, 2)}</pre></div>
@@ -374,6 +383,7 @@ export default {
     },
     closeExport() { exp = null; refresh(); },
     expOpt(el) { exp = { ...exp, [el.dataset.key]: el.value }; refresh(); },
+    expAbs(el) { exp = { ...exp, absences: el.checked }; refresh(); },
     cadreDefaut() { exp = { ...exp, cadre: B.CADRE_DEFAUT }; refresh(); },
     expProj(el) { const id = el.dataset.id; exp = { ...exp, aids: el.checked ? [...exp.aids.filter(x => x !== id), id] : exp.aids.filter(x => x !== id) }; refresh(); },
     async saveExport(el, e, { classId }) {

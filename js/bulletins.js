@@ -246,14 +246,17 @@ export function setLevelForAll(students, t, k, v, aid = null) {
 
 // ---------- Export pour une IA (1.27.0 ; Claude, ChatGPT, Gemini… depuis 1.36.0) ----------
 // Liste blanche : seuls les champs écrits ici sortent du Carnet, dont le nom de la classe (ex. « 3G », 1.31.0). Jamais le nom de famille, la photo,
-// les dispositifs, les absences ni les remarques du Carnet. Les élèves dispensés ne sont pas envoyés.
+// les dispositifs ni les remarques du Carnet. Les élèves dispensés ne sont pas envoyés.
+// Absences (1.37.0) : seulement leur nombre et celui des cours (appels) du trimestre, jamais les dates ni les motifs ;
+// réglage « absences » de l'export (coché par défaut).
 export const TONES = ['bienveillant et précis', 'encourageant', 'neutre et factuel'];
 export const PERSONS = ['3e personne', 'tutoiement', 'vouvoiement'];
 // Cadre du cours (1.35.0) : comment se passent les séances, pour que l’IA ne parle pas de ce qui n'y a pas lieu
 // (oral, interrogations, leçons…). Texte du professeur, modifiable et mémorisé avec les autres réglages.
 export const CADRE_DEFAUT = 'Cours en pédagogie de projet : les élèves travaillent en équipe et en autonomie sur des projets (conception, fabrication, programmation). Pas de cours magistral, pas d’interrogation orale ni de leçon à apprendre.';
-export const exportDefaults = () => ({ discipline: 'Technologie', ton: TONES[0], formulation: PERSONS[0], cadre: CADRE_DEFAUT, ...db.getMeta('bulletinsExport', {}) });
-export const saveExportDefaults = o => db.commit(w => w.meta('bulletinsExport', { discipline: o.discipline, ton: o.ton, formulation: o.formulation, cadre: String(o.cadre ?? CADRE_DEFAUT).trim() }));
+export const exportDefaults = () => ({ discipline: 'Technologie', ton: TONES[0], formulation: PERSONS[0], cadre: CADRE_DEFAUT, absences: true, ...db.getMeta('bulletinsExport', {}) });
+export const saveExportDefaults = o => db.commit(w => w.meta('bulletinsExport', { discipline: o.discipline, ton: o.ton, formulation: o.formulation, cadre: String(o.cadre ?? CADRE_DEFAUT).trim(), absences: o.absences !== false }));
+export const CONSIGNE_ABSENCES = '« absences » : nombre d’absences de l’élève aux cours de la discipline ce trimestre, sur le nombre de cours (« sur »). N’en parler que si elles sont nombreuses (environ 15 % des cours ou plus) ou si elles expliquent des critères en baisse, un travail incomplet ou une note faible : formulation neutre et factuelle (ex. « des absences répétées ont freiné sa progression »), sans donner le nombre, sans en supposer ni en juger la cause. Peu d’absences : ne pas en parler.';
 export const PAS_INVENTER = 'Ne parler que de ce que montrent les critères, les formulations, la note, la tendance et la remarque, dans le cadre du cours décrit : ne pas évoquer l’oral, la prise de parole, la participation en classe, les interrogations, les leçons ni les devoirs si rien ne le mentionne. « Implication » et « participation » désignent l’investissement dans le projet et dans l’équipe.';
 export const levelLabel = c => (c.level || '') + (c.segpa ? ' SEGPA' : '');
 export const exportFileName = (c, t) => ('bulletins-' + (c.name || levelLabel(c)) + '-T' + t).toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]/g, '') + '.json';
@@ -287,6 +290,7 @@ export function buildExport({ classe = '', niveau, trimester, year, projects = [
     if (ACCORD[e.student.genre]) o.accord = ACCORD[e.student.genre];
     if (e.rec.presence === 'partielle') o.presence = 'partielle';
     o.note = typeof e.note === 'number' ? e.note : null;
+    if (options.absences !== false && e.absences && e.absences.sur > 0 && e.absences.n > 0) o.absences = { nombre: e.absences.n, sur: e.absences.sur };
     // Le trimestre précédent n'est rappelé qu'au premier projet : la suite se lit d'un projet à l'autre.
     if (multi && e.parts) o.criteres_par_projet = projets.map((pr, j) => ({ projet: pr.titre, ...(pr.etat ? { etat: pr.etat } : {}),
       criteres: critOf(fams, e.parts[j] && e.parts[j].levels, e.parts[j] && e.parts[j].details, j === 0 ? e.prev : null) }));
@@ -303,6 +307,7 @@ export function buildExport({ classe = '', niveau, trimester, year, projects = [
       ...(String(options.cadre || '').trim() ? { cadre_du_cours: String(options.cadre).trim() } : {}),
       redaction: 'Une appréciation de bulletin par élève, ' + MAX_CHARS + ' caractères maximum espaces compris, fondée uniquement sur les critères, la note, la tendance et la remarque fournis. Présence partielle : parler de ce qui a pu être observé, sans en donner la raison.',
       pertinence: PAS_INVENTER,
+      ...(options.absences !== false ? { absences: CONSIGNE_ABSENCES } : {}),
       ...(multi ? { projets: 'Les critères sont donnés projet par projet (« criteres_par_projet »), du premier au dernier. Quand ils changent d’un projet à l’autre, le signaler : progrès, efforts, attitude qui s’améliore, ou au contraire point de vigilance, même si le dernier projet est encore en cours. Ne pas inventer la cause du changement.' } : {}),
       accords: 'Accorder selon le champ « accord » de l’élève (féminin ou masculin). « non genré » : choix de l’élève, n’employer aucun accord ni pronom genré (il, elle), seulement des tournures neutres et le prénom. Sans champ « accord », ne pas deviner le genre d’après le prénom : employer des tournures sans accord (ex. « fait preuve de sérieux » plutôt que « sérieux/sérieuse »), sans écriture inclusive.',
       retour: 'Renvoyer un fichier JSON { "format": "carnet-appreciations-v1", "export_id": (le même), "classe": (la même), "appreciations": [ { "code": "E01", "texte": "…" } ] }',

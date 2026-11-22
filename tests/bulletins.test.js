@@ -189,3 +189,14 @@ test('Export : cadre du cours et consigne de ne pas parler d’oral sans critèr
   const sans = buildExport({ niveau: '4e', trimester: 1, year: 'y', options: { ...opts, cadre: ' ' }, exportId: 'x', entries: [] }).data;
   eq('cadre_du_cours' in sans.consignes, false); eq(!!sans.consignes.pertinence, true);
 });
+
+// ---------- Absences dans l'export (1.37.0) ----------
+test('Export : nombre d’absences sur le nombre de cours, seulement s’il y en a, et réglage pour ne pas les envoyer', () => {
+  const es = [{ ...entry('a', 'Léa', 'A'), absences: { n: 4, sur: 12 } }, { ...entry('b', 'Tom', 'B'), absences: { n: 0, sur: 12 } }, { ...entry('c', 'Zoé', 'C'), absences: { n: 2, sur: 0 } }];
+  const { data } = buildExport({ niveau: '4e', trimester: 1, year: 'y', options: opts, exportId: 'x', entries: es });
+  eq(data.eleves[0].absences.nombre, 4); eq(data.eleves[0].absences.sur, 12);
+  eq('absences' in data.eleves[1], false); eq('absences' in data.eleves[2], false);
+  eq(data.consignes.absences.includes('cause'), true);
+  const off = buildExport({ niveau: '4e', trimester: 1, year: 'y', options: { ...opts, absences: false }, exportId: 'x', entries: es }).data;
+  eq('absences' in off.eleves[0], false); eq('absences' in off.consignes, false);
+});
