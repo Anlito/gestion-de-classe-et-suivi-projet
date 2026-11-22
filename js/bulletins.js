@@ -244,12 +244,12 @@ export function setLevelForAll(students, t, k, v, aid = null) {
   });
 }
 
-// ---------- Export pour Claude (1.27.0) ----------
+// ---------- Export pour une IA (1.27.0 ; Claude, ChatGPT, Gemini… depuis 1.36.0) ----------
 // Liste blanche : seuls les champs écrits ici sortent du Carnet, dont le nom de la classe (ex. « 3G », 1.31.0). Jamais le nom de famille, la photo,
 // les dispositifs, les absences ni les remarques du Carnet. Les élèves dispensés ne sont pas envoyés.
 export const TONES = ['bienveillant et précis', 'encourageant', 'neutre et factuel'];
 export const PERSONS = ['3e personne', 'tutoiement', 'vouvoiement'];
-// Cadre du cours (1.35.0) : comment se passent les séances, pour que Claude ne parle pas de ce qui n'y a pas lieu
+// Cadre du cours (1.35.0) : comment se passent les séances, pour que l’IA ne parle pas de ce qui n'y a pas lieu
 // (oral, interrogations, leçons…). Texte du professeur, modifiable et mémorisé avec les autres réglages.
 export const CADRE_DEFAUT = 'Cours en pédagogie de projet : les élèves travaillent en équipe et en autonomie sur des projets (conception, fabrication, programmation). Pas de cours magistral, pas d’interrogation orale ni de leçon à apprendre.';
 export const exportDefaults = () => ({ discipline: 'Technologie', ton: TONES[0], formulation: PERSONS[0], cadre: CADRE_DEFAUT, ...db.getMeta('bulletinsExport', {}) });
@@ -316,7 +316,7 @@ export const saveExportMapping = (classId, t, exportId, file, codes) =>
   db.commit(w => w.meta('bulletinsExport:' + exportId, { classId, className: (db.get('classes', classId) || {}).name || '', year: model.schoolYear(), trimester: t, file, codes, at: new Date().toISOString() }));
 
 // ---------- Retour des appréciations (1.28.0) ----------
-// Fichier renvoyé par Claude : { format:'carnet-appreciations-v1', export_id, classe, appreciations:[{ code, texte }] }.
+// Fichier renvoyé par l’IA : { format:'carnet-appreciations-v1', export_id, classe, appreciations:[{ code, texte }] }.
 // La classe indiquée doit être celle de l'export (« 3G » = « 3e G ») ; absente, l'import reste possible mais c'est signalé.
 export const sameClass = (a, b) => {
   const base = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -326,7 +326,7 @@ export const sameClass = (a, b) => {
 // Accepte aussi le texte collé depuis la conversation (entouré de ```json … ``` ou d'autres phrases).
 export function parseReturn(text, mappingOf) {
   const s = String(text || ''), a = s.indexOf('{'), b = s.lastIndexOf('}');
-  if (a < 0 || b < a) throw new Error('Aucune donnée lisible : choisissez le fichier renvoyé par Claude ou collez son contenu.');
+  if (a < 0 || b < a) throw new Error('Aucune donnée lisible : choisissez le fichier renvoyé par l’IA ou collez sa réponse.');
   let data;
   try { data = JSON.parse(s.slice(a, b + 1)); } catch (e) { throw new Error('Le contenu n’est pas un fichier d’appréciations valide (JSON illisible).'); }
   if (!data || data.format !== 'carnet-appreciations-v1' || !Array.isArray(data.appreciations)) throw new Error('Ce n’est pas un fichier d’appréciations du Carnet (format carnet-appreciations-v1 attendu).');

@@ -97,7 +97,7 @@ function drawer(classId, s, t, mates, aid) {
         <div class="chips-row bul-mates">${mates.map(m => html`<button type="button" class="pill${m.id === s.id ? ' on' : ''}" data-click="open" data-sid="${m.id}">${m.prenom}</button>`)}</div>
         <div class="bul-block"><span class="caps">Accord des appréciations</span>
           <div class="segmented">${Object.entries(B.GENRES).map(([k, label]) => html`<button type="button" class="seg${s.genre === k ? ' on' : ''}" data-click="genre" data-v="${k}">${label}</button>`)}</div>
-          <span class="muted small">${s.genre === 'n' ? 'Claude écrira sans accord ni pronom genré (il, elle). Réglage gardé pour toute l’année.' : B.GENRES[s.genre] ? 'Claude accordera au ' + B.ACCORD[s.genre] + '. Réglage gardé pour toute l’année.' : 'Non renseigné : Claude écrira sans accord (« fait preuve de sérieux »…).'}</span></div>
+          <span class="muted small">${s.genre === 'n' ? 'L’IA écrira sans accord ni pronom genré (il, elle). Réglage gardé pour toute l’année.' : B.GENRES[s.genre] ? 'L’IA accordera au ' + B.ACCORD[s.genre] + '. Réglage gardé pour toute l’année.' : 'Non renseigné : l’IA écrira sans accord (« fait preuve de sérieux »…).'}</span></div>
         <div class="bul-block"><span class="caps">Présence en cours ce trimestre</span>
           <div class="segmented">${Object.entries(B.PRESENCE).map(([k, label]) => html`<button type="button" class="seg${rec.presence === k ? ' on' : ''}" data-click="presence" data-v="${k}">${label}</button>`)}</div>
           <span class="muted small">${rec.presence === 'partielle' ? 'Emploi du temps aménagé, absent certains cours… Remplissez seulement les critères que vous avez pu observer.'
@@ -149,8 +149,8 @@ function exportPlan(c, t, students, a) {
 function exportDialog(c, t, plan) {
   const n = plan.data.eleves.length;
   return html`<div class="scrim dim" data-click="closeExport"></div>
-    <div class="bul-export" role="dialog" aria-modal="true" aria-label="Exporter pour Claude">
-      <div class="drawer-head"><div class="grow"><div class="drawer-title">Exporter pour Claude</div>
+    <div class="bul-export" role="dialog" aria-modal="true" aria-label="Exporter pour l’IA">
+      <div class="drawer-head"><div class="grow"><div class="drawer-title">Exporter pour l’IA</div>
         <div class="muted small">${plan.file} · ${n} élève${n > 1 ? 's' : ''} · trimestre ${t}</div></div></div>
       <div class="bul-export-body">
         <div class="bul-export-opts">
@@ -162,7 +162,7 @@ function exportDialog(c, t, plan) {
             </select></label>
           ${plan.options.length ? html`<div class="bul-block"><span class="caps">Projets pris en compte</span>
             ${plan.options.map(x => html`<label class="bul-check"><input type="checkbox" data-change="expProj" data-id="${x.id}" ${plan.aids.includes(x.id) ? 'checked' : ''}> ${B.projectTitle(x.id)} <span class="muted small">${B.projectState(x.id)}</span></label>`)}
-            <span class="muted small">${!plan.aids.length ? 'Cochez au moins un projet.' : plan.aids.length > 1 ? 'Critères envoyés projet par projet : Claude signalera l’évolution de l’un à l’autre, même si le dernier n’est pas terminé. Note calculée sur ces projets.' : 'Critères et note de ce seul projet.'}</span></div>` : ''}
+            <span class="muted small">${!plan.aids.length ? 'Cochez au moins un projet.' : plan.aids.length > 1 ? 'Critères envoyés projet par projet : l’IA signalera l’évolution de l’un à l’autre, même si le dernier n’est pas terminé. Note calculée sur ces projets.' : 'Critères et note de ce seul projet.'}</span></div>` : ''}
           <label class="bul-block"><span class="caps">Discipline</span>
             <input class="input" data-change="expOpt" data-key="discipline" value="${exp.discipline}" maxlength="60"></label>
           <label class="bul-block"><span class="caps">Ton</span>
@@ -171,7 +171,7 @@ function exportDialog(c, t, plan) {
             <select class="input" data-change="expOpt" data-key="formulation">${B.PERSONS.map(v => html`<option ${exp.formulation === v ? 'selected' : ''}>${v}</option>`)}</select></label>
           <label class="bul-block"><span class="caps">Cadre du cours</span>
             <textarea class="input" rows="4" maxlength="400" data-change="expOpt" data-key="cadre">${exp.cadre}</textarea>
-            <span class="muted small">Comment se passent vos séances : Claude ne parlera pas de ce qui n’y a pas lieu (oral, interrogations…). Sans nom d’élève. Gardé pour les prochains exports.
+            <span class="muted small">Comment se passent vos séances : l’IA ne parlera pas de ce qui n’y a pas lieu (oral, interrogations…). Sans nom d’élève. Gardé pour les prochains exports.
               ${exp.cadre !== B.CADRE_DEFAUT ? html`<button type="button" class="link-btn" data-click="cadreDefaut">Texte proposé</button>` : ''}</span></label>
           <div class="bul-block"><span class="caps">Longueur</span><strong>${B.MAX_CHARS} caractères maximum</strong></div>
           ${plan.notReady ? html`<div class="bul-hint"><strong>${plan.notReady} élève${plan.notReady > 1 ? 's' : ''} pas encore prêt${plan.notReady > 1 ? 's' : ''}</strong><span class="small">Envoyé${plan.notReady > 1 ? 's' : ''} avec les critères déjà renseignés.</span></div>` : ''}
@@ -180,7 +180,7 @@ function exportDialog(c, t, plan) {
         <div class="bul-block bul-preview"><span class="caps">Contenu exact du fichier</span>
           <pre class="bul-json" data-scroll="bul-json">${JSON.stringify(plan.data, null, 2)}</pre></div>
       </div>
-      <div class="drawer-foot"><span class="muted small grow">Envoyez ce fichier à Claude : il vous renverra une appréciation par élève.</span>
+      <div class="drawer-foot"><span class="muted small grow">Envoyez ce fichier à l’IA de votre choix (Claude, ChatGPT, Gemini, Le Chat…) : elle vous renverra une appréciation par élève.</span>
         <button type="button" class="btn" data-click="closeExport">Annuler</button>
         <button type="button" class="btn accent" data-click="saveExport" ${n && (plan.aids.length || !plan.options.length) ? '' : 'disabled'}>${icon.download}Enregistrer le fichier</button></div>
     </div>`;
@@ -196,7 +196,7 @@ function appreciationsView(students, t) {
       <div class="bul-app-who">${hoverPhoto(s)}<strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span>
         <span class="muted small">${rec.presence === 'dispense' ? 'Dispensé' : 'Note ' + f1(note)}${rec.presence === 'partielle' ? ' · présence partielle' : ''}${moveText(s, t) ? ' · ' + moveText(s, t) : ''}</span></div>
       <div class="bul-app-text"><textarea class="input" rows="3" data-input="app" data-sid="${s.id}"
-          placeholder="Pas encore d’appréciation : exportez pour Claude puis importez le retour, ou écrivez-la ici.">${text}</textarea>
+          placeholder="Pas encore d’appréciation : exportez pour l’IA puis importez sa réponse, ou écrivez-la ici.">${text}</textarea>
         <span class="bul-count${n > B.MAX_CHARS ? ' over' : ''}">${n} / ${B.MAX_CHARS} caractères${n > B.MAX_CHARS ? ' · trop long pour Pronote' : ''}</span></div>
       <div class="bul-app-act">
         <button type="button" class="btn ${rec.pronote ? 'soft' : 'accent'}" data-click="copy" data-sid="${s.id}" ${text ? '' : 'disabled'}>${rec.pronote ? 'Copier à nouveau' : 'Copier'}</button>
@@ -210,7 +210,7 @@ function importDialog(classId) {
   return html`<div class="scrim dim" data-click="closeImport"></div>
     <div class="bul-export bul-import" role="dialog" aria-modal="true" aria-label="Importer les appréciations">
       <div class="drawer-head"><div class="grow"><div class="drawer-title">Importer les appréciations</div>
-        <div class="muted small">Le fichier renvoyé par Claude, ou son contenu collé depuis la conversation.</div></div></div>
+        <div class="muted small">Le fichier renvoyé par l’IA (Claude, ChatGPT, Gemini…), ou sa réponse collée depuis la conversation.</div></div></div>
       <div class="bul-import-body">
         <label class="btn soft bul-file">${icon.download}Choisir le fichier<input type="file" accept=".json,application/json,text/plain" data-change="impFile" hidden></label>
         <label class="bul-block"><span class="caps">Ou collez le contenu</span>
@@ -278,7 +278,7 @@ export default {
           <button type="button" class="seg${mode === 'appreciations' ? ' on' : ''}" data-click="mode" data-v="appreciations">Appréciations</button></div>
         <div class="segmented head-seg" role="group" aria-label="Trimestre">${[1, 2, 3].map(n => html`<button type="button" class="seg${n === t ? ' on' : ''}" data-click="trim" data-t="${n}">T${n}</button>`)}</div>
         ${mode === 'constats'
-          ? html`<button type="button" class="btn accent" data-click="openExport" ${students.length ? '' : 'disabled'}>${icon.download}<span class="hide-phone">Exporter pour Claude</span></button>`
+          ? html`<button type="button" class="btn accent" data-click="openExport" ${students.length ? '' : 'disabled'}>${icon.download}<span class="hide-phone">Exporter pour l’IA</span></button>`
           : html`<button type="button" class="btn accent" data-click="openImport">${icon.plusBig}<span class="hide-phone">Importer les appréciations</span></button>`}
       </header>
       ${mode === 'appreciations' ? (() => {
@@ -388,7 +388,7 @@ export default {
         B.saveExportDefaults(exp);
         B.saveExportMapping(classId, t, exp.id, plan.file, plan.codes);
         exp = null; refresh();
-        toast({ text: givenMessage(r, 'Fichier') + ' · à envoyer à Claude', ms: 5000 });
+        toast({ text: givenMessage(r, 'Fichier') + ' · à envoyer à l’IA de votre choix', ms: 5000 });
       } catch (err) { toast({ text: 'Fichier non enregistré : ' + (err && err.message || err) }); }
     },
     trim(el, e, { classId }) { flush(); trimOf[classId] = Number(el.dataset.t); refresh(); },
