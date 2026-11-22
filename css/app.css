@@ -1105,6 +1105,9 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .bul-grid th.bul-name { z-index: 3; padding-left: 20px; }
 .bul-namebtn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 4px 10px; border-radius: 10px; text-align: left; }
 .bul-namebtn:active, .bul-namebtn:hover { background: var(--accentTint); }
+.bul-obs { display: inline-flex; gap: 3px; flex: none; }
+.bul-obs span { padding: 1px 5px; border-radius: 6px; font-size: 11.5px; font-weight: 800; color: #fff; }
+.bul-obs .pos { background: var(--pos); } .bul-obs .neg { background: var(--neg); }
 .bul-cell { position: relative; width: 60px; height: 44px; border-radius: 10px; border: 1.5px dashed var(--line); color: var(--ink2); font-size: 15px; font-weight: 800; }
 .bl-pos { background: var(--posTint); color: var(--pos); border-color: transparent; }
 .bl-mid { background: var(--accentTint); color: var(--ink); border-color: transparent; }

@@ -49,9 +49,10 @@ function cell(s, rec, f, t, prev) {
     aria-label="${s.prenom}, ${f.label} : ${v ? B.LEVEL_LABEL[v] : 'non renseigné'}">${v ? B.LEVEL_SYMBOL[v] : '+'}${n ? html`<span class="bul-dot" aria-hidden="true"></span>` : ''}${p ? html`<span class="bul-prev${ev ? ' ev-' + ev : ''}" title="Trimestre ${t - 1} : ${B.LEVEL_LABEL[p]}">T${t - 1} ${B.LEVEL_SYMBOL[p]}</span>` : ''}</button></td>`;
 }
 function row(s, t) {
-  const rec = B.recordOf(s, t), st = B.stateOf(rec), prev = B.previousOf(s, t);
+  const rec = B.recordOf(s, t), st = B.stateOf(rec), prev = B.previousOf(s, t), c = model.countsOf(s.id, t);
   const name = html`<td class="bul-name"><button type="button" class="bul-namebtn" data-click="open" data-sid="${s.id}">
     <span class="grow ellipsis"><strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span></span>${hoverPhoto(s)}
+    ${c.pos || c.neg ? html`<span class="bul-obs" title="Carnet, trimestre ${t} : ${c.pos} +, ${c.neg} −">${c.pos ? html`<span class="pos">+${c.pos}</span>` : ''}${c.neg ? html`<span class="neg">−${c.neg}</span>` : ''}</span>` : ''}
     ${rec.presence === 'partielle' ? html`<span class="chip warn">Présence partielle</span>` : ''}</button></td>`;
   if (rec.presence === 'dispense') {
     return html`<tr class="bul-disp">${name}<td colspan="${B.families().length + 3}" class="muted small bul-disp-txt">Dispensé ce trimestre · non évalué</td>
