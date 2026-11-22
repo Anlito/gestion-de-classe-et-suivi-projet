@@ -83,6 +83,9 @@ function drawer(classId, s, t, mates) {
         <div class="bul-who">${photo(s, { cls: 'big' })}<div class="bul-who-txt"><strong>${model.fullName(s)}</strong>
           <span class="muted small">${[note.n == null ? '' : 'Note ' + f1(note.n), rec.presence === 'partielle' ? 'Présence partielle' : rec.presence === 'dispense' ? 'Dispensé' : ''].filter(Boolean).join(' · ')}</span></div></div>
         <div class="chips-row bul-mates">${mates.map(m => html`<button type="button" class="pill${m.id === s.id ? ' on' : ''}" data-click="open" data-sid="${m.id}">${m.prenom}</button>`)}</div>
+        <div class="bul-block"><span class="caps">Accord des appréciations</span>
+          <div class="segmented">${Object.entries(B.GENRES).map(([k, label]) => html`<button type="button" class="seg${s.genre === k ? ' on' : ''}" data-click="genre" data-v="${k}">${label}</button>`)}</div>
+          <span class="muted small">${B.GENRES[s.genre] ? 'Claude accordera au ' + B.ACCORD[s.genre] + '. Réglage gardé pour toute l’année.' : 'Non renseigné : Claude écrira sans accord (« fait preuve de sérieux »…).'}</span></div>
         <div class="bul-block"><span class="caps">Présence en cours ce trimestre</span>
           <div class="segmented">${Object.entries(B.PRESENCE).map(([k, label]) => html`<button type="button" class="seg${rec.presence === k ? ' on' : ''}" data-click="presence" data-v="${k}">${label}</button>`)}</div>
           <span class="muted small">${rec.presence === 'partielle' ? 'Emploi du temps aménagé, absent certains cours… Remplissez seulement les critères que vous avez pu observer.'
@@ -378,6 +381,7 @@ export default {
     },
     open(el) { flush(); openSid = el.dataset.sid; refresh(); },
     close() { flush(); openSid = null; refresh(); },
+    genre(el) { const s = db.get('students', openSid); B.setGenre(s.id, s.genre === el.dataset.v ? '' : el.dataset.v); refresh(); },
     presence(el, e, { classId }) { B.setPresence(db.get('students', openSid), trimester(classId), el.dataset.v); refresh(); },
     level(el, e, { classId }) {
       const s = db.get('students', openSid), t = trimester(classId), v = el.dataset.v;

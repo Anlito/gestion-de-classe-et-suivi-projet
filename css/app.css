@@ -1129,7 +1129,7 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .bul-disp td.bul-disp-txt { text-align: left; padding-left: 16px; }
 .bul-empty { padding: 28px !important; color: var(--ink2); }
 .bul-drawer .drawer-body { gap: 16px; }
-.bul-mates { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+.bul-mates { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; flex: none; }
 .bul-mates .pill { height: 40px; flex: none; }
 .bul-block { display: flex; flex-direction: column; gap: 8px; }
 .bul-block .segmented { align-self: flex-start; flex-wrap: wrap; }

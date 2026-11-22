@@ -76,6 +76,12 @@ test('Retour : texte collé avec ```json, codes rattachés, trop long signalé',
   eq(r.items.length, 2); eq(r.items[0].studentId, 'a'); eq(r.items[0].texte, 'Bon trimestre.'); eq(r.items[1].tooLong, true);
   eq(r.unknown.join(), 'E09'); eq(r.missing.join(), 'E03');
 });
+test('Export : accord féminin ou masculin seulement si renseigné, consigne sans accord sinon', () => {
+  const st = (id, genre) => ({ student: { id, prenom: 'Camille', genre }, rec: { presence: 'normale', levels: {}, details: {} }, note: 12 });
+  const { data } = buildExport({ niveau: '3e', trimester: 1, year: 'y', options: opts, exportId: 'x', entries: [st('a', 'f'), st('b', 'm'), st('c', '')] });
+  eq(data.eleves[0].accord, 'féminin'); eq(data.eleves[1].accord, 'masculin'); eq('accord' in data.eleves[2], false);
+  eq(/sans accord/.test(data.consignes.accords), true);
+});
 test('Export : nom de la classe dans le fichier et dans son nom', () => {
   const { data } = buildExport({ classe: '3G', niveau: '3e', trimester: 1, year: 'y', options: opts, exportId: 'x', entries: [] });
   eq(data.classe, '3G'); eq(/"classe"/.test(data.consignes.retour), true);

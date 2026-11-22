@@ -53,6 +53,10 @@ export const LEVEL_LABEL = { pos: 'Point fort', mid: 'Correct', neg: 'À amélio
 export const LEVEL_SYMBOL = { pos: '▲', mid: '●', neg: '▼' };
 export const PRESENCE = { normale: 'Normale', partielle: 'Partielle', dispense: 'Dispensé·e' };
 export const TENDANCES = ['en progrès', 'stable', 'en baisse'];
+// Accord des appréciations (1.32.0) : réglage de l'élève (students.genre), gardé d'un trimestre à l'autre.
+export const GENRES = { f: 'Fille', m: 'Garçon' };
+export const ACCORD = { f: 'féminin', m: 'masculin' };
+export const setGenre = (studentId, g) => db.commit(w => w.update('students', studentId, { genre: GENRES[g] ? g : '' }));
 export const MAX_CHARS = 300;
 export const STATE_LABEL = { ok: 'Prêt', part: 'En cours', todo: 'À faire', disp: 'Dispensé' };
 
@@ -204,6 +208,7 @@ export function buildExport({ classe = '', niveau, trimester, year, projects = [
     const p = (e.student.prenom || '').trim() || 'Élève';
     seen.set(p, (seen.get(p) || 0) + 1);
     const o = { code, prenom: total.get(p) > 1 && seen.get(p) > 1 ? p + ' (' + seen.get(p) + ')' : p };
+    if (ACCORD[e.student.genre]) o.accord = ACCORD[e.student.genre];
     if (e.rec.presence === 'partielle') o.presence = 'partielle';
     o.note = typeof e.note === 'number' ? e.note : null;
     const criteres = {};
@@ -223,6 +228,7 @@ export function buildExport({ classe = '', niveau, trimester, year, projects = [
     consignes: {
       longueur_max: MAX_CHARS, ton: options.ton, formulation: options.formulation,
       redaction: 'Une appréciation de bulletin par élève, ' + MAX_CHARS + ' caractères maximum espaces compris, fondée uniquement sur les critères, la note, la tendance et la remarque fournis. Présence partielle : parler de ce qui a pu être observé, sans en donner la raison.',
+      accords: 'Accorder selon le champ « accord » de l’élève (féminin ou masculin). Sans champ « accord », ne pas deviner le genre d’après le prénom : employer des tournures sans accord (ex. « fait preuve de sérieux » plutôt que « sérieux/sérieuse »), sans écriture inclusive.',
       retour: 'Renvoyer un fichier JSON { "format": "carnet-appreciations-v1", "export_id": (le même), "classe": (la même), "appreciations": [ { "code": "E01", "texte": "…" } ] }',
     },
     eleves,
