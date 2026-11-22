@@ -276,3 +276,53 @@ export const THEMES = [
 // Liste à plat des 9 compétences, numérotées de 1 à 9 dans l'ordre du programme.
 export const COMPETENCES = THEMES.flatMap((t, ti) => t.competences.map(c => ({ ...c, theme: ti })));
 COMPETENCES.forEach((c, i) => { c.n = i + 1; });
+
+// Socle commun de connaissances, de compétences et de culture (décret du 31 mars 2015) : les 5 domaines,
+// avec leurs objectifs. Sert aux critères que le programme de technologie ne couvre pas
+// (travail en équipe, autonomie, organisation, oral…). Le domaine (ou la composante du domaine 1)
+// remplit la colonne « Compétence Pronote » ; l'objectif choisi sert d'exemple d'intitulé.
+// mots : mots-clés de la recherche, jamais affichés.
+export const SOCLE_SOURCE = 'Socle commun de connaissances, de compétences et de culture · décret du 31 mars 2015';
+export const SOCLE = [
+  { code: 'D1.1', label: 'Comprendre, s’exprimer en utilisant la langue française à l’oral et à l’écrit',
+    objectifs: ['S’exprimer à l’oral de façon claire et organisée', 'Écrire des textes clairs et adaptés'],
+    mots: 'oral présentation exposé parler expression écrit rédiger communication' },
+  { code: 'D1.2', label: 'Comprendre, s’exprimer en utilisant une langue étrangère et, le cas échéant, une langue régionale',
+    objectifs: [], mots: 'anglais langue vivante' },
+  { code: 'D1.3', label: 'Comprendre, s’exprimer en utilisant les langages mathématiques, scientifiques et informatiques',
+    objectifs: ['Utiliser les langages scientifiques et technologiques (schémas, croquis, tableaux)', 'Utiliser un langage informatique (programme, code HTML)'],
+    mots: 'schéma croquis graphique code html site internet programmation informatique' },
+  { code: 'D1.4', label: 'Comprendre, s’exprimer en utilisant les langages des arts et du corps',
+    objectifs: [], mots: 'arts design esthétique' },
+  { code: 'D2', label: 'Les méthodes et outils pour apprendre',
+    objectifs: ['Organisation du travail personnel (planifier, se fixer des objectifs, respecter les délais)',
+      'Coopération et réalisation de projets (travailler en équipe, se répartir les tâches)',
+      'Médias, démarches de recherche et de traitement de l’information',
+      'Outils numériques pour échanger et communiquer'],
+    mots: 'équipe groupe partage répartition tâches organisation planning autonomie outils numériques recherche collaboration coopérer' },
+  { code: 'D3', label: 'La formation de la personne et du citoyen',
+    objectifs: ['Expression de la sensibilité et des opinions, respect des autres', 'La règle et le droit',
+      'Réflexion et discernement', 'Responsabilité, sens de l’engagement et de l’initiative'],
+    mots: 'autonomie initiative engagement implication respect comportement règles écoute' },
+  { code: 'D4', label: 'Les systèmes naturels et les systèmes techniques',
+    objectifs: ['Démarches scientifiques', 'Conception, création, réalisation', 'Responsabilités individuelles et collectives'],
+    mots: 'concevoir fabriquer réaliser prototype maquette imagination' },
+  { code: 'D5', label: 'Les représentations du monde et l’activité humaine',
+    objectifs: ['L’espace et le temps', 'Organisations et représentations du monde', 'Invention, élaboration, production'],
+    mots: 'invention création imagination créativité production' },
+];
+// Libellé mis dans la colonne « Compétence Pronote » pour un domaine du socle.
+export const socleLabel = d => `${d.code} · ${d.label}`;
+
+// Mots-clés ajoutés à chaque compétence du programme pour la recherche (mots courants
+// que le professeur emploie, absents du texte officiel). Clé : numéro de la compétence.
+export const MOTS = {
+  1: 'numérique site internet web réseaux sociaux droit image propriété intellectuelle sources',
+  4: 'données fichiers arborescence réseau internet',
+  2: 'ergonomie utilisateur usage confort facilité',
+  7: 'projet maquette carton prototype modélisation 3d imprimante découpe fabrication imagination créativité organisation tâches planning',
+  9: 'programmation scratch arduino microbit code',
+};
+
+// Texte en minuscules sans accents, pour comparer la recherche.
+export const norm = s => String(s).toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’']/g, ' ');

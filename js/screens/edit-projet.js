@@ -5,7 +5,7 @@ import * as model from '../model.js';
 import { html, toast, confirmDialog } from '../ui.js';
 import { icon, backLink } from '../components.js';
 import { go, refresh } from '../nav.js';
-import { THEMES, COMPETENCES, NIVEAUX, SOURCE } from '../programme.js';
+import { THEMES, COMPETENCES, NIVEAUX, SOURCE, SOCLE, SOCLE_SOURCE, socleLabel, MOTS, norm } from '../programme.js';
 import * as prepa from '../prepa.js';
 
 let draft = null; // copie de travail, enregistrée seulement avec « Enregistrer »
@@ -13,7 +13,12 @@ let draft = null; // copie de travail, enregistrée seulement avec « Enregistre
 let matOpen = false, retour = null;
 export function ouvrirMateriel(projectId, back = '#/') { matOpen = true; retour = back; location.hash = `#/admin/projet/${projectId}`; }
 // Fenêtre « Choisir dans le programme » : target = id du critère à remplacer (null : ajout de plusieurs critères).
-let picker = null; // { target, level: 'all'|'5e'|'4e'|'3e', open: Set(n° de compétence), sel: Map(clé → { label, pronote }) }
+// open : n° de compétence ('7') ou code du socle ('D2') ; q : recherche (déplie tout ce qui correspond).
+// Clés : '7' ou '7.partie.niveau.repère' pour le programme, 'S|D2|all' ou 'S|D2|objectif' pour le socle.
+let picker = null; // { target, level: 'all'|'5e'|'4e'|'3e', q, open: Set, sel: Map(clé → { label, pronote }) }
+
+// Vrai si tous les mots de la recherche figurent dans l'un des textes.
+const matches = (words, ...texts) => { const t = norm(texts.join(' ')); return words.every(w => t.includes(w)); };
 
 // Niveau proposé d'office : celui des classes associées au projet s'il n'y en a qu'un.
 function defaultLevel() {
@@ -26,6 +31,24 @@ function pickerView() {
   const multi = !picker.target;
   const target = multi ? null : crit(picker.target);
   const levels = picker.level === 'all' ? NIVEAUX : [picker.level];
+  const words = norm(picker.q).split(/\s+/).filter(Boolean);
+  const searching = words.length > 0;
+  // Compétences du programme à afficher, avec leurs repères (filtrés par la recherche).
+  const progView = COMPETENCES.map(c => {
+    const compHit = searching && matches(words, c.label, MOTS[c.n] || '');
+    const parts = c.parts.map((p, pi) => ({
+      title: p.title,
+      items: levels.flatMap(lv => p.reperes[lv].map((r, ri) => ({ lv, r, key: `${c.n}.${pi}.${lv}.${ri}` })))
+        .filter(x => !searching || compHit || matches(words, x.r, p.title)),
+    })).filter(p => p.items.length);
+    return { c, parts, show: !searching || compHit || parts.length > 0 };
+  });
+  const socleView = SOCLE.map(d => {
+    const hit = searching && matches(words, d.code, d.label, d.mots);
+    const objs = d.objectifs.map((o, i) => ({ o, key: `S|${d.code}|${i}` })).filter(x => !searching || hit || matches(words, x.o));
+    return { d, objs, show: !searching || hit || objs.length > 0 };
+  });
+  const nothing = searching && !progView.some(v => v.show) && !socleView.some(v => v.show);
   const pickBtn = (key, label, pronote, sub = '') => {
     const on = picker.sel.has(key);
     return html`<button type="button" class="prog-item${on ? ' on' : ''}" data-click="progPick" data-key="${key}" data-label="${label}" data-pronote="${pronote}">
@@ -39,16 +62,19 @@ function pickerView() {
         <button type="button" class="btn soft" data-click="closePicker">Fermer</button></div>
       <div class="drawer-body" data-scroll="prog">
         <div class="stack-tight">
+          <input class="input" type="search" data-input="progSearch" value="${picker.q}" aria-label="Rechercher dans le programme et le socle"
+            placeholder="Rechercher : ergonomie, oral, équipe, modélisation…">
           <div class="segmented">${[['all', 'Tous'], ...NIVEAUX.map(n => [n, n])].map(([k, l]) =>
             html`<button type="button" class="seg${picker.level === k ? ' on' : ''}" data-click="progLevel" data-k="${k}">${l}</button>`)}</div>
-          <div class="muted small">${multi ? 'Touchez les repères à évaluer : chacun devient un critère.' : 'Touchez un repère ou une compétence pour ce critère.'}
+          <div class="muted small">${multi ? 'Touchez les repères à évaluer : chacun devient un critère. Le travail en équipe, l’organisation, l’autonomie et l’oral sont dans le socle commun, en bas.' : 'Touchez un repère ou une compétence pour ce critère.'}
             Seule la colonne « Compétence Pronote » est remplie (compétence de fin de cycle) : l’intitulé reste le vôtre.</div>
         </div>
-        ${THEMES.map((t, ti) => html`<div class="prog-theme">
-          <div class="caps">Thème ${ti + 1}</div>
+        ${nothing ? html`<div class="muted">Rien ne correspond à « ${picker.q} ». Essayez un autre mot (ex. « tâches », « prototype », « oral »).</div>` : ''}
+        ${THEMES.map((t, ti) => progView.some(v => v.c.theme === ti && v.show) ? html`<div class="prog-theme">
+          <div class="caps">Programme · thème ${ti + 1}</div>
           <div class="prog-theme-title">${t.title}</div>
-          ${COMPETENCES.filter(c => c.theme === ti).map(c => {
-            const open = picker.open.has(c.n);
+          ${progView.filter(v => v.c.theme === ti && v.show).map(({ c, parts }) => {
+            const open = searching || picker.open.has(String(c.n));
             const count = [...picker.sel.keys()].filter(k => k.split('.')[0] === String(c.n)).length;
             return html`<div class="prog-comp${open ? ' open' : ''}">
               <button type="button" class="prog-comp-head" data-click="progToggle" data-n="${c.n}" aria-expanded="${open ? 'true' : 'false'}">
@@ -57,16 +83,32 @@ function pickerView() {
               </button>
               ${open ? html`<div class="prog-comp-body">
                 ${pickBtn(String(c.n), 'Toute la compétence (sans repère précis)', c.label)}
-                ${c.parts.map((p, pi) => {
-                  const items = levels.flatMap(lv => p.reperes[lv].map((r, ri) => ({ lv, r, key: `${c.n}.${pi}.${lv}.${ri}` })));
-                  return items.length ? html`<div class="prog-part">${p.title}</div>
-                    ${items.map(x => pickBtn(x.key, x.r, c.label, picker.level === 'all' ? x.lv : ''))}` : '';
-                })}
+                ${parts.map(p => html`<div class="prog-part">${p.title}</div>
+                  ${p.items.map(x => pickBtn(x.key, x.r, c.label, picker.level === 'all' ? x.lv : ''))}`)}
               </div>` : ''}
             </div>`;
           })}
-        </div>`)}
-        <div class="muted xsmall">${SOURCE}</div>
+        </div>` : '')}
+        ${progView.some(v => v.show) ? html`<div class="muted xsmall">${SOURCE}</div>` : ''}
+        ${socleView.some(v => v.show) ? html`<div class="prog-theme">
+          <div class="caps">Socle commun</div>
+          <div class="prog-theme-title">Travail en équipe, organisation, autonomie, oral… : ce que le programme de technologie ne couvre pas</div>
+          ${socleView.filter(v => v.show).map(({ d, objs }) => {
+            const open = searching || picker.open.has(d.code);
+            const count = [...picker.sel.keys()].filter(k => k.startsWith(`S|${d.code}|`)).length;
+            return html`<div class="prog-comp${open ? ' open' : ''}">
+              <button type="button" class="prog-comp-head" data-click="progToggle" data-n="${d.code}" aria-expanded="${open ? 'true' : 'false'}">
+                <span class="prog-n prog-n-wide">${d.code}</span><span class="grow">${d.label}</span>
+                ${count ? html`<span class="chip accent">${count}</span>` : ''}${icon.down}
+              </button>
+              ${open ? html`<div class="prog-comp-body">
+                ${pickBtn(`S|${d.code}|all`, objs.length ? 'Tout le domaine (sans objectif précis)' : d.label, socleLabel(d))}
+                ${objs.map(x => pickBtn(x.key, x.o, socleLabel(d)))}
+              </div>` : ''}
+            </div>`;
+          })}
+          <div class="muted xsmall">${SOCLE_SOURCE}</div>
+        </div>` : ''}
       </div>
       ${multi ? html`<div class="drawer-foot">
         <span class="grow muted">${picker.sel.size ? `${picker.sel.size} repère${picker.sel.size > 1 ? 's' : ''} choisi${picker.sel.size > 1 ? 's' : ''}` : 'Aucun repère choisi'}</span>
@@ -175,17 +217,26 @@ export default {
   actions: {
     openPicker(el) {
       const target = el.dataset.id || null;
-      picker = { target, level: defaultLevel(), open: new Set(), sel: new Map() };
-      // Critère déjà choisi dans le programme : on ouvre directement sa compétence.
+      picker = { target, level: defaultLevel(), q: '', open: new Set(), sel: new Map() };
+      // Critère déjà choisi dans le programme ou le socle : on ouvre directement sa compétence ou son domaine.
       const c = target && crit(target);
       const comp = c && COMPETENCES.find(x => x.label === c.pronote);
-      if (comp) picker.open.add(comp.n);
+      const dom = c && SOCLE.find(d => socleLabel(d) === c.pronote);
+      if (comp) picker.open.add(String(comp.n));
+      if (dom) picker.open.add(dom.code);
       refresh();
     },
     closePicker() { picker = null; refresh(); },
     progLevel(el) { picker.level = el.dataset.k; refresh(); },
+    progSearch(el) {
+      const pos = el.selectionStart;
+      picker.q = el.value;
+      refresh();
+      const input = document.querySelector('[data-input="progSearch"]');
+      if (input) { input.focus(); input.setSelectionRange(pos, pos); }
+    },
     progToggle(el) {
-      const n = +el.dataset.n;
+      const n = el.dataset.n;
       if (picker.open.has(n)) picker.open.delete(n); else picker.open.add(n);
       refresh();
     },

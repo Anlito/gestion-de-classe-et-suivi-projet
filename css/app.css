@@ -591,6 +591,7 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .prog-comp-head > svg { flex: none; color: var(--ink2); transition: transform 150ms ease; }
 .prog-comp.open .prog-comp-head > svg { transform: rotate(180deg); }
 .prog-n { width: 30px; height: 30px; flex: none; border-radius: 8px; background: var(--accent); color: var(--accentInk); display: flex; align-items: center; justify-content: center; font-weight: 800; }
+.prog-n-wide { width: auto; min-width: 30px; padding: 0 6px; font-size: 13px; }
 .prog-comp-body { display: flex; flex-direction: column; gap: 4px; padding: 0 10px 12px; }
 .prog-part { padding: 10px 6px 2px; font-size: 13px; font-weight: 700; color: var(--ink2); text-transform: uppercase; letter-spacing: 0.04em; }
 .prog-item { min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--surface); text-align: left; font-size: 15px; line-height: 1.35; }
