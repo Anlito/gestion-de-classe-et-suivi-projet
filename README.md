@@ -1,5 +1,9 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.31.0 · Bulletins : la classe dans les fichiers échangés avec Claude · 22 novembre 2026
+
+Demande du professeur : indiquer la classe (ex. « 3G », « 3B ») dans le fichier exporté et dans celui renvoyé par Claude. L’export contient maintenant `"classe"` (nom de la classe dans le Carnet) et son nom de fichier devient `bulletins-<classe>-t<trimestre>.json` (deux classes de même niveau ne se confondent plus) ; la consigne de retour demande à Claude de renvoyer la même `"classe"`. Le nom de la classe quitte donc la liste « Ne sortent pas du Carnet ». À l’import, une classe différente de celle de l’export est refusée avec un message clair (« 3G », « 3e G » et « 3ème G » sont reconnues comme identiques) ; une classe absente (exports antérieurs) reste acceptée, le rattachement se faisant toujours par `export_id`, et le résumé le signale. Fichiers : bulletins.js, screens/bulletins.js, tests/bulletins.test.js, nav.js et sw.js. Vérifications : 254 tests réussis ; navigateur sur la démonstration (aperçu de l’export, refus d’une autre classe, classe absente signalée).
+
 ## Version 1.30.1 · Bulletins : + et − du Carnet à côté du prénom · 22 novembre 2026
 
 Demande du professeur : voir dans la grille Constats les + et − posés depuis le trombinoscope. À droite du prénom, une pastille verte « +N » et une rouge « −N » (même style que le trombinoscope) comptent les observations du trimestre affiché ; rien pour un élève sans observation ; le détail s’affiche au survol. Fichiers : screens/bulletins.js, app.css, nav.js et sw.js. Vérifications : parcours navigateur sur la démonstration (6e SEGPA, T1).

@@ -67,7 +67,7 @@ test('Export : nom de fichier sans accent ni espace', () => {
   eq(exportFileName({ level: '4e', segpa: true }, 1), 'bulletins-4e-segpa-t1.json');
 });
 
-import { parseReturn } from '../js/bulletins.js';
+import { parseReturn, sameClass } from '../js/bulletins.js';
 const maps = { x1: { classId: 'c', year: 'y', trimester: 1, codes: { E01: 'a', E02: 'b', E03: 'c' } } };
 const mapOf = id => maps[id] || null;
 test('Retour : texte collé avec ```json, codes rattachés, trop long signalé', () => {
@@ -75,6 +75,20 @@ test('Retour : texte collé avec ```json, codes rattachés, trop long signalé',
   const r = parseReturn('Voici :\n```json\n{"format":"carnet-appreciations-v1","export_id":"x1","appreciations":[{"code":"E01","texte":"  Bon   trimestre. "},{"code":"E02","texte":"' + long + '"},{"code":"E09","texte":"?"}]}\n```', mapOf);
   eq(r.items.length, 2); eq(r.items[0].studentId, 'a'); eq(r.items[0].texte, 'Bon trimestre.'); eq(r.items[1].tooLong, true);
   eq(r.unknown.join(), 'E09'); eq(r.missing.join(), 'E03');
+});
+test('Export : nom de la classe dans le fichier et dans son nom', () => {
+  const { data } = buildExport({ classe: '3G', niveau: '3e', trimester: 1, year: 'y', options: opts, exportId: 'x', entries: [] });
+  eq(data.classe, '3G'); eq(/"classe"/.test(data.consignes.retour), true);
+  eq(exportFileName({ name: '3G', level: '3e' }, 2), 'bulletins-3g-t2.json');
+});
+test('Retour : classe du fichier comparée à celle de l’export', () => {
+  const m = { x2: { classId: 'c', className: '3e G', year: 'y', trimester: 1, codes: { E01: 'a' } } };
+  const f = c => '{"format":"carnet-appreciations-v1","export_id":"x2",' + c + '"appreciations":[{"code":"E01","texte":"Bien."}]}';
+  eq(parseReturn(f('"classe":"3G",'), id => m[id]).classe, '3G');
+  eq(parseReturn(f(''), id => m[id]).classe, '');
+  let err = ''; try { parseReturn(f('"classe":"3B",'), id => m[id]); } catch (e) { err = e.message; }
+  eq(/3B/.test(err) && /3e G/.test(err), true);
+  eq(sameClass('6e SEGPA', '6 SEGPA'), true); eq(sameClass('4E - PR', '4e PR'), true); eq(sameClass('3G', '3B'), false);
 });
 test('Retour : export inconnu ou mauvais format refusés', () => {
   let n = 0;

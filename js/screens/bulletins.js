@@ -118,7 +118,7 @@ function exportPlan(c, t, students, a) {
   const inScope = all.filter(e => exp.scope === 'tous' || (g ? g.members.includes(e.student.id) : B.stateOf(e.rec) === 'ok'));
   const entries = inScope.map(e => { const p = B.previousOf(e.student, t); return { ...e, note: B.noteOf(e.student, e.rec, t).n, prev: p ? p.levels : null }; });
   const projects = B.assignmentsOfTrimester(c.id, t).map(x => db.get('projects', x.projectId).title);
-  const built = B.buildExport({ niveau: B.levelLabel(c), trimester: t, year: model.schoolYear(), projects, options: exp, entries, exportId: exp.id });
+  const built = B.buildExport({ classe: c.name, niveau: B.levelLabel(c), trimester: t, year: model.schoolYear(), projects, options: exp, entries, exportId: exp.id });
   const disp = inScope.filter(e => e.rec.presence === 'dispense').length;
   const notReady = inScope.filter(e => !['ok', 'disp'].includes(B.stateOf(e.rec))).length;
   return { ...built, disp, notReady, file: B.exportFileName(c, t), groups: a ? model.groupsOf(a.id) : [] };
@@ -145,7 +145,7 @@ function exportDialog(c, t, plan) {
             <select class="input" data-change="expOpt" data-key="formulation">${B.PERSONS.map(v => html`<option ${exp.formulation === v ? 'selected' : ''}>${v}</option>`)}</select></label>
           <div class="bul-block"><span class="caps">Longueur</span><strong>${B.MAX_CHARS} caractères maximum</strong></div>
           ${plan.notReady ? html`<div class="bul-hint"><strong>${plan.notReady} élève${plan.notReady > 1 ? 's' : ''} pas encore prêt${plan.notReady > 1 ? 's' : ''}</strong><span class="small">Envoyé${plan.notReady > 1 ? 's' : ''} avec les critères déjà renseignés.</span></div>` : ''}
-          <div class="bul-safe"><strong>Ne sortent pas du Carnet</strong><span class="small">Noms de famille, photos, nom de la classe, dispositifs (PAP…), absences, remarques du Carnet${plan.disp ? ', ' + plan.disp + ' élève' + (plan.disp > 1 ? 's' : '') + ' dispensé' + (plan.disp > 1 ? 's' : '') : ', élèves dispensés'}.</span></div>
+          <div class="bul-safe"><strong>Ne sortent pas du Carnet</strong><span class="small">Noms de famille, photos, dispositifs (PAP…), absences, remarques du Carnet${plan.disp ? ', ' + plan.disp + ' élève' + (plan.disp > 1 ? 's' : '') + ' dispensé' + (plan.disp > 1 ? 's' : '') : ', élèves dispensés'}.</span></div>
         </div>
         <div class="bul-block bul-preview"><span class="caps">Contenu exact du fichier</span>
           <pre class="bul-json" data-scroll="bul-json">${JSON.stringify(plan.data, null, 2)}</pre></div>
@@ -190,6 +190,7 @@ function importDialog(classId) {
           <span class="small">${[long ? long + ' dépasse' + (long > 1 ? 'nt' : '') + ' ' + B.MAX_CHARS + ' caractères (à raccourcir avant Pronote)' : '',
             p.missing.length ? p.missing.length + ' élève' + (p.missing.length > 1 ? 's' : '') + ' de l’export sans appréciation' : '',
             p.unknown.length ? 'codes inconnus ignorés : ' + p.unknown.join(', ') : '',
+            p.classe ? '' : 'classe non indiquée dans le fichier (rattaché par son identifiant d’export)',
             other ? 'Ce fichier concerne la classe ' + other.name + ' : elle s’ouvrira après l’import.' : ''].filter(Boolean).join(' · ') || 'Tout correspond à l’export.'}</span></div>` : ''}
       </div>
       <div class="drawer-foot"><span class="grow"></span>

@@ -182,18 +182,18 @@ export function setLevelForAll(students, t, k, v) {
 }
 
 // ---------- Export pour Claude (1.27.0) ----------
-// Liste blanche : seuls les champs écrits ici sortent du Carnet. Jamais le nom de famille, la photo, le nom de la classe,
+// Liste blanche : seuls les champs écrits ici sortent du Carnet, dont le nom de la classe (ex. « 3G », 1.31.0). Jamais le nom de famille, la photo,
 // les dispositifs, les absences ni les remarques du Carnet. Les élèves dispensés ne sont pas envoyés.
 export const TONES = ['bienveillant et précis', 'encourageant', 'neutre et factuel'];
 export const PERSONS = ['3e personne', 'tutoiement', 'vouvoiement'];
 export const exportDefaults = () => ({ discipline: 'Technologie', ton: TONES[0], formulation: PERSONS[0], ...db.getMeta('bulletinsExport', {}) });
 export const saveExportDefaults = o => db.commit(w => w.meta('bulletinsExport', { discipline: o.discipline, ton: o.ton, formulation: o.formulation }));
 export const levelLabel = c => (c.level || '') + (c.segpa ? ' SEGPA' : '');
-export const exportFileName = (c, t) => ('bulletins-' + levelLabel(c) + '-T' + t).toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]/g, '') + '.json';
+export const exportFileName = (c, t) => ('bulletins-' + (c.name || levelLabel(c)) + '-T' + t).toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]/g, '') + '.json';
 
 // entries : [{ student:{ id, prenom }, rec, note }] dans l'ordre de la classe. Renvoie { data, codes:{ E01: studentId } }.
 // e.prev (facultatif) : niveaux du trimestre précédent, exportés comme « trimestre_precedent » pour parler des progrès.
-export function buildExport({ niveau, trimester, year, projects = [], options, entries, exportId, fams = families() }) {
+export function buildExport({ classe = '', niveau, trimester, year, projects = [], options, entries, exportId, fams = families() }) {
   const kept = entries.filter(e => e.rec.presence !== 'dispense');
   const seen = new Map(), total = new Map();
   for (const e of kept) { const p = (e.student.prenom || '').trim() || 'Élève'; total.set(p, (total.get(p) || 0) + 1); }
@@ -218,12 +218,12 @@ export function buildExport({ niveau, trimester, year, projects = [], options, e
     return o;
   });
   const data = {
-    format: 'carnet-bulletins-v1', export_id: exportId, discipline: String(options.discipline || '').trim(), niveau, trimestre: trimester, annee: year,
+    format: 'carnet-bulletins-v1', export_id: exportId, classe: String(classe || '').trim(), discipline: String(options.discipline || '').trim(), niveau, trimestre: trimester, annee: year,
     ...(projects.length ? { projets_du_trimestre: projects } : {}),
     consignes: {
       longueur_max: MAX_CHARS, ton: options.ton, formulation: options.formulation,
       redaction: 'Une appréciation de bulletin par élève, ' + MAX_CHARS + ' caractères maximum espaces compris, fondée uniquement sur les critères, la note, la tendance et la remarque fournis. Présence partielle : parler de ce qui a pu être observé, sans en donner la raison.',
-      retour: 'Renvoyer un fichier JSON { "format": "carnet-appreciations-v1", "export_id": (le même), "appreciations": [ { "code": "E01", "texte": "…" } ] }',
+      retour: 'Renvoyer un fichier JSON { "format": "carnet-appreciations-v1", "export_id": (le même), "classe": (la même), "appreciations": [ { "code": "E01", "texte": "…" } ] }',
     },
     eleves,
   };
@@ -231,10 +231,16 @@ export function buildExport({ niveau, trimester, year, projects = [], options, e
 }
 // Correspondance code → élève, gardée dans le Carnet (synchronisée, jamais exportée) pour relire le fichier retour.
 export const saveExportMapping = (classId, t, exportId, file, codes) =>
-  db.commit(w => w.meta('bulletinsExport:' + exportId, { classId, year: model.schoolYear(), trimester: t, file, codes, at: new Date().toISOString() }));
+  db.commit(w => w.meta('bulletinsExport:' + exportId, { classId, className: (db.get('classes', classId) || {}).name || '', year: model.schoolYear(), trimester: t, file, codes, at: new Date().toISOString() }));
 
 // ---------- Retour des appréciations (1.28.0) ----------
-// Fichier renvoyé par Claude : { format:'carnet-appreciations-v1', export_id, appreciations:[{ code, texte }] }.
+// Fichier renvoyé par Claude : { format:'carnet-appreciations-v1', export_id, classe, appreciations:[{ code, texte }] }.
+// La classe indiquée doit être celle de l'export (« 3G » = « 3e G ») ; absente, l'import reste possible mais c'est signalé.
+export const sameClass = (a, b) => {
+  const base = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const plain = s => base(s).replace(/[^a-z0-9]/g, ''), n = s => plain(base(s).replace(/(\d)\s*(eme|e)(?![a-z])/g, '$1'));
+  return plain(a) === plain(b) || n(a) === n(b);
+};
 // Accepte aussi le texte collé depuis la conversation (entouré de ```json … ``` ou d'autres phrases).
 export function parseReturn(text, mappingOf) {
   const s = String(text || ''), a = s.indexOf('{'), b = s.lastIndexOf('}');
@@ -244,6 +250,9 @@ export function parseReturn(text, mappingOf) {
   if (!data || data.format !== 'carnet-appreciations-v1' || !Array.isArray(data.appreciations)) throw new Error('Ce n’est pas un fichier d’appréciations du Carnet (format carnet-appreciations-v1 attendu).');
   const mapping = data.export_id ? mappingOf(data.export_id) : null;
   if (!mapping) throw new Error('Export inconnu sur cet appareil : relisez le fichier depuis l’appareil qui a fait l’export, ou attendez la synchronisation.');
+  const classe = String(data.classe || '').trim();
+  if (classe && mapping.className && !sameClass(classe, mapping.className))
+    throw new Error('Ce fichier indique la classe ' + classe + ', mais l’export ' + data.export_id + ' a été fait pour la classe ' + mapping.className + '. Vérifiez que vous importez le bon fichier.');
   const items = [], unknown = [], seen = new Set();
   for (const x of data.appreciations) {
     const code = String(x && x.code || '').trim(), texte = String(x && x.texte || '').replace(/\s+/g, ' ').trim();
@@ -254,9 +263,12 @@ export function parseReturn(text, mappingOf) {
     items.push({ code, studentId, texte, tooLong: texte.length > MAX_CHARS });
   }
   const missing = Object.keys(mapping.codes).filter(c => !seen.has(c));
-  return { exportId: data.export_id, mapping, items, unknown, missing };
+  return { exportId: data.export_id, classe, mapping, items, unknown, missing };
 }
-export const mappingOf = id => db.getMeta('bulletinsExport:' + id, null);
+export function mappingOf(id) {
+  const m = db.getMeta('bulletinsExport:' + id, null), c = m && db.get('classes', m.classId);
+  return m ? { ...m, className: m.className || (c ? c.name : '') } : null;
+}
 // Enregistre les appréciations relues dans les fiches du trimestre de l'export. Une appréciation remplacée n'est plus « saisie ».
 export function importAppreciations(parsed) {
   const { mapping, items } = parsed;
