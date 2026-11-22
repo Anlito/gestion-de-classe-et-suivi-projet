@@ -85,7 +85,7 @@ function drawer(classId, s, t, mates) {
         <div class="chips-row bul-mates">${mates.map(m => html`<button type="button" class="pill${m.id === s.id ? ' on' : ''}" data-click="open" data-sid="${m.id}">${m.prenom}</button>`)}</div>
         <div class="bul-block"><span class="caps">Accord des appréciations</span>
           <div class="segmented">${Object.entries(B.GENRES).map(([k, label]) => html`<button type="button" class="seg${s.genre === k ? ' on' : ''}" data-click="genre" data-v="${k}">${label}</button>`)}</div>
-          <span class="muted small">${B.GENRES[s.genre] ? 'Claude accordera au ' + B.ACCORD[s.genre] + '. Réglage gardé pour toute l’année.' : 'Non renseigné : Claude écrira sans accord (« fait preuve de sérieux »…).'}</span></div>
+          <span class="muted small">${s.genre === 'n' ? 'Claude écrira sans accord ni pronom genré (il, elle). Réglage gardé pour toute l’année.' : B.GENRES[s.genre] ? 'Claude accordera au ' + B.ACCORD[s.genre] + '. Réglage gardé pour toute l’année.' : 'Non renseigné : Claude écrira sans accord (« fait preuve de sérieux »…).'}</span></div>
         <div class="bul-block"><span class="caps">Présence en cours ce trimestre</span>
           <div class="segmented">${Object.entries(B.PRESENCE).map(([k, label]) => html`<button type="button" class="seg${rec.presence === k ? ' on' : ''}" data-click="presence" data-v="${k}">${label}</button>`)}</div>
           <span class="muted small">${rec.presence === 'partielle' ? 'Emploi du temps aménagé, absent certains cours… Remplissez seulement les critères que vous avez pu observer.'

@@ -54,8 +54,9 @@ export const LEVEL_SYMBOL = { pos: '▲', mid: '●', neg: '▼' };
 export const PRESENCE = { normale: 'Normale', partielle: 'Partielle', dispense: 'Dispensé·e' };
 export const TENDANCES = ['en progrès', 'stable', 'en baisse'];
 // Accord des appréciations (1.32.0) : réglage de l'élève (students.genre), gardé d'un trimestre à l'autre.
-export const GENRES = { f: 'Fille', m: 'Garçon' };
-export const ACCORD = { f: 'féminin', m: 'masculin' };
+// « Non genré » (1.32.1) : choix de l'élève, appréciation sans aucun accord ni pronom genré.
+export const GENRES = { f: 'Fille', m: 'Garçon', n: 'Non genré' };
+export const ACCORD = { f: 'féminin', m: 'masculin', n: 'non genré' };
 export const setGenre = (studentId, g) => db.commit(w => w.update('students', studentId, { genre: GENRES[g] ? g : '' }));
 export const MAX_CHARS = 300;
 export const STATE_LABEL = { ok: 'Prêt', part: 'En cours', todo: 'À faire', disp: 'Dispensé' };
@@ -228,7 +229,7 @@ export function buildExport({ classe = '', niveau, trimester, year, projects = [
     consignes: {
       longueur_max: MAX_CHARS, ton: options.ton, formulation: options.formulation,
       redaction: 'Une appréciation de bulletin par élève, ' + MAX_CHARS + ' caractères maximum espaces compris, fondée uniquement sur les critères, la note, la tendance et la remarque fournis. Présence partielle : parler de ce qui a pu être observé, sans en donner la raison.',
-      accords: 'Accorder selon le champ « accord » de l’élève (féminin ou masculin). Sans champ « accord », ne pas deviner le genre d’après le prénom : employer des tournures sans accord (ex. « fait preuve de sérieux » plutôt que « sérieux/sérieuse »), sans écriture inclusive.',
+      accords: 'Accorder selon le champ « accord » de l’élève (féminin ou masculin). « non genré » : choix de l’élève, n’employer aucun accord ni pronom genré (il, elle), seulement des tournures neutres et le prénom. Sans champ « accord », ne pas deviner le genre d’après le prénom : employer des tournures sans accord (ex. « fait preuve de sérieux » plutôt que « sérieux/sérieuse »), sans écriture inclusive.',
       retour: 'Renvoyer un fichier JSON { "format": "carnet-appreciations-v1", "export_id": (le même), "classe": (la même), "appreciations": [ { "code": "E01", "texte": "…" } ] }',
     },
     eleves,

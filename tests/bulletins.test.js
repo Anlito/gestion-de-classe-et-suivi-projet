@@ -78,8 +78,9 @@ test('Retour : texte collé avec ```json, codes rattachés, trop long signalé',
 });
 test('Export : accord féminin ou masculin seulement si renseigné, consigne sans accord sinon', () => {
   const st = (id, genre) => ({ student: { id, prenom: 'Camille', genre }, rec: { presence: 'normale', levels: {}, details: {} }, note: 12 });
-  const { data } = buildExport({ niveau: '3e', trimester: 1, year: 'y', options: opts, exportId: 'x', entries: [st('a', 'f'), st('b', 'm'), st('c', '')] });
-  eq(data.eleves[0].accord, 'féminin'); eq(data.eleves[1].accord, 'masculin'); eq('accord' in data.eleves[2], false);
+  const { data } = buildExport({ niveau: '3e', trimester: 1, year: 'y', options: opts, exportId: 'x', entries: [st('a', 'f'), st('b', 'm'), st('c', ''), st('d', 'n')] });
+  eq(data.eleves[0].accord, 'féminin'); eq(data.eleves[1].accord, 'masculin'); eq('accord' in data.eleves[2], false); eq(data.eleves[3].accord, 'non genré');
+  eq(/non genré/.test(data.consignes.accords), true);
   eq(/sans accord/.test(data.consignes.accords), true);
 });
 test('Export : nom de la classe dans le fichier et dans son nom', () => {

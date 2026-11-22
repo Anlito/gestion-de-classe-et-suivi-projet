@@ -1,5 +1,9 @@
 # Carnet de classe — gestion de classe et suivi de projet
 
+## Version 1.32.1 · Bulletins : accord « Non genré » · 22 novembre 2026
+
+Demande du professeur : une catégorie non genrée pour les élèves qui le préfèrent. Le choix de la fiche élève devient **Fille / Garçon / Non genré** (`genre` = `n`). L’export indique `"accord": "non genré"` et la consigne `accords` précise que c’est le choix de l’élève : aucun accord ni pronom genré (il, elle), seulement des tournures neutres et le prénom. Différence avec « non renseigné » : même écriture neutre, mais c’est un choix enregistré. Fichiers : bulletins.js, screens/bulletins.js, tests/bulletins.test.js, nav.js et sw.js. Vérifications : 255 tests réussis ; navigateur sur la démonstration (Non genré pour Lina, accord dans l’aperçu de l’export).
+
 ## Version 1.32.0 · Bulletins : accord Fille / Garçon des appréciations · 22 novembre 2026
 
 Demande du professeur : pouvoir accorder les appréciations sans que Claude devine le genre d’après le prénom. La fiche élève de l’onglet Bulletins commence par **Accord des appréciations : Fille / Garçon** (champ `genre` de l’élève, `f` ou `m`, gardé toute l’année et conservé à la réimportation de la classe ; retoucher le bouton actif l’efface). L’export pour Claude ajoute `"accord": "féminin"` ou `"masculin"` aux élèves renseignés, et une consigne `accords` : s’y conformer ; sans accord, ne pas deviner d’après le prénom et employer des tournures sans accord (« fait preuve de sérieux »), sans écriture inclusive. Correction au passage : la rangée des prénoms en haut de la fiche n’est plus écrasée. Fichiers : bulletins.js, screens/bulletins.js, app.css, tests/bulletins.test.js, nav.js et sw.js. Vérifications : 255 tests réussis ; navigateur sur la démonstration (choix Fille pour Lana, accord dans l’aperçu de l’export).
