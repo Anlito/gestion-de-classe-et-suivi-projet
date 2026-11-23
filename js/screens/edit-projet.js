@@ -5,7 +5,7 @@ import * as model from '../model.js';
 import { html, toast, confirmDialog } from '../ui.js';
 import { icon, backLink } from '../components.js';
 import { go, refresh } from '../nav.js';
-import { THEMES, COMPETENCES, NIVEAUX, SOURCE, SOCLE, SOCLE_SOURCE, socleLabel, MOTS, norm } from '../programme.js';
+import { THEMES, COMPETENCES, NIVEAUX, SOURCE, SOCLE, SOCLE_SOURCE, socleLabel, MOTS, norm, CYCLE3, CYCLE3_SOURCE, cycle3Label } from '../programme.js';
 import * as prepa from '../prepa.js';
 
 let draft = null; // copie de travail, enregistrée seulement avec « Enregistrer »
@@ -24,13 +24,15 @@ const matches = (words, ...texts) => { const t = norm(texts.join(' ')); return w
 function defaultLevel() {
   if (!draft.id) return 'all';
   const lv = [...new Set(model.assignmentsOfProject(draft.id).map(a => db.get('classes', a.classId)).filter(Boolean).map(c => c.level))];
-  return lv.length === 1 && NIVEAUX.includes(lv[0]) ? lv[0] : 'all';
+  return lv.length === 1 && (lv[0] === '6e' || NIVEAUX.includes(lv[0])) ? lv[0] : 'all';
 }
 
 function pickerView() {
   const multi = !picker.target;
   const target = multi ? null : crit(picker.target);
-  const levels = picker.level === 'all' ? NIVEAUX : [picker.level];
+  // 6e : programme de cycle 3 seul ; 5e, 4e, 3e : cycle 4 seul ; Tous : les deux.
+  const showC3 = picker.level === 'all' || picker.level === '6e';
+  const levels = picker.level === 'all' ? NIVEAUX : picker.level === '6e' ? [] : [picker.level];
   const words = norm(picker.q).split(/\s+/).filter(Boolean);
   const searching = words.length > 0;
   // Compétences du programme à afficher, avec leurs repères (filtrés par la recherche).
@@ -41,14 +43,20 @@ function pickerView() {
       items: levels.flatMap(lv => p.reperes[lv].map((r, ri) => ({ lv, r, key: `${c.n}.${pi}.${lv}.${ri}` })))
         .filter(x => !searching || compHit || matches(words, x.r, p.title)),
     })).filter(p => p.items.length);
-    return { c, parts, show: !searching || compHit || parts.length > 0 };
+    return { c, parts, show: levels.length > 0 && (!searching || compHit || parts.length > 0) };
   });
+  const c3View = showC3 ? CYCLE3.map((p, pi) => {
+    const hit = searching && matches(words, p.title, p.mots);
+    const items = [...p.objectifs.map((o, i) => ({ o, key: `C3|${pi}|${i}` })), ...p.activites.map((o, i) => ({ o, key: `C3|${pi}|a${i}`, act: true }))]
+      .filter(x => !searching || hit || matches(words, x.o));
+    return { p, pi, items, show: !searching || hit || items.length > 0 };
+  }) : [];
   const socleView = SOCLE.map(d => {
     const hit = searching && matches(words, d.code, d.label, d.mots);
     const objs = d.objectifs.map((o, i) => ({ o, key: `S|${d.code}|${i}` })).filter(x => !searching || hit || matches(words, x.o));
     return { d, objs, show: !searching || hit || objs.length > 0 };
   });
-  const nothing = searching && !progView.some(v => v.show) && !socleView.some(v => v.show);
+  const nothing = searching && !progView.some(v => v.show) && !socleView.some(v => v.show) && !c3View.some(v => v.show);
   const pickBtn = (key, label, pronote, sub = '') => {
     const on = picker.sel.has(key);
     return html`<button type="button" class="prog-item${on ? ' on' : ''}" data-click="progPick" data-key="${key}" data-label="${label}" data-pronote="${pronote}">
@@ -64,14 +72,38 @@ function pickerView() {
         <div class="stack-tight">
           <input class="input" type="search" data-input="progSearch" value="${picker.q}" aria-label="Rechercher dans le programme et le socle"
             placeholder="Rechercher : ergonomie, oral, équipe, modélisation…">
-          <div class="segmented">${[['all', 'Tous'], ...NIVEAUX.map(n => [n, n])].map(([k, l]) =>
+          <div class="segmented">${[['all', 'Tous'], ['6e', '6e'], ...NIVEAUX.map(n => [n, n])].map(([k, l]) =>
             html`<button type="button" class="seg${picker.level === k ? ' on' : ''}" data-click="progLevel" data-k="${k}">${l}</button>`)}</div>
           <div class="muted small">${multi ? 'Touchez les repères à évaluer : chacun devient un critère. Le travail en équipe, l’organisation, l’autonomie et l’oral sont dans le socle commun, en bas.' : 'Touchez un repère ou une compétence pour ce critère.'}
             Seule la colonne « Compétence Pronote » est remplie (compétence de fin de cycle) : l’intitulé reste le vôtre.</div>
         </div>
         ${nothing ? html`<div class="muted">Rien ne correspond à « ${picker.q} ». Essayez un autre mot (ex. « tâches », « prototype », « oral »).</div>` : ''}
+        ${c3View.some(v => v.show) ? html`<div class="prog-theme">
+          <div class="caps">Cycle 3 · 6e</div>
+          <div class="prog-theme-title">Les objets techniques au cœur de la société</div>
+          <div class="muted small">En 6e, le programme n’a pas de partie technologie à part : la démarche de projet est décrite en CM2, la description des objets en CM1.
+            Ce sont les objectifs de fin de cycle 3, à viser en 6e et en 6e SEGPA.</div>
+          ${c3View.filter(v => v.show).map(({ p, pi, items }) => {
+            const open = searching || picker.open.has(`C3-${pi}`);
+            const count = [...picker.sel.keys()].filter(k => k.startsWith(`C3|${pi}|`)).length;
+            return html`<div class="prog-comp${open ? ' open' : ''}">
+              <button type="button" class="prog-comp-head" data-click="progToggle" data-n="C3-${pi}" aria-expanded="${open ? 'true' : 'false'}">
+                <span class="prog-n prog-n-wide">${p.niveau}</span><span class="grow">${p.title}</span>
+                ${count ? html`<span class="chip accent">${count}</span>` : ''}${icon.down}
+              </button>
+              ${open ? html`<div class="prog-comp-body">
+                ${pickBtn(`C3|${pi}|all`, 'Toute la partie (sans objectif précis)', cycle3Label(p))}
+                ${items.some(x => !x.act) ? html`<div class="prog-part">Objectifs d’apprentissage</div>` : ''}
+                ${items.filter(x => !x.act).map(x => pickBtn(x.key, x.o, cycle3Label(p)))}
+                ${items.some(x => x.act) ? html`<div class="prog-part">Activités proposées par le programme</div>` : ''}
+                ${items.filter(x => x.act).map(x => pickBtn(x.key, x.o, cycle3Label(p)))}
+              </div>` : ''}
+            </div>`;
+          })}
+          <div class="muted xsmall">${CYCLE3_SOURCE}</div>
+        </div>` : ''}
         ${THEMES.map((t, ti) => progView.some(v => v.c.theme === ti && v.show) ? html`<div class="prog-theme">
-          <div class="caps">Programme · thème ${ti + 1}</div>
+          <div class="caps">Cycle 4 · thème ${ti + 1}</div>
           <div class="prog-theme-title">${t.title}</div>
           ${progView.filter(v => v.c.theme === ti && v.show).map(({ c, parts }) => {
             const open = searching || picker.open.has(String(c.n));
@@ -224,6 +256,8 @@ export default {
       const dom = c && SOCLE.find(d => socleLabel(d) === c.pronote);
       if (comp) picker.open.add(String(comp.n));
       if (dom) picker.open.add(dom.code);
+      const c3 = c ? CYCLE3.findIndex(p => cycle3Label(p) === c.pronote) : -1;
+      if (c3 >= 0) { picker.open.add(`C3-${c3}`); if (picker.level !== 'all') picker.level = '6e'; }
       refresh();
     },
     closePicker() { picker = null; refresh(); },

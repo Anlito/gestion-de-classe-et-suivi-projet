@@ -326,3 +326,67 @@ export const MOTS = {
 
 // Texte en minuscules sans accents, pour comparer la recherche.
 export const norm = s => String(s).toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’']/g, ' ');
+
+// Programme de sciences et technologie du cycle 3 (CM1, CM2, 6e) : partie technologique.
+// En 6e, le programme n'a pas de partie technologie propre : la démarche de projet est décrite en CM2,
+// la description des objets en CM1, et la 6e réinvestit l'électricité dans des maquettes.
+// Pour la 6e (et la 6e SEGPA), ces objectifs de fin de cycle servent de repères.
+// Chaque partie : titre (remplit la colonne « Compétence Pronote »), niveau, objectifs officiels,
+// puis activités proposées par le programme (texte officiel, utiles comme intitulés de critères).
+export const CYCLE3_SOURCE = 'Programme de sciences et technologie du cycle 3 (annexe 2) · education.gouv.fr';
+export const CYCLE3 = [
+  { title: 'Les objets techniques en réponse aux besoins des individus et de la société', niveau: 'CM1',
+    objectifs: [
+      'Repérer les évolutions d’un objet dans différents contextes (historique, géographique, économique, culturel, technologique, dans le cadre du développement durable)',
+      'Comparer des réponses à des besoins dans différents contextes',
+    ],
+    activites: [],
+    mots: 'besoin évolution histoire contexte' },
+  { title: 'Description du fonctionnement et de la constitution d’objets techniques', niveau: 'CM1',
+    objectifs: [
+      'Identifier les fonctions assurées par les différents composants ou formes ou matériaux d’un objet technique',
+      'Associer les solutions technologiques aux fonctions techniques',
+      'Représenter graphiquement à l’aide de croquis à main levée les éléments d’un objet technique',
+      'Identifier les sous-ensembles constituant un objet technique',
+      'Décrire à l’aide d’un croquis le fonctionnement d’un objet technique',
+    ],
+    activites: [
+      'À partir des objets techniques étudiés, l’élève réalise un croquis légendé décrivant l’objet et explique son fonctionnement à l’oral ou à l’écrit',
+    ],
+    mots: 'fonction pièces composants éléments croquis schéma légende décrire nommer oral' },
+  { title: 'Démarche de conception et de réalisation d’un objet technique', niveau: 'CM2',
+    objectifs: [
+      'Rechercher des idées de solutions à l’aide de croquis pour résoudre un problème technique donné',
+      'Associer une contrainte à un choix de matériau en fonction de ses propriétés physiques',
+      'Organiser le travail de conception d’une maquette et la fabriquer',
+      'Comparer des solutions par une analyse critique (notamment dans le cadre de la transition écologique et du développement durable)',
+    ],
+    activites: [
+      'L’élève sait planifier le travail au sein de l’équipe, participe au déroulement du projet (coopérer, communiquer, prendre en compte les consignes de sécurité)',
+      'L’élève vérifie que la solution répond au problème posé et apporte des modifications si nécessaire (essai/erreur)',
+    ],
+    mots: 'projet fabrication fabriquer maquette prototype réaliser équipe groupe tâches organisation planifier sécurité outils essai tester vérifier fonctionne matériau imagination solution' },
+  { title: 'Programmation d’objets techniques', niveau: 'CM1 · CM2',
+    objectifs: [
+      'Traduire un programme simple en langage naturel',
+      'Utiliser un programme pour agir sur le comportement d’un objet technique',
+      'Comprendre un algorithme agissant sur le comportement d’un objet technique',
+      'Modifier, tester et valider un programme au regard du comportement de l’objet programmé',
+    ],
+    activites: [],
+    mots: 'programmation programme algorithme scratch robot code blocs' },
+  { title: 'Électricité', niveau: '6e',
+    objectifs: [
+      'Mettre en évidence expérimentalement la possibilité d’intervertir les positions des composants d’un circuit à une boucle et prévoir sur un nouveau circuit que l’inversion des composants ne modifie pas leur fonctionnement',
+      'Réaliser un circuit électrique à une boucle avec un convertisseur d’énergie (moteur, élément photovoltaïque, etc.)',
+      'Réaliser un circuit électrique à une boucle avec un capteur (de température, d’éclairement, de mouvement, etc.)',
+      'Donner une représentation schématique normalisée du circuit électrique réalisé',
+      'Rechercher des informations sur les règles de sécurité électrique et les prendre en compte dans son activité',
+    ],
+    activites: [
+      'L’élève réalise une maquette d’objet technique utilisant un circuit électrique simple avec un capteur',
+    ],
+    mots: 'électricité circuit pile moteur capteur ampoule schéma sécurité maquette' },
+];
+// Libellé mis dans la colonne « Compétence Pronote » pour une partie du cycle 3.
+export const cycle3Label = p => `Cycle 3 · ${p.title}`;
