@@ -30,6 +30,7 @@ import ppAudio from './screens/pp-audio.js';
 import ppProcedures from './screens/pp-procedures.js';
 import ppPap from './screens/pp-pap.js';
 import ppDataQuality from './screens/pp-data-quality.js';
+import ppClassNotes from './screens/pp-class-notes.js';
 import ppCSV from './screens/pp-csv.js';
 import ppPreparation from './screens/pp-meeting-preparation.js';
 import ppTranscription from './screens/pp-transcription.js';
@@ -52,6 +53,7 @@ import { initUpdates } from './update.js';
 const ROUTES = [
   [/^#\/pp\/imports\/([^/]+)\/csv$/, ppCSV, ['classId']],
   [/^#\/pp\/classe\/([^/]+)\/qualite$/, ppDataQuality, ['classId']],
+  [/^#\/pp\/classe\/([^/]+)\/carnet$/, ppClassNotes, ['classId']],
   [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv\/evenement\/([^/]+)$/, ppPreparation, ['studentId','eventId']],
   [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv\/note\/([^/]+)$/, ppPreparation, ['studentId','preparationId']],
   [/^#\/pp\/eleve\/([^/]+)\/preparer-rdv$/, ppPreparation, ['studentId']],

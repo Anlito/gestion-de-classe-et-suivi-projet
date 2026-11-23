@@ -235,3 +235,13 @@
 .pap-rep { padding: 10px 12px; border-radius: 12px; background: var(--bg); }
 .pap-rep-autre { margin-top: 6px; gap: 8px; }
 .pap-rep-com { margin: 6px 0 0; font-style: italic; white-space: pre-wrap; }
+/* Carnet de la classe PP : liste des notes + formulaire. */
+.pp-cnote-grid {display:grid;grid-template-columns:minmax(300px,1.2fr) minmax(320px,1fr);gap:12px;padding:12px;overflow:hidden;}
+.pp-cnote-grid.closed {grid-template-columns:minmax(0,1fr);}
+.pp-cnote-grid .panel {overflow:hidden;}
+.pp-cnote-grid .panel-head {gap:8px;}
+.pp-cnote-search {flex:1 1 140px;min-width:120px;}
+.pp-cnote.memo .check-row strong {font-weight:600;}
+.pp-cnote.done .check-row strong, .pp-cnote.done .pp-record-text {text-decoration:line-through;color:var(--ink2);}
+.pp-cnote[hidden] {display:none;}
+@media(max-width:780px){.pp-cnote-grid{display:flex;flex-direction:column;justify-content:flex-start;overflow:auto}.pp-cnote-grid>.panel{flex:none;min-height:240px}.pp-cnote-grid>#pp-cnote-editor{order:-1}.pp-cnote-grid .segmented{flex-wrap:wrap}}

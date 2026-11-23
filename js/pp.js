@@ -35,7 +35,7 @@ export function buildEntry(data, previous = null) {
     const target=type==='event'?db.get('evenements',ref):type==='record'?latest({studentId:s?.id}).find(r=>r.entityId===ref&&r.entityId!==previous?.entityId&&['council','document','note','progress','measure','procedure','meetingPreparation','alertState'].includes(r.kind)):null;
     if(!s||!target||target.studentId!==s.id||(target.classId&&target.classId!==classId)||target.cancelled)throw Error('Choisissez un élément lié au même élève.');
   }
-  const tool = { measure:'vieScolaire', task: 'actions', note: 'notes', progress: 'notes', carnet: 'carnet', document: 'documents', council: 'conseils' }[kind];
+  const tool = { measure:'vieScolaire', task: 'actions', note: 'notes', progress: 'notes', classNote: 'notes', carnet: 'carnet', document: 'documents', council: 'conseils' }[kind];
   if (!tool || !enabled(tool)) throw new Error('Cet outil est désactivé.');
   if (data.due && !validISODate(data.due)) throw new Error('Vérifiez la date d’échéance.');
   if (data.date && !validISODate(data.date)) throw new Error('Vérifiez la date.');
