@@ -2,7 +2,7 @@
 import * as db from '../db.js';
 import * as model from '../model.js';
 import { html, toast, openMenu, fmtDay } from '../ui.js';
-import { icon, backLink, tabBar, projectSwitch, photo } from '../components.js';
+import { icon, backLink, tabBar, projectSwitch, photo, face } from '../components.js';
 import { go, refresh } from '../nav.js';
 import * as labo from '../labo-blocs.js';
 
@@ -10,6 +10,8 @@ const STATUSES = ['cours', 'avenir', 'fini'];
 let drawer = null; // { aid, gid, sid } : panneau « Ajustement individuel » ouvert
 let importLB = null; // { aid, resultats, prop, fichier } : panneau « Importer des résultats Labo Blocs » ouvert
 let bilanUI = null; // { aid, t, chosen:[critId] } : panneau « Bilan d'étape » ouvert (1.40.0)
+// Affichage « Groupes » (tableau d'évaluation) ou « Élèves A→Z » (liste par ordre alphabétique, pour la saisie Pronote).
+let vue = (() => { try { return localStorage.getItem('notes.vue') === 'eleves' ? 'eleves' : 'groupes'; } catch (e) { return 'groupes'; } })();
 const pending = new Map(); // saisies de texte en attente d'enregistrement
 let timer = null;
 
@@ -88,7 +90,7 @@ function bilanView(a, p, c) {
             <span><strong>${cr.code}</strong> ${cr.label}${cr.pronote ? html` <span class="muted xsmall">${cr.pronote}</span>` : ''}</span></label>`)}
         </section>
         <section class="stack"><div class="strong-15">Notes d’étape</div>
-          ${rows.length ? html`<div class="bilan-notes">${rows.map(r => html`<div class="bilan-row"><span class="grow">${r.s.prenom} <span class="muted">${r.s.nom || ''}</span></span>
+          ${rows.length ? html`<div class="bilan-notes">${rows.map(r => html`<div class="bilan-row"><span class="grow">${face(r.s)}${r.s.prenom} <span class="muted">${r.s.nom || ''}</span></span>
             ${existing ? html`<span class="muted xsmall">figée : ${model.f1(r.old)}</span>` : ''}<strong>${model.f1(r.n)}</strong></div>`)}</div>`
             : html`<div class="muted small">Aucun élève dans les groupes de ce projet.</div>`}
         </section>
@@ -122,9 +124,9 @@ function drawerView(a, p) {
         <button type="button" class="btn accent" data-click="closeDrawer">Terminé</button></div>
       <div class="drawer-body" data-scroll="drawer">
         <div class="chips-row">${members.map(m => html`<button type="button" class="pill${m.id === drawer.sid ? ' on' : ''}" data-click="drawerStudent" data-sid="${m.id}">
-          ${m.prenom}${model.hasAdjustment(a.id, m.id) ? ' ✎' : ''}</button>`)}</div>
+          ${face(m, 'lg')}${m.prenom}${model.hasAdjustment(a.id, m.id) ? ' ✎' : ''}</button>`)}</div>
         ${s ? html`
-        <div class="note-box"><span class="grow">Note de <strong>${s.prenom}</strong></span>
+        <div class="note-box"><span class="grow">${face(s, 'lg')}Note de <strong>${s.prenom}</strong></span>
           <span class="note-big">${model.f1(ind.n)}</span><span class="muted small">groupe : ${model.f1(grp.n)}</span></div>
         ${(() => {
           const missed = model.absencesInAssignment(a.id, s.id);
@@ -216,6 +218,40 @@ function importView(a, p, c) {
     </aside>`;
 }
 
+// ---------- Liste des élèves par ordre alphabétique (1.44.0) ----------
+// Même ordre que Pronote (nom puis prénom) : on recopie les notes de haut en bas, ou on les colle d'un coup.
+function studentRows(a, crit) {
+  return model.studentsOf(a.classId).map(s => {
+    const g = db.all('groups').find(x => x.assignmentId === a.id && x.members.includes(s.id)) || null;
+    const evaluated = !!(g || model.evalOf(a.id, s.id));
+    const levels = evaluated ? model.studentLevels(a.id, s.id) : {};
+    return { s, g, evaluated, levels, adj: model.hasAdjustment(a.id, s.id), r: evaluated ? model.computeNote(levels, crit) : { n: null, complete: false } };
+  });
+}
+function studentsView(a, crit) {
+  const rows = studentRows(a, crit);
+  return html`<div class="grade-table st-table">
+    <div class="gt-row gt-head">
+      <div class="gt-group">Élève</div>
+      ${crit.map(cr => html`<div class="gt-crit"><span class="gt-code">${cr.code}</span><span class="gt-label">${cr.label}</span></div>`)}
+      <div class="gt-note">/20</div><div class="gt-mention">Mention</div>
+    </div>
+    <div class="gt-body" data-scroll="eleves">
+      ${rows.map(({ s, g, evaluated, levels, adj, r }) => html`<div class="gt-row st-row">
+        <button type="button" class="gt-group gt-gbtn st-name" data-click="openDrawer" data-gid="${g ? g.id : ''}" data-sid="${s.id}" ${g ? '' : 'disabled'}>
+          <span class="grow gt-gtext"><span class="st-fullname">${face(s, 'sm')}<strong>${(s.nom || '').toUpperCase()}</strong> ${s.prenom}</span>
+            <span class="muted xsmall">${g ? g.code : evaluated ? 'Ancien groupe' : 'Pas de groupe'}${adj ? ' · ajusté ✎' : ''}${model.absencesInAssignment(a.id, s.id).length ? ' · absences' : ''}</span></span>
+          ${g ? icon.chevron : ''}
+        </button>
+        ${crit.map(cr => { const v = levels[cr.id]; return html`<div class="gt-crit">${v == null ? html`<span class="muted">—</span>` : html`<span class="lvl-cell st-lvl" style="background:${lvl(v).bg};color:${lvl(v).fg}" title="${lvl(v).name}">${v}</span>`}</div>`; })}
+        <div class="gt-note"><span class="note-val${r.complete ? '' : ' muted'}">${model.f1(r.n)}</span>
+          ${r.n != null && !r.complete ? html`<span class="muted xsmall">provisoire ${r.filled}/${r.total}</span>` : ''}</div>
+        <div class="gt-mention">${r.complete ? model.mention(r.n) : '—'}</div>
+      </div>`)}
+    </div>
+  </div>`;
+}
+
 export default {
   render({ classId }) {
     const c = db.get('classes', classId);
@@ -255,15 +291,19 @@ export default {
       ${head}
       <main class="content notes">
         <div class="notes-bar">
-          <span class="notes-title">Évaluation des groupes</span>
+          <span class="notes-title">${vue === 'eleves' ? 'Notes des élèves' : 'Évaluation des groupes'}</span>
+          ${groups.length ? html`<div class="segmented notes-vue">
+            <button type="button" class="seg${vue === 'groupes' ? ' on' : ''}" data-click="vue" data-v="groupes">Groupes</button>
+            <button type="button" class="seg${vue === 'eleves' ? ' on' : ''}" data-click="vue" data-v="eleves">Élèves A→Z</button></div>` : ''}
           ${a.status === 'fini' ? html`<span class="chip pos">Projet terminé</span>` : ''}
           ${bilans.map(b => html`<button type="button" class="chip bilan-chip" data-click="openBilan" data-t="${b.trimester}" title="Note d’étape figée le ${fmtDay(b.at)} sur ${b.criteria.length} critère${b.criteria.length > 1 ? 's' : ''}">Bilan d’étape T${b.trimester} ✓</button>`)}
           ${groups.length && (a.status !== 'fini' || bilans.length) ? html`<button type="button" class="btn soft small" data-click="openBilan" data-t="${model.trimester()}">Bilan d’étape</button>` : ''}
           <span class="spacer"></span>
-          ${boutonImport()}
+          ${vue === 'eleves' && groups.length ? html`<button type="button" class="btn soft small" data-click="copierNotes" title="Une note par ligne, dans l’ordre de la liste : à coller dans la colonne du devoir sur Pronote">Copier les notes</button>` : ''}
+          ${vue === 'eleves' && groups.length ? '' : boutonImport()}
           <div class="legend-lvls">${model.LEVELS.map(l => html`<span class="legend-lvl"><span class="lvl-dot" style="background:${l.bg};color:${l.fg}">${l.v}</span>${l.pronote}</span>`)}</div>
         </div>
-        ${groups.length ? html`<div class="grade-table">
+        ${groups.length && vue === 'eleves' ? studentsView(a, crit) : groups.length ? html`<div class="grade-table">
           <div class="gt-row gt-head">
             <div class="gt-group">Groupe</div>
             ${crit.map(cr => html`<div class="gt-crit"><span class="gt-code">${cr.code}</span><span class="gt-label">${cr.label}</span></div>`)}
@@ -274,14 +314,14 @@ export default {
               const r = model.computeNote(g.levels, crit);
               const members = g.members.map(id => db.get('students', id)).filter(Boolean);
               const adj = members.filter(s => model.hasAdjustment(a.id, s.id))
-                .map(s => s.prenom + ' : ' + model.f1(model.computeNote(model.studentLevels(a.id, s.id), crit).n));
-              const absN = members.filter(s => model.absencesInAssignment(a.id, s.id).length).map(s => s.prenom);
+                .map(s => html`${face(s, 'sm')}${s.prenom} : ${model.f1(model.computeNote(model.studentLevels(a.id, s.id), crit).n)}`);
+              const absN = members.filter(s => model.absencesInAssignment(a.id, s.id).length).map(s => html`${face(s, 'sm')}${s.prenom}`);
               return html`<div class="gt-row">
                 <button type="button" class="gt-group gt-gbtn" data-click="openDrawer" data-gid="${g.id}">
                   <span class="grow gt-gtext"><span class="gt-gcode">${g.code}</span>
-                    <span class="muted xsmall ellipsis">${members.map(s => s.prenom).join(', ') || 'Aucun élève'}</span>
-                    ${adj.length ? html`<span class="gt-adj">${icon.edit}${adj.join(' · ')}</span>` : ''}
-                    ${absN.length ? html`<span class="gt-abs">Absences : ${absN.join(', ')}</span>` : ''}</span>
+                    <span class="muted xsmall ellipsis">${members.length ? members.map((s, i) => html`${i ? ', ' : ''}${face(s, 'sm')}${s.prenom}`) : 'Aucun élève'}</span>
+                    ${adj.length ? html`<span class="gt-adj">${icon.edit}${adj.map((x, i) => html`${i ? ' · ' : ''}${x}`)}</span>` : ''}
+                    ${absN.length ? html`<span class="gt-abs">Absences : ${absN.map((x, i) => html`${i ? ', ' : ''}${x}`)}</span>` : ''}</span>
                   ${icon.chevron}
                 </button>
                 ${crit.map(cr => html`<div class="gt-crit">${cell(g.levels[cr.id], g.id, cr.id)}${prevMark(lastB, g.levels[cr.id], lastB && lastB.groups[g.id] && lastB.groups[g.id][cr.id])}</div>`)}
@@ -316,6 +356,23 @@ export default {
   leave() { flush(); hidePeek(); drawer = null; importLB = null; bilanUI = null; },
 
   actions: {
+    vue(el) {
+      flush(); hidePeek();
+      vue = el.dataset.v === 'eleves' ? 'eleves' : 'groupes';
+      try { localStorage.setItem('notes.vue', vue); } catch (e) { /* préférence non gardée */ }
+      refresh();
+    },
+    async copierNotes(el, e, { classId }) {
+      flush();
+      const a = model.chosenAssignment(classId, STATUSES);
+      const rows = studentRows(a, db.get('projects', a.projectId).criteria);
+      const text = rows.map(x => (x.r.n == null ? '' : model.f1(x.r.n))).join('\n');
+      const n = rows.filter(x => x.r.n != null).length;
+      try {
+        await navigator.clipboard.writeText(text);
+        toast({ text: `${n} note${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''} (${rows.length} lignes, ordre alphabétique) : collez-les dans la colonne du devoir sur Pronote`, ms: 6000 });
+      } catch (err) { toast({ text: 'Copie impossible : recopiez les notes depuis la liste', ms: 5000 }); }
+    },
     openBilan(el, e, { classId }) {
       flush();
       const a = model.chosenAssignment(classId, STATUSES);
@@ -417,7 +474,7 @@ export default {
       flush();
       const a = model.chosenAssignment(classId, STATUSES);
       const g = db.get('groups', el.dataset.gid);
-      const first = g.members.find(id => model.hasAdjustment(a.id, id)) || g.members[0];
+      const first = (el.dataset.sid && g.members.includes(el.dataset.sid) ? el.dataset.sid : null) || g.members.find(id => model.hasAdjustment(a.id, id)) || g.members[0];
       drawer = { aid: a.id, gid: g.id, sid: first };
       refresh();
     },

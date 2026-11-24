@@ -8,7 +8,7 @@ import { isOverdue } from '../pp-rules.js';
 import { isMasteryLayout, previousResultText, annualBulletinRows } from '../pronote-import.js';
 import { schoolHistory, measureEditor, measureExtras, classReportSummary, disciplineColumnInfo } from '../school-life.js';
 import { html, raw, toast, todayISO, fmtDate, confirmDialog } from '../ui.js';
-import { icon, photo, backLink, saveStatus } from '../components.js';
+import { icon, photo, face, backLink, saveStatus } from '../components.js';
 import { go, refresh } from '../nav.js';
 
 let st = { classId: '', studentId: '', tab: 'journal', filter: '', trimester: 1, collective: false, notesView:'active', editId: null, form: {}, file: null, busy: false, editorOpen:false };
@@ -131,7 +131,7 @@ function classSidebar(c, current = 'recap') {
   return html`<section class="panel pp-sidebar"><div class="pp-class-heading"><span class="title">${c.name}</span><span class="muted small">${model.studentsOf(c.id).length} élèves · Suivi PP</span></div>
     <div class="pp-class-nav"><a class="pp-pupil${current === 'recap' ? ' current' : ''}" href="#/pp/classe/${c.id}" ${current === 'recap' ? raw('aria-current="page"') : ''}>${icon.grid}Récap classe</a></div>
     <div class="pp-search"><input class="input" aria-label="Rechercher un élève" placeholder="Rechercher un élève" data-input="search" value="${st.filter}"></div>
-    <div class="panel-scroll" data-scroll="pp-pupils">${model.studentsOf(c.id).map(p => html`<a class="pp-pupil" data-pp-pupil href="#/pp/eleve/${p.id}" ${st.filter && !model.fullName(p).toLocaleLowerCase('fr').includes(st.filter.toLocaleLowerCase('fr')) ? 'hidden' : ''}>${p.prenom} <span class="upper">${p.nom}</span></a>`)}</div></section>`;
+    <div class="panel-scroll" data-scroll="pp-pupils">${model.studentsOf(c.id).map(p => html`<a class="pp-pupil" data-pp-pupil href="#/pp/eleve/${p.id}" ${st.filter && !model.fullName(p).toLocaleLowerCase('fr').includes(st.filter.toLocaleLowerCase('fr')) ? 'hidden' : ''}>${face(p)}${p.prenom} <span class="upper">${p.nom}</span></a>`)}</div></section>`;
 }
 function classRecap(c) {
   const trimester = recapPeriod;
@@ -165,7 +165,7 @@ function profile(s, c) {
     <nav class="pp-profile-actions" aria-label="Actions de suivi de l’élève">${actions.map((a,i)=>{const cls='pp-profile-action'+(a.primary?' primary':i===actions.length-1&&secondaryCount%2?' wide':'');return a.href?html`<a class="${cls}" href="${a.href}" title="${a.description||a.label}">${a.icon}<span>${a.label}</span>${a.primary?icon.chevron:''}</a>`:html`<button type="button" class="${cls}" data-click="${a.click}">${a.icon}<span>${a.label}</span></button>`;})}</nav>
     <div class="pp-profile-support"><span>Dispositifs <span class="muted">· toucher pour cocher</span></span><div class="pp-needs" role="group" aria-label="Dispositifs de l’élève">${model.BESOINS.map(b=>html`<button type="button" class="pill small-pill${needs.includes(b.key)?' on':''}" data-click="besoinPP" data-sid="${s.id}" data-k="${b.key}" title="${b.label}" aria-pressed="${needs.includes(b.key)?'true':'false'}">${needs.includes(b.key)?'✓ ':''}${b.key}</button>`)}</div></div>
     <div class="pp-search"><label class="pp-profile-search"><span>Changer d’élève <span class="muted">· ${model.studentsOf(c.id).length}</span></span><input class="input" aria-label="Rechercher un élève" placeholder="Rechercher un élève" data-input="search" value="${st.filter}"></label></div>
-    <div class="panel-scroll" data-scroll="pp-pupils">${pupils.map(p => html`<a class="pp-pupil${p.id === s.id ? ' current' : ''}" data-pp-pupil href="#/pp/eleve/${p.id}" ${p.id === s.id ? raw('aria-current="true"') : ''}>${p.prenom} <span class="upper">${p.nom}</span></a>`)}</div></section>`;
+    <div class="panel-scroll" data-scroll="pp-pupils">${pupils.map(p => html`<a class="pp-pupil${p.id === s.id ? ' current' : ''}" data-pp-pupil href="#/pp/eleve/${p.id}" ${p.id === s.id ? raw('aria-current="true"') : ''}>${face(p)}${p.prenom} <span class="upper">${p.nom}</span></a>`)}</div></section>`;
 }
 export default {
   render(params) {

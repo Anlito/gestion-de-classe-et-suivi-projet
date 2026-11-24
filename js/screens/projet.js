@@ -5,7 +5,7 @@ import * as planning from '../planning.js';
 import * as stats from '../stats.js';
 import { todayISO } from '../ui.js';
 import { html, toast, openMenu, confirmDialog, fmtDayLong, fmtDate } from '../ui.js';
-import { icon, backLink, saveStatus, tabBar } from '../components.js';
+import { icon, backLink, saveStatus, tabBar, face } from '../components.js';
 import { go, refresh } from '../nav.js';
 
 // Séance ouverte dans le journal pour chaque projet.
@@ -80,7 +80,7 @@ export default {
               </div>
               ${res.groups.length ? html`<div class="results-grid">${res.groups.map(g => html`<div class="result">
                   <div class="result-top"><span class="result-code">${g.code}</span><span class="result-note${g.complete ? '' : ' muted'}">${model.f1(g.n)}</span></div>
-                  <div class="result-bottom"><span class="ellipsis">${g.members.map(s => s.prenom).join(', ')}</span>
+                  <div class="result-bottom"><span class="ellipsis">${g.members.map((s, i) => html`${i ? ', ' : ''}${face(s, 'sm')}${s.prenom}`)}</span>
                     <span class="strong-sm">${g.complete ? model.mention(g.n) : g.n == null ? '' : 'provisoire'}</span></div>
                 </div>`)}</div>` : html`<div class="muted small">Aucun groupe pour ce projet.</div>`}
             </div>`

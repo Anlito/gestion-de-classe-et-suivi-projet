@@ -4,7 +4,7 @@ import * as db from '../db.js';
 import * as model from '../model.js';
 import * as B from '../bulletins.js';
 import { html, toast, openMenu, fmtDay } from '../ui.js';
-import { backLink, tabBar, projectSwitch, icon, photo } from '../components.js';
+import { backLink, tabBar, projectSwitch, icon, photo, face } from '../components.js';
 import { go, refresh } from '../nav.js';
 import { giveFile, givenMessage } from '../backup.js';
 import { presenceEleve } from '../stats.js';
@@ -61,7 +61,7 @@ function cell(s, rec, f, t, prev) {
 function row(s, t, aid) {
   const rec = B.recordOf(s, t, undefined, aid), st = B.stateOf(rec), prev = B.previousOf(s, t), c = model.countsOf(s.id, t);
   const name = html`<td class="bul-name"><button type="button" class="bul-namebtn" data-click="open" data-sid="${s.id}">
-    <span class="grow ellipsis"><strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span></span>${hoverPhoto(s)}
+    <span class="grow ellipsis">${face(s)}<strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span></span>${hoverPhoto(s)}
     ${c.pos || c.neg ? html`<span class="bul-obs" title="Carnet, trimestre ${t} : ${c.pos} +, ${c.neg} −">${c.pos ? html`<span class="pos">+${c.pos}</span>` : ''}${c.neg ? html`<span class="neg">−${c.neg}</span>` : ''}</span>` : ''}
     ${moveText(s, t) ? moveChip(s, t) : rec.presence === 'partielle' ? html`<span class="chip warn">Présence partielle</span>` : ''}</button></td>`;
   if (rec.presence === 'dispense') {
@@ -96,7 +96,7 @@ function drawer(classId, s, t, mates, aid) {
       <div class="drawer-body" data-scroll="bul-drawer">
         <div class="bul-who">${photo(s, { cls: 'big' })}<div class="bul-who-txt"><strong>${model.fullName(s)}</strong>
           <span class="muted small">${[moveText(s, t), aid ? B.projectTitle(aid) + ' : ' + (pn == null ? 'pas encore noté' : f1(pn) + (etape ? ' (étape)' : '')) : note.n == null ? '' : 'Note ' + f1(note.n), rec.presence === 'partielle' ? 'Présence partielle' : rec.presence === 'dispense' ? 'Dispensé' : ''].filter(Boolean).join(' · ')}</span></div></div>
-        <div class="chips-row bul-mates">${mates.map(m => html`<button type="button" class="pill${m.id === s.id ? ' on' : ''}" data-click="open" data-sid="${m.id}">${m.prenom}</button>`)}</div>
+        <div class="chips-row bul-mates">${mates.map(m => html`<button type="button" class="pill${m.id === s.id ? ' on' : ''}" data-click="open" data-sid="${m.id}">${face(m)}${m.prenom}</button>`)}</div>
         <div class="bul-block"><span class="caps">Accord des appréciations</span>
           <div class="segmented">${Object.entries(B.GENRES).map(([k, label]) => html`<button type="button" class="seg${s.genre === k ? ' on' : ''}" data-click="genre" data-v="${k}">${label}</button>`)}</div>
           <span class="muted small">${s.genre === 'n' ? 'L’IA écrira sans accord ni pronom genré (il, elle). Réglage gardé pour toute l’année.' : B.GENRES[s.genre] ? 'L’IA accordera au ' + B.ACCORD[s.genre] + '. Réglage gardé pour toute l’année.' : 'Non renseigné : l’IA écrira sans accord (« fait preuve de sérieux »…).'}</span></div>
@@ -213,7 +213,7 @@ function appreciationsView(students, t) {
   return html`<div class="bul-apps">${rows.map(({ s, rec }) => {
     const text = appText(rec), note = rec.presence === 'dispense' ? null : B.noteOf(s, rec, t).n, n = text.length;
     return html`<div class="bul-app${rec.pronote ? ' done' : ''}" data-row="${s.id}">
-      <div class="bul-app-who">${hoverPhoto(s)}<strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span>
+      <div class="bul-app-who">${hoverPhoto(s)}${face(s)}<strong>${s.prenom}</strong> <span class="muted">${s.nom || ''}</span>
         <span class="muted small">${rec.presence === 'dispense' ? 'Dispensé' : 'Note ' + f1(note)}${rec.presence === 'partielle' ? ' · présence partielle' : ''}${moveText(s, t) ? ' · ' + moveText(s, t) : ''}</span></div>
       <div class="bul-app-text"><textarea class="input" rows="3" data-input="app" data-sid="${s.id}"
           placeholder="Pas encore d’appréciation : exportez pour l’IA puis importez sa réponse, ou écrivez-la ici.">${text}</textarea>

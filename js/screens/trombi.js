@@ -5,7 +5,7 @@ import * as model from '../model.js';
 import * as planning from '../planning.js';
 import * as stats from '../stats.js';
 import { html, toast, openMenu, buzz, todayISO, fmtDayLong, choiceDialog } from '../ui.js';
-import { icon, backLink, saveStatus, tabBar, photo } from '../components.js';
+import { icon, backLink, saveStatus, tabBar, photo, face } from '../components.js';
 import { go, refresh } from '../nav.js';
 import { onFaireAppel } from '../alertes.js';
 import * as PC from '../plan-classe.js';
@@ -96,10 +96,10 @@ function presenceView(classId) {
         </div>
         ${P.appels ? html`
           ${P.plusAbsents.length ? html`<div class="stack-tight"><div class="caps">Les plus absents</div>
-            ${P.plusAbsents.map(e => html`<div class="pres-row"><span class="grow"><strong>${e.s.prenom}</strong> ${e.s.nom}</span><span>${e.absences} abs.</span><strong class="pres-pct">${stats.pct(e.taux)}</strong></div>`)}</div>` : html`<div class="muted">Aucune absence sur la période.</div>`}
+            ${P.plusAbsents.map(e => html`<div class="pres-row"><span class="grow">${face(e.s)}<strong>${e.s.prenom}</strong> ${e.s.nom}</span><span>${e.absences} abs.</span><strong class="pres-pct">${stats.pct(e.taux)}</strong></div>`)}</div>` : html`<div class="muted">Aucune absence sur la période.</div>`}
           <div class="stack-tight"><div class="caps">Toute la classe</div>
             ${rows.map(e => html`<button type="button" class="pres-row btnrow" data-click="detail" data-sid="${e.s.id}">
-              <span class="grow"><strong>${e.s.prenom}</strong> ${e.s.nom}</span>
+              <span class="grow">${face(e.s)}<strong>${e.s.prenom}</strong> ${e.s.nom}</span>
               <span class="muted small">${e.absences ? e.absences + ' abs.' : ''}${e.absences && e.retards ? ' · ' : ''}${e.retards ? e.retards + ' ret.' : ''}</span>
               <span class="pres-bar"><span style="width:${Math.round(e.taux * 100)}%"></span></span>
               <strong class="pres-pct">${stats.pct(e.taux)}</strong></button>`)}

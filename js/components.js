@@ -78,6 +78,12 @@ export function projectSwitch(list, current) {
   return html`<button type="button" class="picker" data-click="pickAssignMenu"><span class="muted">Projet :</span><strong>${current ? title(current) : '?'}</strong>${icon.down}</button>`;
 }
 
+// Petite photo ronde à placer devant un prénom ; rien si l'élève n'a pas de photo.
+export function face(student, cls = '') {
+  const url = student && db.photoURL(student.photoId);
+  return url ? html`<img class="face${cls ? ' ' + cls : ''}" src="${url}" alt="" draggable="false">` : '';
+}
+
 // Photo d'élève au format 2:3, ou cadre « Photo manquante ».
 export function photo(student, { cls = '', badge = false, label = true, url: given } = {}) {
   const url = given !== undefined ? given : db.photoURL(student.photoId);

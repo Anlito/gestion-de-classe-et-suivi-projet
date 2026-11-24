@@ -1226,3 +1226,17 @@ textarea.input { height: auto; padding: 12px 14px; line-height: 1.4; resize: non
 .gt-prev { position: absolute; top: 1px; right: 2px; z-index: 1; padding: 1px 4px; border-radius: 6px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); font-size: 10px; font-weight: 800; line-height: 1.2; color: var(--ink2); pointer-events: none; }
 .gt-prev.up { color: var(--pos); } .gt-prev.down { color: var(--neg); }
 .bul-bilan-hint { font-size: 13px; }
+
+/* Petite photo ronde devant un prénom (1.41.0) : seulement si l'élève a une photo. */
+.face { display: inline-block; width: 24px; height: 24px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin: -3px 6px -1px 0; flex: none; background: var(--avatar); }
+.face.sm { width: 18px; height: 18px; margin-right: 4px; }
+.face.lg { width: 30px; height: 30px; margin-right: 8px; }
+.pill .face { margin-left: -6px; }
+/* Notes : liste des élèves par ordre alphabétique (1.44.0) */
+.notes-vue .seg { height: 36px; min-width: 0; font-size: 14px; padding: 0 12px; white-space: nowrap; }
+.notes-vue .seg.on { background: var(--accent); color: var(--accentInk); }
+.st-row { min-height: 48px; }
+.st-name:disabled { opacity: 1; cursor: default; }
+.st-fullname { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-lvl { display: flex; align-items: center; justify-content: center; font-size: 17px; }
+.st-table .gt-group { width: 290px; }
